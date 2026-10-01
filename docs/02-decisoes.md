@@ -52,7 +52,8 @@ Formato:
     turmas, abertura/encerramento da votação — specs 01 e 05).
   - Bibliotecas permitidas: `django`, `psycopg[binary]`, `pytest`,
     `pytest-django`, `qrcode` (QR das estações), `Pillow` (upload de
-    imagens, G14), `gunicorn` e `whitenoise` (deploy). Qualquer outra
+    imagens, G14), `gunicorn` e `whitenoise` (deploy),
+    `django-storages[s3]` (imagens no R2 — ADR-006). Qualquer outra
     exige proposta aqui.
   - Rate limit (G7) com o framework de cache do Django, sem lib extra.
   - Hospedagem: ADR-006 (banco: Neon). Requisitos:
@@ -158,7 +159,7 @@ Formato:
   coordenação.
 
 ## ADR-006 — Hospedagem (banco, servidor, imagens)
-- Status: aceita parcialmente — banco decidido; servidor e imagens até 2026-10-08
+- Status: aceita parcialmente — banco e imagens decididos; servidor até 2026-10-08
 - Data: 2026-10-01
 - Contexto: requisitos da ADR-002 — HTTPS, Postgres gerenciado com backup,
   sem hibernação longa no dia do evento. Time de alunos não deve
@@ -171,9 +172,18 @@ Formato:
     encerrar a votação e após publicar o resultado. O plano gratuito só
     permite voltar ~6 h no tempo — insuficiente como único backup.
   - **Servidor do Django**: a decidir (não pode hibernar por minutos).
-  - **Imagens dos projetos**: a decidir. Plataformas de deploy costumam
-    apagar arquivos enviados a cada novo deploy, então as imagens precisam
-    de armazenamento externo.
+  - **Imagens dos projetos: Cloudflare R2** (armazenamento compatível com
+    S3, sem cobrança de tráfego de saída, 10 GB grátis). Integração via
+    `django-storages[s3]` (inclui `boto3`). Plataformas de deploy apagam
+    arquivos enviados a cada novo deploy — por isso armazenamento externo.
+    - Credencial da aplicação com permissão **só de leitura/escrita
+      naquele bucket** (nunca token de administrador da conta), em
+      variáveis de ambiente (G3).
+    - Imagens servidas por **domínio próprio** ligado ao bucket. O
+      endereço padrão `*.r2.dev` tem limite de requisições e não é para
+      produção. URLs assinadas descartadas: expiram e quebram a prévia do
+      link no WhatsApp, que é o canal de divulgação da vitrine.
+    - Requer cartão ou PayPal cadastrado na Cloudflare, mesmo no grátis.
 - Consequências: Supabase descartado — duplicaria autenticação e API que o
   Django já oferece, pausa o projeto após 1 semana sem uso (o sistema é
   usado em ondas semestrais) e não tem backup no plano gratuito. O Neon

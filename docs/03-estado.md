@@ -20,7 +20,7 @@ a partir dessa data.
 |---|---|---|
 | 05/10 | Representantes com conta no GitHub; módulos distribuídos (`TAREFAS.md`); spec 01 pronta | Guilherme |
 | 07/10 | Esqueleto Django no `main` com CI verde (testes rodando de verdade) | Guilherme |
-| 08/10 | Servidor e armazenamento de imagens decididos (ADR-006; banco já é Neon) e ambiente publicado | Guilherme |
+| 08/10 | Servidor decidido (ADR-006), domínio configurado e ambiente publicado | Guilherme |
 | 14/10 | Cadastro (via admin) + vitrine pública funcionando | módulos 01, 02 |
 | **15/10** | **Vitrine no ar**: alunos cadastram projetos, links começam a circular | todos |
 | 20/10 | Texto LGPD aprovado pela coordenação | Guilherme (externo) |
@@ -55,7 +55,7 @@ a partir dessa data.
       (ADR-004, ADR-005 — coordenador aprova todos os PRs)
 - [x] Referência dos cursos para a modelagem (`docs/referencias/cursos.md`)
 - [x] Stack decidida (ADR-002)
-- [x] Banco: Neon (ADR-006); servidor e imagens pendentes
+- [x] Banco: Neon; imagens: Cloudflare R2 (ADR-006); servidor pendente
 
 ## Em andamento
 
@@ -90,3 +90,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-01 Guilherme: stack decidida (Python + Django + Postgres); evento em 29/10.
 - 2026-10-01 Guilherme: banca com peso 70% (ADR-007); critérios: impacto social, ambiental e talvez comercial.
 - 2026-10-01 Guilherme: banco no Neon (ADR-006); Supabase descartado.
+- 2026-10-01 Guilherme: imagens no Cloudflare R2 (ADR-006).
