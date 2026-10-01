@@ -120,3 +120,39 @@ Formato:
   recomendado. Todo PR de aluno passa por uma pessoa só: gargalo perto do
   evento. Se o coordenador sair, um novo admin precisa assumir o
   `CODEOWNERS`, senão nenhum PR de aluno é mergeável.
+
+## ADR-007 — Avaliação da banca e nota final composta
+- Status: aceita
+- Data: 2026-10-01
+- Contexto: além do voto do público, uma banca avalia os projetos, e o
+  peso da banca deve ser maior. Os dois votos têm naturezas diferentes:
+  o público vota sim/não em quantos projetos quiser (total depende do
+  movimento do evento); a banca dá notas por critério. Multiplicar o voto
+  da banca ("1 jurado = N votos") deixaria o peso real fora de controle.
+- Decisão:
+  - **Resultado oficial = nota composta por turma: 70% banca + 30%
+    público.** Pesos ficam na configuração da edição e são **publicados
+    antes do evento**; não mudam depois de aberta a votação.
+  - **Banca**: cada jurado dá nota **0–10 por critério**. Critérios desta
+    edição: impacto social, impacto ambiental e, a confirmar, impacto
+    comercial. Critérios são **dados da edição** (cadastrados no admin),
+    não código. Nota de banca do projeto = média dos critérios, calculada
+    sobre a média dos jurados que o avaliaram (jurado não precisa avaliar
+    todos os projetos).
+  - **Normalização min-max dentro da turma, para as duas partes**:
+    `b = (banca - menor banca da turma) / (maior - menor)` e
+    `p = (votos - menor) / (maior - menor)`; se maior = menor, vale 1.
+    `final = 0,7·b + 0,3·p`. Desempate: maior nota de banca, depois mais
+    votos do público.
+  - **Jurados têm login próprio** (usuário do Django, grupo "banca") e
+    registram as notas no celular. Avaliação da banca é identificada e
+    auditável — só o voto do público é anônimo. Plano B: ficha impressa
+    com os mesmos critérios, digitada no admin.
+- Consequências: normalizar a banca só por "nota ÷ 10" foi descartado.
+  Bancas costumam dar notas próximas (ex: 6,5 a 8), enquanto os votos do
+  público variam muito; sem min-max, o público dominaria o resultado
+  mesmo com peso de 30%. Com min-max, os 70/30 são o peso real. Custo:
+  turma com 2 projetos vira 0 ou 1 em cada parte (aceito). Novo módulo:
+  spec 06 (avaliação da banca); a spec 04 passa a calcular a nota
+  composta. Os critérios medem impacto, não execução técnica — escolha da
+  coordenação.

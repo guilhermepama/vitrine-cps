@@ -15,6 +15,7 @@ Cada módulo tem **um** representante responsável. Regras:
 | Credenciamento + votação | `specs/03-credenciamento-votacao.md` | — | — | spec pronta |
 | Resultados/relatórios | `specs/04-resultados.md` | — | — | aguardando |
 | Administração | `specs/05-admin.md` | — | — | aguardando |
+| Avaliação da banca | `specs/06-avaliacao-banca.md` | — | — | aguardando |
 | Coordenação, infra, revisão final | — | Guilherme Pama | DSM | ativo |
 
 ## Ordem sugerida de dependências

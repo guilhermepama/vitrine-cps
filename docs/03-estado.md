@@ -25,15 +25,17 @@ a partir dessa data.
 | **15/10** | **Vitrine no ar**: alunos cadastram projetos, links começam a circular | todos |
 | 20/10 | Texto LGPD aprovado pela coordenação | Guilherme (externo) |
 | 23/10 | Credenciamento + votação completos (spec 03) | módulo 03 |
+| 23/10 | Avaliação da banca (spec 06) + critérios e jurados cadastrados | módulo 06 |
 | 24/10 | **Ensaio geral**: estações reais, celulares reais, votos de teste | todos |
 | 27/10 | **Congelamento**: só entram correções de bug | — |
 | 29/10 | Evento | — |
-| 30/10 | Relatório de resultados (consulta no admin basta nesta edição) | módulo 04 |
+| 30/10 | Resultado oficial: nota composta 70% banca + 30% público (ADR-007) | módulo 04 |
 
 ## Escopo desta edição (corte por prazo)
 
 - **Entra**: cadastro pelo admin, vitrine pública, credenciamento + votação
-  completos (com todos os guardrails), relatório simples por turma.
+  completos (com todos os guardrails), avaliação da banca, resultado por
+  turma com nota composta.
 - **Fica para a próxima edição**: painel admin próprio (usar o do Django),
   cadastro de projeto pelo próprio aluno (se não couber até 14/10, o admin
   cadastra), relatórios elaborados.
@@ -69,6 +71,8 @@ Fatec: DSM 1º, 2º, 3º · GTUR 2º, 3º (5 turmas). Etec: a levantar.
   vitrine perde a função de divulgação — cortar escopo antes de atrasar.
 - **Gargalo de revisão**: todo PR passa pelo coordenador. Revisar em até
   24h, principalmente entre 07/10 e 23/10.
+- Pesos e critérios da banca precisam ser **divulgados antes do evento**
+  (ADR-007). Confirmar com a coordenação se "impacto comercial" entra.
 - Texto do consentimento LGPD depende da coordenação (fora do nosso controle)
   e bloqueia o formulário de visitante.
 - Hospedagem com hibernação (plano gratuito que "dorme") quebra o QR no dia
@@ -81,3 +85,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-01 Guilherme: repositório criado e estruturado.
 - 2026-10-01 Guilherme: CI (guardrails, segredos, testes, convenções de PR) e ruleset da main.
 - 2026-10-01 Guilherme: stack decidida (Python + Django + Postgres); evento em 29/10.
+- 2026-10-01 Guilherme: banca com peso 70% (ADR-007); critérios: impacto social, ambiental e talvez comercial.
