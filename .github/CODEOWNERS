@@ -1,16 +1,9 @@
-# Arquivos que definem as regras do jogo. Qualquer PR que toque neles
-# exige aprovação do coordenador — inclusive PRs que tentem afrouxar o CI
-# (um PR roda a versão DELE do workflow, então o CI sozinho não se protege).
+# O coordenador aprova todos os PRs (ADR-005). Combinado com "require code
+# owner review" no ruleset main-aprovacao, nenhum PR de aluno entra sem
+# a aprovação dele — aprovação entre alunos não basta.
 #
-# Recomendado: adicionar um segundo dono (professor ou representante de
-# confiança), senão PRs do próprio coordenador nesses arquivos ficam sem
-# quem aprove. Ex: /docs/01-guardrails.md @guilhermepama @outro-usuario
+# Os PRs do próprio coordenador entram pelo bypass do ruleset
+# main-aprovacao (só via PR, nunca push direto) e continuam presos aos
+# checks do ruleset main-checks, que não tem bypass.
 
-/.github/                @guilhermepama
-/docs/01-guardrails.md   @guilhermepama
-/docs/02-decisoes.md     @guilhermepama
-/AGENTS.md               @guilhermepama
-/CLAUDE.md               @guilhermepama
-/GEMINI.md               @guilhermepama
-/.cursor/                @guilhermepama
-/.claude/                @guilhermepama
+*  @guilhermepama
