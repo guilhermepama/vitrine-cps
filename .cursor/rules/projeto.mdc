@@ -1,0 +1,6 @@
+---
+description: Regras do projeto Vitrine CPS
+alwaysApply: true
+---
+
+Siga as instruções de `AGENTS.md` na raiz do repositório. Ele é a fonte única de regras para agentes de IA neste projeto. Leia também `docs/00-contexto.md`, `docs/01-guardrails.md` e a spec da tarefa em `specs/` antes de gerar código.
