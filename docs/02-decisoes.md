@@ -55,7 +55,7 @@ Formato:
     imagens, G14), `gunicorn` e `whitenoise` (deploy). Qualquer outra
     exige proposta aqui.
   - Rate limit (G7) com o framework de cache do Django, sem lib extra.
-  - Hospedagem: decisão separada (ADR-006), até 2026-10-08. Requisitos:
+  - Hospedagem: ADR-006 (banco: Neon). Requisitos:
     HTTPS, Postgres gerenciado com backup, **sem hibernação no dia do
     evento** (QR escaneado não pode esperar a aplicação "acordar").
 - Consequências: Django escolhido no lugar de Flask, apesar de o time já
@@ -156,3 +156,27 @@ Formato:
   spec 06 (avaliação da banca); a spec 04 passa a calcular a nota
   composta. Os critérios medem impacto, não execução técnica — escolha da
   coordenação.
+
+## ADR-006 — Hospedagem (banco, servidor, imagens)
+- Status: aceita parcialmente — banco decidido; servidor e imagens até 2026-10-08
+- Data: 2026-10-01
+- Contexto: requisitos da ADR-002 — HTTPS, Postgres gerenciado com backup,
+  sem hibernação longa no dia do evento. Time de alunos não deve
+  administrar servidor de banco (backup, atualização, segurança).
+- Decisão:
+  - **Banco: Neon (Postgres gerenciado, plano gratuito).** Só o banco —
+    login, admin e API ficam com o Django. Conexão pelo `DATABASE_URL`.
+    Um branch do Neon para produção; desenvolvimento usa Postgres local.
+  - **Backup manual obrigatório**: `pg_dump` na véspera do evento, ao
+    encerrar a votação e após publicar o resultado. O plano gratuito só
+    permite voltar ~6 h no tempo — insuficiente como único backup.
+  - **Servidor do Django**: a decidir (não pode hibernar por minutos).
+  - **Imagens dos projetos**: a decidir. Plataformas de deploy costumam
+    apagar arquivos enviados a cada novo deploy, então as imagens precisam
+    de armazenamento externo.
+- Consequências: Supabase descartado — duplicaria autenticação e API que o
+  Django já oferece, pausa o projeto após 1 semana sem uso (o sistema é
+  usado em ondas semestrais) e não tem backup no plano gratuito. O Neon
+  "dorme" após 5 min sem acesso, mas acorda em cerca de 1 s — aceitável;
+  no dia do evento o acesso é contínuo. Limites do plano gratuito
+  (verificados em 2026-10-01): 1 GB por projeto, 100 CU-hora/mês.
