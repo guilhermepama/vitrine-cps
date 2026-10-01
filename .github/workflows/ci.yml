@@ -1,0 +1,125 @@
+name: CI
+
+# Os nomes dos jobs (guardrails, segredos, testes, convencoes-pr) são os
+# status checks exigidos no ruleset da main (.github/rulesets/main.json).
+# Renomear um job aqui = atualizar o ruleset, senão o PR trava esperando.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guardrails:
+    name: guardrails
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - name: Testa o próprio verificador
+        run: bash .github/scripts/test-guardrails.sh
+      - name: Verifica guardrails no código
+        run: bash .github/scripts/guardrails.sh
+
+  segredos:
+    name: segredos
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read   # o gitleaks lista os commits do PR pela API
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0   # varre o histórico inteiro, não só o último commit
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: "false"
+
+  testes:
+    name: testes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+
+      # Detecção da stack. Hoje (antes da ADR-002) não há código e o job só
+      # informa. Quando o primeiro manifesto entrar, ele passa a EXIGIR que
+      # existam testes e que passem — sem precisar mexer no ruleset.
+      - name: Detecta stack
+        id: stack
+        run: |
+          if   [ -f package.json ]; then echo "tipo=node"   >> "$GITHUB_OUTPUT"
+          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then echo "tipo=python" >> "$GITHUB_OUTPUT"
+          elif [ -f composer.json ]; then echo "tipo=php" >> "$GITHUB_OUTPUT"
+          else echo "tipo=nenhuma" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sem stack ainda
+        if: steps.stack.outputs.tipo == 'nenhuma'
+        run: |
+          CODIGO=$(git ls-files | grep -vE '^(docs|specs|\.claude|\.cursor|\.github|skills-seed)/|\.(md|mdc)$|^\.(env\.example|gitignore|gitattributes)$' || true)
+          if [ -n "$CODIGO" ]; then
+            echo "::error title=Testes::Há código no repositório mas nenhuma stack reconhecida (package.json, pyproject.toml/requirements.txt, composer.json). Configure este job conforme a ADR-002."
+            echo "$CODIGO"
+            exit 1
+          fi
+          echo "::notice title=Testes::Fase de especificação — nenhum código para testar ainda (ADR-002 pendente)."
+
+      # --- Node / TypeScript ---
+      - if: steps.stack.outputs.tipo == 'node'
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+      - if: steps.stack.outputs.tipo == 'node'
+        run: npm ci
+      - if: steps.stack.outputs.tipo == 'node'
+        run: npm test   # falha se não existir script "test" — de propósito (guardrail 17)
+
+      # --- Python ---
+      - if: steps.stack.outputs.tipo == 'python'
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - if: steps.stack.outputs.tipo == 'python'
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -e ".[dev]" || pip install -e .; fi
+          pip install pytest
+      - if: steps.stack.outputs.tipo == 'python'
+        run: pytest   # sai com erro se nenhum teste for coletado
+
+      # --- PHP ---
+      - if: steps.stack.outputs.tipo == 'php'
+        run: |
+          composer install --no-interaction --prefer-dist
+          composer test   # falha se não existir script "test" no composer.json
+
+  convencoes-pr:
+    name: convencoes-pr
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Verifica convenções do PR
+        env:
+          PR_TITLE:  ${{ github.event.pull_request.title }}
+          PR_BODY:   ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+          BASE_SHA:  ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA:  ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/pr-check.sh

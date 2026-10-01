@@ -1,0 +1,9 @@
+# Normaliza fim de linha. Sem isso, scripts .sh editados no Windows ganham
+# CRLF e quebram no CI (Linux) com erros confusos tipo "$'\r': command not found".
+* text=auto eol=lf
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary

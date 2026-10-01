@@ -19,6 +19,7 @@
 - [x] Guardrails publicados em `docs/01-guardrails.md`
 - [x] Spec 03 (credenciamento/votação) completa — padrão para as demais
 - [x] Esqueleto do repositório no GitHub
+- [x] CI + proteção da `main` (ADR-004) — ruleset a importar nas configurações do GitHub
 
 ## Em andamento
 
@@ -45,3 +46,4 @@
 Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 
 - 2026-10-01 Guilherme: repositório criado e estruturado.
+- 2026-10-01 Guilherme: CI (guardrails, segredos, testes, convenções de PR) e ruleset da main.

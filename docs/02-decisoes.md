@@ -57,3 +57,25 @@ Formato:
   com token ou voto.
 - Consequências: não é possível auditar "quem votou em quem" — por design.
   Métricas cruzadas (ex: taxa de conversão cadastro→voto) só em agregado.
+
+## ADR-004 — CI e proteção da `main`
+- Status: aceita
+- Data: 2026-10-01
+- Contexto: time grande de representantes, código gerado por IA e stack
+  ainda indefinida. Os guardrails precisam de uma barreira automática
+  antes da revisão humana, e essa barreira não pode depender da ADR-002.
+- Decisão: workflow `.github/workflows/ci.yml` com 4 checks obrigatórios
+  na `main` (ruleset em `.github/rulesets/main.json`):
+  `guardrails` (verificador heurístico de G3, G6, G9, G13 — com testes do
+  próprio verificador), `segredos` (gitleaks no histórico), `testes`
+  (detecta a stack; sem código só informa, com código exige testes
+  passando) e `convencoes-pr` (título `modulo: ...`, spec citada no PR com
+  código, G20). Merge só por PR com 1 aprovação, squash, histórico linear,
+  conversas resolvidas, aprovação descartada a cada novo push.
+  `CODEOWNERS` exige o coordenador em `.github/`, guardrails, decisões e
+  instruções de agentes — um PR roda a própria versão do workflow, então o
+  CI sozinho não impede alguém de afrouxá-lo.
+- Consequências: o verificador é heurístico (pega o erro óbvio, não o
+  sutil) — a revisão humana continua obrigatória (G18). Ao aceitar a
+  ADR-002, ajustar o job `testes` e o `dependabot.yml` para a stack.
+  Renomear job do CI exige atualizar o ruleset.
