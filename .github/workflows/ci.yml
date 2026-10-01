@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Testa o próprio verificador
         run: bash .github/scripts/test-guardrails.sh
       - name: Verifica guardrails no código
@@ -38,7 +38,7 @@ jobs:
       contents: read
       pull-requests: read   # o gitleaks lista os commits do PR pela API
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0   # varre o histórico inteiro, não só o último commit
       - uses: gitleaks/gitleaks-action@v3
@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Detecção da stack. Hoje (antes da ADR-002) não há código e o job só
       # informa. Quando o primeiro manifesto entrar, ele passa a EXIGIR que
@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Verifica convenções do PR
