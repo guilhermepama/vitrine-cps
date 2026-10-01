@@ -6,9 +6,10 @@
 >
 > Fontes:
 > - PPC CST em Desenvolvimento de Software Multiplataforma — referência
->   experimental, versão 2026/1º semestre — <!-- TODO: link do site da Fatec -->
+>   experimental, versão 2026/1º semestre —
+>   [PDF](https://bkpsitecpsnew.blob.core.windows.net/uploadsitecps/sites/253/2025/09/PPC-DSM-em-Implantacao-nao-finalizado.pdf)
 > - PPC CST em Gestão de Turismo — referência CNCST, versão 2025/2º semestre —
->   <!-- TODO: link do site da Fatec -->
+>   [PDF](https://bkpsitecpsnew.blob.core.windows.net/uploadsitecps/sites/253/2025/09/PPC-GTUR-em-Implantacao-nao-finalizado.pdf)
 >
 > Cursos da Etec ainda não levantados — ver "Pontos em aberto".
 
@@ -132,4 +133,3 @@ curricular do curso.
 
 - Cursos da Etec que participam da mostra: nomes, duração, se têm projeto
   integrador.
-- Links oficiais dos PPCs (preencher nas fontes acima).
