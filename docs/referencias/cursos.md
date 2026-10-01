@@ -131,5 +131,11 @@ curricular do curso.
 
 ## Pontos em aberto
 
-- Cursos da Etec que participam da mostra: nomes, duração, se têm projeto
-  integrador.
+- **Etec — levantamento pendente (Guilherme).** Perguntar à coordenação:
+  - quais cursos e quais períodos expõem nesta edição;
+  - formato do curso: técnico modular (semestral) ou integrado ao médio
+    (anual — a turma vira "2º ano", não "3º semestre"). **Este é o ponto
+    que pode quebrar o modelo**: a spec 01 deve guardar o período como
+    rótulo livre ou como número + unidade (semestre/ano) desde já;
+  - turnos (Etec costuma ter manhã/tarde, não só noite);
+  - de onde vêm os projetos (TCC, projeto integrador, disciplina).
