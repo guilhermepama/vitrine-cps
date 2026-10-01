@@ -14,6 +14,7 @@ e votação presencial do público no dia do evento.
 | `docs/01-guardrails.md` | Regras inegociáveis de segurança e qualidade |
 | `docs/02-decisoes.md` | Registro de decisões de arquitetura (ADRs) |
 | `docs/03-estado.md` | Estado atual do projeto — leia antes de retomar trabalho |
+| `docs/referencias/cursos.md` | Cursos participantes (DSM, GTUR): semestres, projetos integradores, implicações para a modelagem |
 | `specs/` | Uma spec por módulo — o contrato de cada tarefa |
 | `TAREFAS.md` | Quem é responsável por qual módulo e ordem de dependências |
 | `AGENTS.md` | Instruções para qualquer agente de IA (fonte única) |

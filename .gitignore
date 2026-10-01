@@ -10,3 +10,6 @@ __pycache__/
 vendor/
 .DS_Store
 *.log
+
+# Material de referência local (PPCs etc.) — resumo em docs/referencias/
+docs/docs-seed/
