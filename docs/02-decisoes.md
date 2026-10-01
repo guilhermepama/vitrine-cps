@@ -35,15 +35,37 @@ Formato:
   geolocalização, tokens pré-impressos, cadastro com CPF.
 
 ## ADR-002 — Stack de implementação
-- Status: proposta (DECIDIR ANTES DE DISTRIBUIR TAREFAS DE CÓDIGO)
-- Data: —
+- Status: aceita
+- Data: 2026-10-01
 - Contexto: time de representantes de turmas DSM, desenvolvimento assistido
   por IA (Claude, Cursor e possivelmente outros), sistema recorrente que
   precisa ser mantido por turmas futuras. Critério dominante: manutenção
-  por alunos semestre a semestre > performance.
-- Decisão: (pendente)
-- Consequências: nenhuma spec de código deve fixar linguagem/framework até
-  esta ADR ser aceita.
+  por alunos semestre a semestre > performance. Prazo: evento em
+  2026-10-29 (4 semanas). O PPC do DSM ensina Python (Algoritmos, 1º sem.)
+  e Flask (Web II, 2º sem.); ninguém das turmas atuais estudou TypeScript.
+- Decisão:
+  - **Python 3.12 + Django 5.2 (LTS)**, renderização no servidor com
+    templates do Django. Sem SPA, sem framework de front.
+  - **PostgreSQL** em todos os ambientes que rodam testes ou produção
+    (SQLite não reproduz a concorrência do voto — G4).
+  - **Admin do Django** como painel administrativo (cadastro de edições,
+    turmas, abertura/encerramento da votação — specs 01 e 05).
+  - Bibliotecas permitidas: `django`, `psycopg[binary]`, `pytest`,
+    `pytest-django`, `qrcode` (QR das estações), `Pillow` (upload de
+    imagens, G14), `gunicorn` e `whitenoise` (deploy). Qualquer outra
+    exige proposta aqui.
+  - Rate limit (G7) com o framework de cache do Django, sem lib extra.
+  - Hospedagem: decisão separada (ADR-006), até 2026-10-08. Requisitos:
+    HTTPS, Postgres gerenciado com backup, **sem hibernação no dia do
+    evento** (QR escaneado não pode esperar a aplicação "acordar").
+- Consequências: Django escolhido no lugar de Flask, apesar de o time já
+  conhecer Flask, porque impõe uma estrutura única (apps, models,
+  migrations) — com vários alunos gerando código por IA, Flask viraria
+  várias arquiteturas no mesmo repositório. O admin, as migrations (G16),
+  o ORM parametrizado (G13), a validação de formulários (G12) e
+  `transaction.atomic` + `UniqueConstraint` (G4) vêm prontos. Custo:
+  curva de aprendizado das convenções do Django. TypeScript/Node
+  descartado por ser linguagem nova para o time no prazo disponível.
 
 ## ADR-003 — Captação de visitantes desacoplada do voto
 - Status: aceita

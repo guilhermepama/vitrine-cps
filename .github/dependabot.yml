@@ -8,3 +8,15 @@ updates:
       interval: monthly
     commit-message:
       prefix: "ci"
+
+  # Dependências Python (ADR-002). Só patches/minors; major do Django é
+  # decisão de ADR, não de bot.
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "deps"
+    ignore:
+      - dependency-name: "django"
+        update-types: ["version-update:semver-major"]

@@ -4,7 +4,7 @@ Plataforma da mostra semestral de projetos da FATEC Olímpia e Etec (Centro
 Paula Souza): cadastro de projetos por turma, página pública de divulgação
 e votação presencial do público no dia do evento.
 
-**Status**: fase de especificação. Stack ainda não definida (ver ADR-002).
+**Status**: início do código. Stack: Python + Django + PostgreSQL (ADR-002). Evento: 29/10/2026.
 
 ## Comece por aqui
 
