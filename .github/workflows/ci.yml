@@ -50,61 +50,55 @@ jobs:
     name: testes
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Postgres real, não SQLite: a unicidade do voto (G4) e a transação
+    # atômica precisam ser testadas no mesmo banco da produção.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: vitrine
+          POSTGRES_PASSWORD: vitrine
+          POSTGRES_DB: vitrine_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U vitrine"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://vitrine:vitrine@localhost:5432/vitrine_test
+      # Valor fixo só de teste. O segredo real vive no ambiente de produção (G3).
+      QR_HMAC_SECRET: testetestetestetestetestetestete
+      DJANGO_SECRET_KEY: testetestetestetestetestetestete
     steps:
       - uses: actions/checkout@v7
 
-      # Detecção da stack. Hoje (antes da ADR-002) não há código e o job só
-      # informa. Quando o primeiro manifesto entrar, ele passa a EXIGIR que
-      # existam testes e que passem — sem precisar mexer no ruleset.
-      - name: Detecta stack
-        id: stack
+      # Stack: Python + Django (ADR-002). Enquanto o esqueleto do projeto não
+      # existir (sem requirements.txt), o job só informa. Quando ele entrar,
+      # passa a EXIGIR testes passando — sem mexer no ruleset.
+      - name: Projeto Django existe?
+        id: projeto
         run: |
-          if   [ -f package.json ]; then echo "tipo=node"   >> "$GITHUB_OUTPUT"
-          elif [ -f pyproject.toml ] || [ -f requirements.txt ]; then echo "tipo=python" >> "$GITHUB_OUTPUT"
-          elif [ -f composer.json ]; then echo "tipo=php" >> "$GITHUB_OUTPUT"
-          else echo "tipo=nenhuma" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Sem stack ainda
-        if: steps.stack.outputs.tipo == 'nenhuma'
-        run: |
-          CODIGO=$(git ls-files | grep -vE '^(docs|specs|\.claude|\.cursor|\.github|skills-seed)/|\.(md|mdc)$|^\.(env\.example|gitignore|gitattributes)$' || true)
+          if [ -f requirements.txt ]; then echo "existe=sim" >> "$GITHUB_OUTPUT"; exit 0; fi
+          echo "existe=nao" >> "$GITHUB_OUTPUT"
+          CODIGO=$(git ls-files | grep -vE '^(docs|specs|\.claude|\.cursor|\.github)/|\.(md|mdc)$|^\.(env\.example|gitignore|gitattributes)$' || true)
           if [ -n "$CODIGO" ]; then
-            echo "::error title=Testes::Há código no repositório mas nenhuma stack reconhecida (package.json, pyproject.toml/requirements.txt, composer.json). Configure este job conforme a ADR-002."
+            echo "::error title=Testes::Há código mas não há requirements.txt na raiz (ADR-002: Python + Django)."
             echo "$CODIGO"
             exit 1
           fi
-          echo "::notice title=Testes::Fase de especificação — nenhum código para testar ainda (ADR-002 pendente)."
+          echo "::notice title=Testes::Esqueleto Django ainda não criado — nada para testar."
 
-      # --- Node / TypeScript ---
-      - if: steps.stack.outputs.tipo == 'node'
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: npm
-      - if: steps.stack.outputs.tipo == 'node'
-        run: npm ci
-      - if: steps.stack.outputs.tipo == 'node'
-        run: npm test   # falha se não existir script "test" — de propósito (guardrail 17)
-
-      # --- Python ---
-      - if: steps.stack.outputs.tipo == 'python'
+      - if: steps.projeto.outputs.existe == 'sim'
         uses: actions/setup-python@v7
         with:
           python-version: "3.12"
-      - if: steps.stack.outputs.tipo == 'python'
-        run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; else pip install -e ".[dev]" || pip install -e .; fi
-          pip install pytest
-      - if: steps.stack.outputs.tipo == 'python'
-        run: pytest   # sai com erro se nenhum teste for coletado
-
-      # --- PHP ---
-      - if: steps.stack.outputs.tipo == 'php'
-        run: |
-          composer install --no-interaction --prefer-dist
-          composer test   # falha se não existir script "test" no composer.json
+          cache: pip
+      - if: steps.projeto.outputs.existe == 'sim'
+        run: pip install -r requirements.txt
+      - if: steps.projeto.outputs.existe == 'sim'
+        name: Migrations em dia (G16)
+        run: python manage.py makemigrations --check --dry-run
+      - if: steps.projeto.outputs.existe == 'sim'
+        run: pytest   # sai com erro se nenhum teste for coletado (G17)
 
   convencoes-pr:
     name: convencoes-pr

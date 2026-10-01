@@ -35,15 +35,37 @@ Formato:
   geolocalização, tokens pré-impressos, cadastro com CPF.
 
 ## ADR-002 — Stack de implementação
-- Status: proposta (DECIDIR ANTES DE DISTRIBUIR TAREFAS DE CÓDIGO)
-- Data: —
+- Status: aceita
+- Data: 2026-10-01
 - Contexto: time de representantes de turmas DSM, desenvolvimento assistido
   por IA (Claude, Cursor e possivelmente outros), sistema recorrente que
   precisa ser mantido por turmas futuras. Critério dominante: manutenção
-  por alunos semestre a semestre > performance.
-- Decisão: (pendente)
-- Consequências: nenhuma spec de código deve fixar linguagem/framework até
-  esta ADR ser aceita.
+  por alunos semestre a semestre > performance. Prazo: evento em
+  2026-10-29 (4 semanas). O PPC do DSM ensina Python (Algoritmos, 1º sem.)
+  e Flask (Web II, 2º sem.); ninguém das turmas atuais estudou TypeScript.
+- Decisão:
+  - **Python 3.12 + Django 5.2 (LTS)**, renderização no servidor com
+    templates do Django. Sem SPA, sem framework de front.
+  - **PostgreSQL** em todos os ambientes que rodam testes ou produção
+    (SQLite não reproduz a concorrência do voto — G4).
+  - **Admin do Django** como painel administrativo (cadastro de edições,
+    turmas, abertura/encerramento da votação — specs 01 e 05).
+  - Bibliotecas permitidas: `django`, `psycopg[binary]`, `pytest`,
+    `pytest-django`, `qrcode` (QR das estações), `Pillow` (upload de
+    imagens, G14), `gunicorn` e `whitenoise` (deploy). Qualquer outra
+    exige proposta aqui.
+  - Rate limit (G7) com o framework de cache do Django, sem lib extra.
+  - Hospedagem: decisão separada (ADR-006), até 2026-10-08. Requisitos:
+    HTTPS, Postgres gerenciado com backup, **sem hibernação no dia do
+    evento** (QR escaneado não pode esperar a aplicação "acordar").
+- Consequências: Django escolhido no lugar de Flask, apesar de o time já
+  conhecer Flask, porque impõe uma estrutura única (apps, models,
+  migrations) — com vários alunos gerando código por IA, Flask viraria
+  várias arquiteturas no mesmo repositório. O admin, as migrations (G16),
+  o ORM parametrizado (G13), a validação de formulários (G12) e
+  `transaction.atomic` + `UniqueConstraint` (G4) vêm prontos. Custo:
+  curva de aprendizado das convenções do Django. TypeScript/Node
+  descartado por ser linguagem nova para o time no prazo disponível.
 
 ## ADR-003 — Captação de visitantes desacoplada do voto
 - Status: aceita
@@ -98,3 +120,39 @@ Formato:
   recomendado. Todo PR de aluno passa por uma pessoa só: gargalo perto do
   evento. Se o coordenador sair, um novo admin precisa assumir o
   `CODEOWNERS`, senão nenhum PR de aluno é mergeável.
+
+## ADR-007 — Avaliação da banca e nota final composta
+- Status: aceita
+- Data: 2026-10-01
+- Contexto: além do voto do público, uma banca avalia os projetos, e o
+  peso da banca deve ser maior. Os dois votos têm naturezas diferentes:
+  o público vota sim/não em quantos projetos quiser (total depende do
+  movimento do evento); a banca dá notas por critério. Multiplicar o voto
+  da banca ("1 jurado = N votos") deixaria o peso real fora de controle.
+- Decisão:
+  - **Resultado oficial = nota composta por turma: 70% banca + 30%
+    público.** Pesos ficam na configuração da edição e são **publicados
+    antes do evento**; não mudam depois de aberta a votação.
+  - **Banca**: cada jurado dá nota **0–10 por critério**. Critérios desta
+    edição: impacto social, impacto ambiental e, a confirmar, impacto
+    comercial. Critérios são **dados da edição** (cadastrados no admin),
+    não código. Nota de banca do projeto = média dos critérios, calculada
+    sobre a média dos jurados que o avaliaram (jurado não precisa avaliar
+    todos os projetos).
+  - **Normalização min-max dentro da turma, para as duas partes**:
+    `b = (banca - menor banca da turma) / (maior - menor)` e
+    `p = (votos - menor) / (maior - menor)`; se maior = menor, vale 1.
+    `final = 0,7·b + 0,3·p`. Desempate: maior nota de banca, depois mais
+    votos do público.
+  - **Jurados têm login próprio** (usuário do Django, grupo "banca") e
+    registram as notas no celular. Avaliação da banca é identificada e
+    auditável — só o voto do público é anônimo. Plano B: ficha impressa
+    com os mesmos critérios, digitada no admin.
+- Consequências: normalizar a banca só por "nota ÷ 10" foi descartado.
+  Bancas costumam dar notas próximas (ex: 6,5 a 8), enquanto os votos do
+  público variam muito; sem min-max, o público dominaria o resultado
+  mesmo com peso de 30%. Com min-max, os 70/30 são o peso real. Custo:
+  turma com 2 projetos vira 0 ou 1 em cada parte (aceito). Novo módulo:
+  spec 06 (avaliação da banca); a spec 04 passa a calcular a nota
+  composta. Os critérios medem impacto, não execução técnica — escolha da
+  coordenação.

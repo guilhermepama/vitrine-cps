@@ -15,11 +15,12 @@ Cada módulo tem **um** representante responsável. Regras:
 | Credenciamento + votação | `specs/03-credenciamento-votacao.md` | — | — | spec pronta |
 | Resultados/relatórios | `specs/04-resultados.md` | — | — | aguardando |
 | Administração | `specs/05-admin.md` | — | — | aguardando |
+| Avaliação da banca | `specs/06-avaliacao-banca.md` | — | — | aguardando |
 | Coordenação, infra, revisão final | — | Guilherme Pama | DSM | ativo |
 
 ## Ordem sugerida de dependências
 
-1. ADR-002 (stack) — **bloqueia tudo que é código**
+1. ~~ADR-002 (stack)~~ — aceita: Python + Django + PostgreSQL
 2. Spec 01 (modelo de dados base: edições, turmas, projetos)
 3. Specs 02 e 03 em paralelo (dependem do modelo da 01)
 4. Specs 04 e 05 por último (dependem de dados existirem)
