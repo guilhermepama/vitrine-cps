@@ -59,13 +59,13 @@ Formato:
   Métricas cruzadas (ex: taxa de conversão cadastro→voto) só em agregado.
 
 ## ADR-004 — CI e proteção da `main`
-- Status: aceita
+- Status: aceita (regra de aprovação ajustada pela ADR-005)
 - Data: 2026-10-01
 - Contexto: time grande de representantes, código gerado por IA e stack
   ainda indefinida. Os guardrails precisam de uma barreira automática
   antes da revisão humana, e essa barreira não pode depender da ADR-002.
 - Decisão: workflow `.github/workflows/ci.yml` com 4 checks obrigatórios
-  na `main` (ruleset em `.github/rulesets/main.json`):
+  na `main` (rulesets em `.github/rulesets/` — ver ADR-005):
   `guardrails` (verificador heurístico de G3, G6, G9, G13 — com testes do
   próprio verificador), `segredos` (gitleaks no histórico), `testes`
   (detecta a stack; sem código só informa, com código exige testes
@@ -79,3 +79,22 @@ Formato:
   sutil) — a revisão humana continua obrigatória (G18). Ao aceitar a
   ADR-002, ajustar o job `testes` e o `dependabot.yml` para a stack.
   Renomear job do CI exige atualizar o ruleset.
+
+## ADR-005 — Coordenador aprova todos os PRs, inclusive os próprios
+- Status: aceita
+- Data: 2026-10-01
+- Contexto: o coordenador quer ser o ponto único de aprovação. O GitHub
+  não deixa o autor aprovar o próprio PR, e a redação original do G18
+  ("revisado por outra pessoa") travaria os PRs do coordenador.
+- Decisão: dois rulesets na `main`. `main-checks` (sem exceção para
+  ninguém): só via PR, squash, histórico linear, conversas resolvidas e os
+  4 checks do CI verdes. `main-aprovacao`: 1 aprovação de code owner,
+  descartada a cada novo push; o papel admin tem bypass só no modo PR.
+  `CODEOWNERS` = `* @guilhermepama` — aprovação entre alunos não basta.
+  G18 reescrito.
+- Consequências: os PRs do coordenador não têm segundo olhar humano —
+  o CI e a skill `revisar-pr` viram a única revisão deles; para PRs que
+  tocam votação/guardrails, pedir revisão opcional a um representante é
+  recomendado. Todo PR de aluno passa por uma pessoa só: gargalo perto do
+  evento. Se o coordenador sair, um novo admin precisa assumir o
+  `CODEOWNERS`, senão nenhum PR de aluno é mergeável.

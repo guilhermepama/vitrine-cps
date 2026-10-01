@@ -55,8 +55,9 @@ vence — e o conflito deve ser reportado ao coordenador.
 
 ## Processo
 
-18. Nenhum merge em `main` sem PR revisado por outra pessoa (humano — a IA
-    gera, humano revisa).
+18. Nenhum merge em `main` sem PR aprovado pelo coordenador (humano — a IA
+    gera, humano revisa). PRs do próprio coordenador entram sem aprovação
+    de terceiros, mas nunca sem PR e sem os checks do CI verdes (ADR-005).
 19. Código gerado por IA é responsabilidade de quem commitou. "A IA que
     fez" não existe como justificativa.
 20. Mudança nestes guardrails: só o coordenador, via PR neste arquivo, com

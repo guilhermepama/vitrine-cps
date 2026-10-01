@@ -25,7 +25,7 @@ e votação presencial do público no dia do evento.
    referência de qualidade: `specs/03-credenciamento-votacao.md`).
 3. Gere o código com sua ferramenta de IA — ela deve ter lido `AGENTS.md`,
    os guardrails e a sua spec.
-4. Branch `feat/<modulo>-<resumo>` → PR → revisão humana → merge.
+4. Branch `feat/<modulo>-<resumo>` → PR → CI verde → aprovação do coordenador → merge.
 
 ## Desenvolvimento assistido por IA
 
@@ -34,4 +34,4 @@ Gemini etc. As instruções vivem em `AGENTS.md`; `CLAUDE.md`, `GEMINI.md` e
 `.cursor/rules/` apenas apontam para ele. **Edite somente `AGENTS.md`.**
 
 Princípio central: **a IA gera, o humano responde pelo código** —
-nenhum PR sem revisão de outra pessoa.
+nenhum PR sem revisão humana.

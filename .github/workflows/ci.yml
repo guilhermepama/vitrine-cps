@@ -1,7 +1,7 @@
 name: CI
 
 # Os nomes dos jobs (guardrails, segredos, testes, convencoes-pr) são os
-# status checks exigidos no ruleset da main (.github/rulesets/main.json).
+# status checks exigidos no rulesets da main (.github/rulesets/main-checks.json).
 # Renomear um job aqui = atualizar o ruleset, senão o PR trava esperando.
 
 on:

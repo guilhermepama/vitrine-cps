@@ -6,7 +6,7 @@ Cada módulo tem **um** representante responsável. Regras:
   e só então gera código com a IA de sua preferência.
 - Mudança que atravessa módulos (schema compartilhado, rotas de outro
   módulo) passa pelo coordenador antes.
-- PR revisado por outra pessoa antes do merge (guardrail 18).
+- PR aprovado pelo coordenador antes do merge (guardrail 18).
 
 | Módulo | Spec | Responsável | Turma | Status |
 |---|---|---|---|---|
