@@ -12,6 +12,30 @@
 >
 > Cursos da Etec ainda não levantados — ver "Pontos em aberto".
 
+## Situação atual (2026/2º semestre)
+
+Os dois cursos estão **em implantação** — ainda não existem todos os
+semestres. Turmas ativas hoje:
+
+| Curso | Semestres com turma |
+|---|---|
+| DSM | 1º, 2º, 3º |
+| GTUR | 2º, 3º |
+
+São **5 turmas Fatec** nesta edição. Consequências diretas:
+
+- **No DSM, nenhuma turma atual tem laboratório integrador** (eles começam
+  no 4º). Todos os projetos DSM desta edição vêm de trabalhos
+  interdisciplinares/Portfólio Digital — com escopo menor que o dos labs.
+- **No GTUR, os projetos desta edição são o PI II (Eventos) e o PI III
+  (TIC).** Não há turma de 1º semestre nesta edição.
+- O número de turmas **muda a cada edição** (DSM ganha o 4º semestre na
+  próxima, por exemplo). Por isso a turma tem que ser cadastrada por
+  edição, nunca derivada do PPC.
+
+A grade de 6 semestres abaixo descreve o curso completo, não o que existe
+hoje.
+
 ## Visão geral
 
 | | DSM | GTUR |
@@ -87,10 +111,10 @@ curricular do curso.
 
 ## Implicações para a modelagem (sugestões — a decisão é da spec 01)
 
-1. **Turma = curso + semestre (1º–6º) + turno, dentro de uma edição.** Hoje
-   os dois cursos têm uma turma noturna por semestre, então cada edição tem
-   até 12 turmas Fatec. Não fixe "6 semestres" nem "noturno" no código: a
-   Etec e cursos futuros podem ser diferentes. Curso e turno viram dados.
+1. **Turma = curso + semestre + turno, dentro de uma edição.** Hoje são 5
+   turmas Fatec; com os cursos completos, até 12. Quem decide quais turmas
+   existem é o admin ao abrir a edição — não o código. Não fixe "6
+   semestres" nem "noturno": a Etec e cursos futuros podem ser diferentes.
 2. **Separar "curso" de "turma".** O curso (sigla, nome, unidade, eixo,
    número de semestres) é estável entre edições; a turma é por edição. Isso
    evita recadastrar o curso a cada semestre (reuso semestral, `docs/00-contexto.md`).
@@ -109,5 +133,3 @@ curricular do curso.
 - Cursos da Etec que participam da mostra: nomes, duração, se têm projeto
   integrador.
 - Links oficiais dos PPCs (preencher nas fontes acima).
-- Se alunos de semestres sem laboratório (DSM 1º–3º) expõem na mostra ou só
-  os semestres com projeto integrador.
