@@ -1,0 +1,10 @@
+version: 2
+updates:
+  # Mantém as actions do CI atualizadas. Quando a stack for definida
+  # (ADR-002), adicionar o ecossistema dela aqui (npm, pip, composer...).
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    commit-message:
+      prefix: "ci"
