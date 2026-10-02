@@ -58,3 +58,34 @@ def test_validacao_roda_no_full_clean_do_model(settings, tmp_path):
     with pytest.raises(ValidationError) as erro:
         p.full_clean()
     assert "capa" in erro.value.message_dict
+
+
+def _mpo():
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), "red").save(
+        buffer, format="MPO", save_all=True, append_images=[Image.new("RGB", (20, 20), "blue")]
+    )
+    return SimpleUploadedFile("IMG_2026.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+
+def test_foto_de_celular_mpo_e_aceita():
+    validar_imagem(_mpo())
+
+
+@pytest.mark.django_db
+def test_foto_mpo_e_gravada_como_jpg(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = fabricas.projeto(capa=_mpo())
+    assert re.fullmatch(r"projetos/[0-9a-f]{32}\.jpg", p.capa.name)
+
+
+@pytest.mark.django_db
+def test_salvar_sem_validar_arquivo_invalido_nao_grava(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    with pytest.raises(ValidationError):
+        fabricas.projeto(capa=SimpleUploadedFile("x.jpg", b"falso", content_type="image/jpeg"))
+    assert not any(tmp_path.rglob("*.*"))

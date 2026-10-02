@@ -388,3 +388,76 @@ def test_prazo_de_edicao_exatamente_no_limite(monkeypatch):
 
 def test_edicao_nasce_sem_banca_conferida():
     assert fabricas.edicao().banca_conferida_em is None
+
+
+# --- Parecer do #17 --------------------------------------------------------------
+
+
+def test_pesos_atribuidos_como_texto_nao_disparam_a_trava():
+    e = _abrir_votacao(fabricas.edicao())
+    e.peso_banca, e.peso_publico = "0.70", "0.3"
+    e.banca_conferida_em = timezone.now()
+    e.save()
+
+
+def test_ra_unico_por_edicao():
+    from cadastro.seguranca import hash_ra
+
+    t = fabricas.turma()
+    fabricas.projeto(t, titulo="A", ra_hmac=hash_ra("1234567"))
+    outro = fabricas.projeto(t, titulo="B", ra_hmac=hash_ra("7654321"))
+    outro.ra_hmac = hash_ra("1234567")
+    with pytest.raises(ValidationError) as erro:
+        outro.full_clean()
+    assert "1234567" not in str(erro.value)
+
+
+def test_mesmo_ra_em_outra_edicao_e_aceito():
+    from cadastro.seguranca import hash_ra
+
+    fabricas.projeto(titulo="A", ra_hmac=hash_ra("1234567"))
+    ensaio = fabricas.turma(fabricas.edicao(nome="Ensaio 2026/2"), fabricas.curso("GTUR"))
+    fabricas.projeto(ensaio, titulo="A", ra_hmac=hash_ra("1234567")).full_clean()
+
+
+def test_trava_restaura_o_status_em_memoria(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    _abrir_votacao(p.turma.edicao)
+    with pytest.raises(ValidationError):
+        p.publicar()
+    assert p.status == Projeto.Status.EM_REVISAO
+    assert p.publicado_em is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_publicar_espera_a_abertura_concorrente_da_votacao(settings, tmp_path):
+    """Abrir a votação e publicar ao mesmo tempo: a trava vence (linha da edição travada)."""
+    import threading
+    import time
+
+    from django.db import connection
+
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    e = p.turma.edicao
+    travou = threading.Event()
+
+    def abrir_votacao():
+        try:
+            with transaction.atomic():
+                Edicao.objects.select_for_update().get(pk=e.pk)
+                Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=timezone.now())
+                travou.set()
+                time.sleep(0.5)  # publicar() tenta agora e precisa esperar
+        finally:
+            connection.close()
+
+    t = threading.Thread(target=abrir_votacao)
+    t.start()
+    travou.wait(5)
+    with pytest.raises(ValidationError):
+        p.publicar()
+    t.join()
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.EM_REVISAO

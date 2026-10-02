@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxLengthValidator, MaxValueValidator, MinValueValidator, URLValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Q
 from django.db.models.lookups import Exact
 from django.utils import timezone
@@ -70,20 +70,27 @@ class Edicao(models.Model):
         self._verificar_travas()
 
     def save(self, *args, **kwargs):
-        self._verificar_travas()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self._verificar_travas(travar_linha=True)
+            super().save(*args, **kwargs)
 
-    def _verificar_travas(self):
-        """Depois de aberta a votação, pesos e abertura não mudam (sem snapshot — PR #14)."""
+    def _verificar_travas(self, travar_linha=False):
+        """Depois de aberta a votação, pesos e abertura não mudam (sem snapshot — PR #14).
+
+        No save(), a linha da edição fica travada (select_for_update) até o fim
+        da transação. Quem abre a votação (spec 03) trava a mesma linha.
+        """
         if not self.pk:
             return
-        antes = Edicao.objects.filter(pk=self.pk).values("peso_banca", "peso_publico", "votacao_aberta_em").first()
+        consulta = Edicao.objects.select_for_update() if travar_linha else Edicao.objects
+        antes = consulta.filter(pk=self.pk).values("peso_banca", "peso_publico", "votacao_aberta_em").first()
         if not antes or antes["votacao_aberta_em"] is None:
             return
         erros = {}
         if self.votacao_aberta_em != antes["votacao_aberta_em"]:
             erros["votacao_aberta_em"] = "A abertura da votação não pode ser alterada nem apagada."
-        if (self.peso_banca, self.peso_publico) != (antes["peso_banca"], antes["peso_publico"]):
+        pesos = (Decimal(str(self.peso_banca)), Decimal(str(self.peso_publico)))
+        if pesos != (antes["peso_banca"], antes["peso_publico"]):
             erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
         if erros:
             raise ValidationError(erros)
@@ -201,14 +208,24 @@ class Projeto(models.Model):
     def clean(self):
         super().clean()
         self._verificar_travas()
+        self._verificar_ra_unico_na_edicao()
+
+    def _verificar_ra_unico_na_edicao(self):
+        """Um RA representa no máximo um projeto por edição (spec 01). A mensagem não mostra o RA."""
+        if not self.ra_hmac or not self.turma_id:
+            return
+        outros = Projeto.objects.filter(ra_hmac=self.ra_hmac, turma__edicao_id=self.turma.edicao_id)
+        if outros.exclude(pk=self.pk).exists():
+            raise ValidationError("Este RA já representa outro projeto nesta edição.")
 
     def save(self, *args, **kwargs):
-        self._verificar_travas()
-        if not self.slug:
-            self.slug = self._slug_livre()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self._verificar_travas(travar_edicao=True)
+            if not self.slug:
+                self.slug = self._slug_livre()
+            super().save(*args, **kwargs)
 
-    def _verificar_travas(self):
+    def _verificar_travas(self, travar_edicao=False):
         """Status e turma fixos depois de aberta a votação; nunca muda de edição.
 
         Sem snapshot do resultado (PR #14), mudar status ou turma de um projeto
@@ -217,19 +234,18 @@ class Projeto(models.Model):
         """
         if not self.pk:
             return
-        antes = (
-            Projeto.objects.filter(pk=self.pk)
-            .values("status", "turma_id", "turma__edicao_id", "turma__edicao__votacao_aberta_em")
-            .first()
-        )
+        antes = Projeto.objects.filter(pk=self.pk).values("status", "turma_id", "turma__edicao_id").first()
         if not antes:
             return
+        # Trava a linha da edição: abrir a votação ao mesmo tempo espera esta gravação.
+        edicoes = Edicao.objects.select_for_update() if travar_edicao else Edicao.objects
+        aberta_em = edicoes.filter(pk=antes["turma__edicao_id"]).values_list("votacao_aberta_em", flat=True).first()
         if self.turma_id != antes["turma_id"]:
             nova_edicao = Turma.objects.filter(pk=self.turma_id).values_list("edicao_id", flat=True).first()
             if nova_edicao != antes["turma__edicao_id"]:
                 raise ValidationError({"turma": "O projeto não pode mudar de edição."})
         mudou = (self.status, self.turma_id) != (antes["status"], antes["turma_id"])
-        if mudou and antes["turma__edicao__votacao_aberta_em"] is not None:
+        if mudou and aberta_em is not None:
             raise ValidationError("A votação desta edição já foi aberta: status e turma do projeto não mudam.")
 
     def _slug_livre(self):
@@ -262,10 +278,15 @@ class Projeto(models.Model):
         faltando = self.pendencias_para_publicar()
         if faltando:
             return faltando
+        anterior = (self.status, self.publicado_em)
         self.status = self.Status.PUBLICADO
         if self.publicado_em is None:
             self.publicado_em = timezone.now()
-        self.save(update_fields=["status", "publicado_em", "atualizado_em"])
+        try:
+            self.save(update_fields=["status", "publicado_em", "atualizado_em"])
+        except ValidationError:
+            self.status, self.publicado_em = anterior  # objeto volta a refletir o banco
+            raise
         return []
 
     def devolver_para_ajustes(self):
@@ -276,8 +297,13 @@ class Projeto(models.Model):
             return False
         if not self.motivo_ajustes.strip():
             return False
+        anterior = self.status
         self.status = self.Status.AJUSTES
-        self.save(update_fields=["status", "atualizado_em"])
+        try:
+            self.save(update_fields=["status", "atualizado_em"])
+        except ValidationError:
+            self.status = anterior
+            raise
         return True
 
     # --- Link de edição (ADR-009) ---------------------------------------------

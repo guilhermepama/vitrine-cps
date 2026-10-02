@@ -6,7 +6,8 @@ from django.core.exceptions import ValidationError
 from PIL import Image
 
 TAMANHO_MAXIMO = 3 * 1024 * 1024  # 3 MB
-FORMATOS = {"JPEG": "jpg", "PNG": "png", "WEBP": "webp"}
+# MPO = JPEG com várias imagens, como muitos celulares salvam a foto: vira .jpg.
+FORMATOS = {"JPEG": "jpg", "MPO": "jpg", "PNG": "png", "WEBP": "webp"}
 
 
 def detectar_formato(arquivo):
@@ -31,7 +32,10 @@ def validar_imagem(arquivo):
 
 
 def _nome_gerado(arquivo):
-    extensao = FORMATOS.get(detectar_formato(arquivo), "bin")
+    extensao = FORMATOS.get(detectar_formato(arquivo))
+    if extensao is None:
+        # Só acontece se alguém salvar sem passar pela validação.
+        raise ValidationError("Envie uma imagem JPG, PNG ou WebP.", code="formato")
     return f"projetos/{uuid.uuid4().hex}.{extensao}"
 
 
