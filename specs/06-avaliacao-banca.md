@@ -17,7 +17,7 @@ equipe digita as notas no admin (ADR-008).
 - Jurado = registro cadastrado no admin (nome, edição) — **sem login**.
 - Ficha impressa gerada a partir dos critérios e projetos da edição
   (pode ser uma página para imprimir; o jurado assina a ficha).
-- Lançamento das notas no admin **durante o evento**, por usuário do grupo
+- Lançamento das notas no admin **depois do evento** (30/10), por usuário do grupo
   "digitacao-banca": só cria/edita avaliações, sem acesso a votos,
   visitantes ou configurações. Registro de quem digitou e quando.
 - Conferência por outra pessoa (coordenador): amostra das notas contra as

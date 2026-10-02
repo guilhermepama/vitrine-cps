@@ -206,6 +206,8 @@ Formato:
   Sem dependência de Wi-Fi para a banca no dia do evento. A auditoria
   passa a ser a ficha assinada + registro de quem digitou cada nota. Custo:
   digitação manual após a avaliação (risco de erro — conferir por amostra).
+  Digitação feita no dia seguinte ao evento (30/10), em horário de aula;
+  o resultado oficial sai depois da conferência.
   Login e tela do jurado ficam para a próxima edição.
 
 ## ADR-009 — Cadastro do projeto pelo próprio grupo (RA + link de edição)

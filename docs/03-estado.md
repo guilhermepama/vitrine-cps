@@ -37,9 +37,11 @@ a partir dessa data.
 | 27/10 | Resultados (spec 04) implementado e testado com dados do ensaio | Renan |
 | 27/10 | **Congelamento**: só entram correções de bug | — |
 | 28/10 | Backup do banco (`pg_dump`) | Guilherme |
-| 29/10 | Evento; fichas da banca digitadas durante o evento e conferidas | Barbara, Guilherme |
+| 29/10 | Evento; fichas da banca recolhidas e guardadas com o coordenador | Barbara, Guilherme |
 | 29/10 | Backup ao encerrar a votação | Guilherme |
-| 30/10 | Resultado oficial: nota composta 70% banca + 30% público (ADR-007) | Renan |
+| 30/10 | Digitação das notas da banca, em horário de aula | Barbara |
+| 30/10 | Conferência por amostra contra as fichas + backup | Guilherme |
+| 30/10 | Resultado oficial (à noite, ou na data definida pela coordenação): nota composta 70% banca + 30% público (ADR-007) | Renan, Guilherme |
 
 As entregas de código foram antecipadas; ensaio, congelamento e evento
 não mudam. Ensaio geral em 22/10 (quinta, mesmo dia da semana do evento,
@@ -119,3 +121,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-02 Guilherme: banca em ficha impressa digitada no admin (ADR-008); cronograma de código antecipado, pré-ensaio em 21/10.
 - 2026-10-02 Guilherme: cadastro pelo grupo volta ao escopo — lista das coordenações + RA + link de edição + aprovação (ADR-009).
 - 2026-10-02 Guilherme: ensaio geral movido para 22/10 (horário de aula); Barbara na operação da banca no evento e no roteiro do staff.
+- 2026-10-02 Guilherme: notas da banca digitadas depois do evento (30/10, em aula); resultado oficial após a conferência.

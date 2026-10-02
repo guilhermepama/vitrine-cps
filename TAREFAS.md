@@ -31,7 +31,7 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
 | Banca — sistema (ficha para imprimir, digitação, conferência) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
 | Resultados (nota composta 70/30) | 04 | `resultados/` | Renan | @ReCroffi | 27/10 |
 | Roteiro do staff (escrito no ensaio geral) | — | `docs/` | Barbara | (a confirmar) | 22/10 |
-| Banca — operação no evento (fichas e digitação) | — | — | Barbara | — | 29/10 |
+| Banca — operação (fichas no evento, digitação depois) | — | — | Barbara | — | 29 e 30/10 |
 
 **Cadastro (ADR-009)**: as coordenações enviam a lista (projeto, turma,
 representante, RA) na planilha modelo até 08/10; o coordenador importa;
@@ -46,8 +46,9 @@ Revisão linha a linha.
 
 **Barbara**: disponível em horário de aula e no evento. Roteiro do staff
 escrito durante o ensaio geral (22/10); no dia 29 entrega e recolhe as
-fichas dos jurados e digita as notas no admin (usuário com permissão só
-de digitação). A conferência das notas é do coordenador.
+fichas dos jurados; em 30/10, em horário de aula, digita as notas no
+admin (usuário com permissão só de digitação). A conferência das notas
+é do coordenador.
 
 ## Ordem de dependências
 
