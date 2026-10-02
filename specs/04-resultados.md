@@ -95,11 +95,12 @@ qualquer consulta aos dados de negócio:
 - Parâmetros de query são ignorados (não alteram a saída nem geram erro).
 
 ### Ranking
-- Quando a edição não tem `config_votacao`, o ranking mostra só o aviso
+- Quando a edição tem `votacao_aberta_em` vazio, o ranking mostra só o aviso
   "Votação desta edição não foi configurada"; a participação aparece com
   as contagens zeradas.
 - Quando a votação da edição **ainda não foi encerrada**
-  (`config_votacao.encerrada_em` vazio ou no futuro), o ranking mostra só
+  (`votacao_aberta_em` preenchido e `votacao_encerrada_em` vazio — a
+  edição está em votação), o ranking mostra só
   o aviso "Resultado disponível após o encerramento da votação" — sem
   votos parciais, sem nota. A participação e o relatório operacional
   continuam disponíveis.
@@ -188,12 +189,12 @@ qualquer consulta aos dados de negócio:
 **Lê** (nomes conforme specs 01, 03 e 06 — o app não altera esses models):
 - cadastro: `Edicao` (`peso_banca`, `peso_publico` —
   `DecimalField(max_digits=3, decimal_places=2)`, padrão 0,70 / 0,30;
-  `banca_conferida_em`, vazio = banca pendente — spec 01),
+  `banca_conferida_em`, vazio = banca pendente; `votacao_aberta_em` e
+  `votacao_encerrada_em`, preenchidos pela spec 03 — spec 01),
   `Turma`, `Projeto` (título, turma, status).
 - votacao: `tokens` (id, estacao_id, criado_em), `votos` (token_id,
   projeto_id), `estacoes` (id, nome, edicao_id), `visitantes` (nome,
-  email, telefone, consentimento_em, edicao_id), `config_votacao`
-  (aberta_em, encerrada_em).
+  email, telefone, consentimento_em, edicao_id).
 - banca: só pela função `nota_banca_por_projeto(edicao) ->
   {projeto_id: Decimal}`, exposta pelo app `banca` — a regra da nota de
   banca (ADR-007) fica num lugar só (decisão do coordenador no PR #14).
@@ -252,7 +253,7 @@ permissões, nenhuma tabela.
 - [ ] `edicao_id` inteiro sem edição (`0`, id inexistente) → 404; POST em qualquer rota → 405
 
 **Ranking e cálculo**
-- [ ] Edição sem `config_votacao` → aviso "Votação desta edição não foi configurada", participação zerada
+- [ ] Edição com `votacao_aberta_em` vazio → aviso "Votação desta edição não foi configurada", participação zerada
 - [ ] Votação não encerrada → ranking mostra só o aviso, sem nenhum número de voto por projeto
 - [ ] Só projetos com status `publicado` entram no ranking (projeto em outro status da mesma turma não aparece)
 - [ ] Teste do cálculo: turma com votos {10, 5, 0} → `p` = {1; 0,5; 0}
