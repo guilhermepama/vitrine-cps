@@ -1,0 +1,12 @@
+# Dependências do Vitrine CPS — lista fechada pela ADR-002.
+# Biblioteca nova = proposta em docs/02-decisoes.md antes de entrar aqui.
+Django==5.2.17
+psycopg[binary]==3.3.6
+dj-database-url==3.1.2
+gunicorn==26.2.0
+whitenoise==6.12.0
+django-storages[s3]==1.14.6
+Pillow==12.3.0
+qrcode==8.2
+pytest==9.1.1
+pytest-django==4.14.0

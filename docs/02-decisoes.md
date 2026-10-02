@@ -53,8 +53,10 @@ Formato:
   - Bibliotecas permitidas: `django`, `psycopg[binary]`, `pytest`,
     `pytest-django`, `qrcode` (QR das estações), `Pillow` (upload de
     imagens, G14), `gunicorn` e `whitenoise` (deploy),
-    `django-storages[s3]` (imagens no R2 — ADR-006). Qualquer outra
-    exige proposta aqui.
+    `django-storages[s3]` (imagens no R2 — ADR-006), `dj-database-url`
+    (lê o `DATABASE_URL`; incluída em 2026-10-02 no esqueleto — parser
+    próprio seria código a manter sem ganho). Qualquer outra exige
+    proposta aqui.
   - Rate limit (G7) com o framework de cache do Django, sem lib extra.
   - Hospedagem: ADR-006 (banco: Neon). Requisitos:
     HTTPS, Postgres gerenciado com backup, **sem hibernação no dia do

@@ -1,0 +1,18 @@
+# Postgres local para desenvolvimento (opcional).
+# Alternativa sem instalar nada: um branch seu no Neon (ver README).
+#   docker compose up -d
+#   DATABASE_URL=postgres://vitrine:vitrine@localhost:5432/vitrine
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: vitrine
+      POSTGRES_PASSWORD: vitrine
+      POSTGRES_DB: vitrine
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:
