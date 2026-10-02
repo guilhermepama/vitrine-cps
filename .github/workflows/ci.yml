@@ -71,6 +71,7 @@ jobs:
       # Valor fixo só de teste. O segredo real vive no ambiente de produção (G3).
       QR_HMAC_SECRET: testetestetestetestetestetestete
       DJANGO_SECRET_KEY: testetestetestetestetestetestete
+      RA_HMAC_SECRET: testetestetestetestetestetestete
     steps:
       - uses: actions/checkout@v7
 

@@ -1,7 +1,7 @@
 # Spec — Cadastro (edições, cursos, turmas, projetos) e admin
 
 - **Responsável**: Guilherme (@guilhermepama)
-- **Status**: pronta para implementar
+- **Status**: em implementação (PR 1/3: models)
 - **Depende de**: ADR-002 (stack), ADR-006 (R2), ADR-007 (pesos), ADR-009
   (cadastro pelo grupo), spec 00 (esqueleto)
 - **Absorve a spec 05**: o admin do cadastro está aqui; estações e
