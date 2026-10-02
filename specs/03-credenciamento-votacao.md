@@ -3,12 +3,14 @@
 > Spec de referência: usa o template completo para servir de padrão às demais.
 
 - **Responsável**: Renan (@ReCroffi)
-- **Status**: pronta para implementar (ADR-002 aceita: Python + Django)
-- **Depende de**: ADR-001, ADR-003, spec 01 (modelo de edições/projetos —
-  `Edicao`, `Turma` → edição, `Projeto` com turma e status `publicado`;
-  PR #16 em revisão)
+- **Status**: rascunho — revisão do Codex aplicada; aguarda as decisões
+  listadas em "Decisões pendentes" (ADR-002 aceita: Python + Django)
+- **Depende de**: ADR-001, ADR-003, ADR-006 (logs da hospedagem), spec 01
+  (PR #16 em revisão: `Edicao` com `votacao_aberta_em` e
+  `votacao_encerrada_em`, `Turma.edicao`, `Projeto.turma`,
+  `Projeto.status`)
 - **Usada por**: spec 04 (lê `Estacao.edicao_id`, `Visitante.edicao_id`,
-  `tokens`, `votos`, `config_votacao`)
+  `Token`, `Voto` e os campos de votação da `Edicao`)
 
 ## Objetivo
 Permitir que visitantes presentes no evento obtenham uma credencial única
@@ -24,163 +26,333 @@ máximo 1 voto por projeto por token.
 - Formulário de visitante: nome + email obrigatórios, telefone opcional,
   checkbox de consentimento LGPD; grava em `visitantes` (sem vínculo com o
   token) com a edição em votação e o horário do aceite **truncado para a
-  hora**; libera a cédula.
+  hora**; libera a cédula por um **cookie de cadastro** que não identifica
+  o visitante (ver "Liberação da cédula").
 - Cédula `/votar`: lista os projetos com status `publicado` da **edição em
-  votação** (projeto → turma → edição), agrupados por turma (categoria);
-  botão de voto por projeto; projetos já votados pelo token aparecem
-  marcados e desabilitados.
+  votação** (projeto → turma → edição), agrupados por turma (a turma é a
+  categoria — spec 01); botão de voto por projeto; projetos já votados
+  pelo token aparecem marcados e desabilitados.
 - Rota `POST /votos`: registra voto (token, projeto) em transação atômica,
   só para projeto `publicado` da edição em votação e token emitido por
   estação dessa edição.
 - **Estação pertence a uma edição** (`Estacao.edicao_id`): é por ela que o
-  token chega à edição.
-- Janela de votação: admin abre/encerra, **no máximo uma edição em votação
-  por vez**; fora dela, `/entrar`, `/visitantes` e `/votos` recusam.
+  token chega à edição. A edição da estação não muda depois da primeira
+  emissão.
+- Abrir/encerrar votação: a spec 03 preenche `Edicao.votacao_aberta_em` e
+  `Edicao.votacao_encerrada_em` (spec 01), por ações no admin do app
+  `votacao`; **no máximo uma edição em votação por vez**; edição encerrada
+  não é reaberta.
+- Admin de estações (cadastrar, ativar/desativar).
 - **Isolamento por edição**: o ensaio (22/10) é uma edição separada
   ("Ensaio 2026/2"), com turmas, projetos e estações próprios; nada do
   ensaio aparece na edição do evento, e vice-versa.
+- Filtro de log do app `votacao` para as rotas do visitante (ver
+  "Proposta B1").
 
 ## Fora de escopo
-- Cadastro de projetos, turmas e edições, e o ciclo de status do projeto
-  (spec 01).
+- Cadastro de projetos, turmas e edições, o ciclo de status do projeto e
+  as travas depois de abrir a votação (spec 01).
 - Página pública de vitrine (spec 02).
 - Relatórios, inclusive o recorte por edição de tokens e visitantes
   (spec 04).
-- Painel do admin além de abrir/encerrar votação e cadastrar estações.
 - Reabrir votação ou apagar dados para "limpar" o ensaio: o ensaio é outra
-  edição (decisão do coordenador no PR #14).
+  edição (decisão do coordenador no PR #14). A tentativa de reabrir é
+  recusada (ver "Abrir e encerrar").
 - Registro da decisão do horário truncado na ADR-003 (feito pelo
   coordenador em `docs/02-decisoes.md`).
+- `settings.py` (`LOGGING`) e configuração de log da hospedagem: são do
+  coordenador; esta spec entrega o filtro e diz o que precisa ser ligado.
+- Permissões de admin além do superusuário (mesma regra da spec 01 nesta
+  edição).
 
 ## Comportamento esperado
 
 ### Edição em votação
-- **Edição em votação** é a edição cuja `config_votacao` tem
-  `aberta_em` ≤ agora e `encerrada_em` vazio ou no futuro. É sempre
-  determinada no servidor, a partir de `config_votacao` — nunca de
-  parâmetro do cliente nem do token.
-- Quando o admin tenta abrir a votação de uma edição enquanto outra está
-  em votação, o sistema recusa com a mensagem "Já existe uma votação
-  aberta (<edição>). Encerre-a antes de abrir outra." e não grava nada.
+- **Edição em votação** é a edição com `votacao_aberta_em` preenchido e
+  `votacao_encerrada_em` vazio. É sempre determinada no servidor, a partir
+  da `Edicao` — nunca de parâmetro do cliente nem do token.
 - Quando não há edição em votação, `/entrar`, `POST /visitantes` e
   `POST /votos` recusam (ver cada fluxo abaixo) e a cédula mostra só o
   aviso "Votação encerrada", sem lista de projetos.
+- **Referência temporal** (G4): emissão, cadastro e voto leem a edição em
+  votação com `select_for_update()` na linha da `Edicao`, dentro da
+  transação da operação; abrir e encerrar também travam essa linha. Assim
+  cada operação acontece inteira antes ou inteira depois do encerramento:
+  - operação que obteve a trava antes do encerramento é concluída e conta;
+  - operação que espera a trava e a obtém depois do encerramento vê a
+    votação fechada e é recusada como "votação fechada".
+  Custo aceito: as operações de uma edição ficam serializadas nessa linha
+  (transações curtas, volume de um evento presencial).
 
-### Estação e emissão de token
+### Abrir e encerrar (admin)
+- Ações no admin do app `votacao`, sobre um proxy de `Edicao` ("Votação
+  por edição", sem tabela própria): **Abrir votação** e **Encerrar
+  votação**, uma edição por vez. Só superusuário vê e executa; staff não
+  superusuário (ex: grupo `digitacao-banca`, spec 06) não vê o menu e
+  recebe 403 se chamar a ação pela URL; anônimo vai para o login (G15).
+- **Abrir**: em uma transação, trava todas as linhas de `Edicao`
+  (`select_for_update()` ordenado por `pk`), confere as regras e grava
+  `votacao_aberta_em = agora`. Recusa, sem gravar nada:
+  - outra edição em votação → "Já existe uma votação aberta (<edição>).
+    Encerre-a antes de abrir outra.";
+  - `votacao_aberta_em` já preenchido (edição aberta ou encerrada) →
+    "A votação desta edição já foi aberta e não pode ser reaberta."
+    (`votacao_aberta_em` não muda depois de preenchido — spec 01).
+- **Encerrar**: trava a linha da edição e grava
+  `votacao_encerrada_em = agora`. Recusa, sem gravar nada, se a votação
+  não foi aberta ou já foi encerrada. A spec 03 nunca apaga nem altera
+  `votacao_encerrada_em` depois de preenchido.
+- Os dois campos ficam somente leitura em todas as telas (spec 01); só as
+  ações acima os preenchem.
+
+### Estação
 - Toda estação pertence a uma edição (`edicao_id` obrigatório). A edição
   do token é a edição da estação que o emitiu.
+- Admin de estações (superusuário): nome, edição, ativa. Estação que já
+  emitiu token **não muda de edição** (validação no model, `ValidationError`
+  — senão os tokens antigos passariam a contar para outra edição) e
+  **não pode ser apagada** (`PROTECT` em `Token.estacao`); para tirá-la de
+  uso, desativa-se.
+- `Voto.token`, `Voto.projeto`, `Estacao.edicao` e `Visitante.edicao`
+  também são `PROTECT`: nada do ensaio ou do evento é apagado em cascata.
+
+### Emissão de token
 - Quando o visitante escaneia o QR dentro da janela de rotação **e** a
   edição da estação é a edição em votação, o sistema emite token e
-  redireciona ao formulário.
+  redireciona ao formulário (ou direto à cédula, se o cookie de cadastro
+  da mesma edição estiver presente — ver "Liberação da cédula").
 - Quando o mesmo navegador acessa `/entrar` de novo com cookie de um
   token **existente emitido por estação da mesma edição** do QR, o
   sistema devolve o MESMO token — não cria outro.
 - Quando o cookie traz um token de **outra edição** (ex: celular usado no
-  ensaio) ou um token que não existe, o sistema ignora o cookie e emite um
-  token novo, como num primeiro acesso. O token antigo não é apagado nem
-  alterado.
-- Quando a assinatura é inválida, a janela expirou, a estação está
-  inativa, a estação não é da edição em votação ou não há edição em
-  votação, o sistema responde com a mesma página genérica "QR expirado —
-  escaneie novamente na estação" (mesmo status HTTP e mesmo corpo).
+  ensaio), um token que não existe ou um valor que não é UUID válido, o
+  sistema ignora o cookie e emite um token novo, como num primeiro
+  acesso. O token antigo não é apagado nem alterado.
+- Quando a entrada é malformada (ver "Validação de entrada"), a
+  assinatura é inválida, a janela expirou, a estação não existe, está
+  inativa ou não é da edição em votação, ou não há edição em votação, o
+  sistema responde com a mesma página genérica "QR expirado — escaneie
+  novamente na estação", **status 400 e corpo idêntico** em todos os
+  casos.
 
 ### Cadastro do visitante
 - Quando o visitante envia o formulário válido com votação aberta, o
-  sistema grava o cadastro e exibe a cédula. O registro recebe:
-  - `edicao_id` = a **edição em votação** no momento do cadastro, lida de
-    `config_votacao` — **nunca** a partir do token, do cookie ou da
-    estação (guardrail 6, ADR-003; decisão do coordenador no PR #14);
+  sistema grava o cadastro, grava o cookie de cadastro e redireciona à
+  cédula. O registro recebe:
+  - `edicao_id` = a **edição em votação** no momento do cadastro, lida da
+    `Edicao` — **nunca** a partir do token, do cookie ou da estação
+    (guardrail 6, ADR-003; decisão do coordenador no PR #14);
   - `consentimento_em` = horário do servidor **truncado para a hora**
-    (minutos, segundos e frações zerados; ex: aceite às 19:42:17 →
-    `19:00:00`). Motivo: `tokens.criado_em` e `consentimento_em` gravados
-    com segundos de diferença permitiriam cruzar visitante e token pelo
-    horário, o vínculo que o G6 e a ADR-003 proíbem. O G10 pede data/hora
-    do aceite, não segundos. Decisão do coordenador no PR #14; registro na
-    ADR-003 pendente pelo coordenador.
-- Nenhum outro campo de data/hora com precisão maior que a hora é gravado
-  em `visitantes` (sem `auto_now`/`auto_now_add`, sem `criado_em`).
-- Quando falta nome ou email, o email é inválido, algum campo passa do
-  tamanho máximo ou o consentimento não foi marcado, o sistema responde
-  400 com mensagem genérica de validação, não grava e não libera a cédula
-  (guardrail 12).
+    (minutos, segundos e microssegundos zerados). O truncamento é feito no
+    fuso `America/Sao_Paulo` (`TIME_ZONE` do projeto) e o valor é gravado
+    em UTC (`USE_TZ = True`); como o deslocamento é de horas inteiras
+    (−03:00, sem horário de verão), dá o mesmo instante que truncar em
+    UTC. Ex: aceite às 19:42:17 de 25/10/2026 em Brasília (22:42:17 UTC)
+    → gravado 25/10/2026 19:00:00 em Brasília (22:00:00 UTC).
+    Motivo: `tokens.criado_em` e `consentimento_em` gravados com segundos
+    de diferença permitiriam cruzar visitante e token pelo horário, o
+    vínculo que o G6 e a ADR-003 proíbem; o G10 pede data/hora do aceite,
+    não segundos. Decisão do coordenador no PR #14; registro na ADR-003
+    pendente pelo coordenador. O truncamento **reduz** a precisão desse
+    caminho, mas **não impede sozinho** o cruzamento: numa hora com poucos
+    cadastros ainda há inferência, e ordem de cadastro e logs são outros
+    caminhos — ver "Proposta B1".
+- Nenhum outro campo de data/hora é gravado em `visitantes` (sem
+  `auto_now`/`auto_now_add`, sem `criado_em`).
+- O cadastro **não lê** o cookie do token, o localStorage nem a estação.
+- Quando algum campo falha na validação (ver "Validação de entrada"), o
+  sistema responde 400, reapresenta o formulário com a mensagem genérica
+  "Não foi possível concluir o cadastro. Confira os campos.", não grava,
+  não grava o cookie de cadastro e não libera a cédula (guardrail 12).
 - Quando o formulário chega sem edição em votação, o sistema não grava e
   responde com a página genérica "QR expirado — escaneie novamente na
-  estação".
+  estação" (400).
+
+### Liberação da cédula (sem vínculo visitante × token)
+- Cadastro concluído grava um **cookie de cadastro**: valor =
+  `edicao_id` da edição em votação, assinado com
+  `django.core.signing.Signer` (salt `votacao.cadastro`, **sem
+  timestamp** — não usar `signing.dumps`/`TimestampSigner`); httpOnly,
+  `Secure`, `SameSite=Lax`, validade de 1 dia.
+- O valor é o mesmo para todos os visitantes da edição: não carrega id do
+  visitante, do token, horário nem número aleatório. O servidor não grava
+  nada que ligue o cadastro ao token: **não usar a sessão do Django**
+  (tabela de sessão), cache, nem qualquer tabela para esse estado.
+- Cookie de cadastro **válido** = assinatura correta e `edicao_id` igual
+  ao da edição em votação. Qualquer outro caso (ausente, adulterado, de
+  outra edição) = sem cadastro.
+- `GET /votar` com token válido e **sem** cadastro válido → redirect para
+  o formulário de visitante.
+- `POST /votos` sem cadastro válido → rejeição genérica (ver "Voto").
+- Re-scan na mesma edição com cadastro válido → vai direto à cédula, sem
+  novo registro em `visitantes`.
+- Troca ensaio → evento: o cookie de cadastro do ensaio não vale no
+  evento; o visitante preenche o formulário de novo e ganha um registro
+  com `edicao_id` do evento (é visitante das duas edições).
+- Limite aceito: o cookie de cadastro pode ser copiado entre navegadores.
+  O cadastro é para captação de contatos (ADR-003), não controle de
+  acesso; o controle de acesso é o token, que só sai pelo QR.
 
 ### Cédula
-- Quando o visitante abre `/votar` com token válido da edição em votação,
-  o sistema lista só os projetos com status `publicado` cujas turmas
-  pertencem à edição em votação (projeto → turma → edição), agrupados por
-  turma. Projetos em outro status ou de outra edição não aparecem.
+- Quando o visitante abre `/votar` com token válido da edição em votação
+  e cadastro válido, o sistema lista só os projetos com status
+  `publicado` cujas turmas pertencem à edição em votação (projeto → turma
+  → edição), agrupados por turma. Projetos em outro status ou de outra
+  edição não aparecem.
 - Projetos já votados por aquele token aparecem marcados e desabilitados.
-- Quando não há token, o token não existe ou é de outra edição (via
-  estação), o sistema redireciona para a página de instrução ("escaneie o
-  QR na estação"), sem dizer qual foi o caso.
+- Quando não há token, o token é malformado, não existe ou é de outra
+  edição (via estação), o sistema redireciona para a página de instrução
+  ("escaneie o QR na estação"), sem dizer qual foi o caso.
 
 ### Voto
 - Quando o visitante vota num projeto `publicado` da edição em votação,
   ainda não votado por aquele token, com token emitido por estação dessa
-  edição, o sistema registra e confirma.
-- Quando `projeto_id` não é inteiro positivo, o sistema responde 400 com
-  mensagem genérica, sem tocar no banco (guardrail 12).
-- Quando ocorre **qualquer** um dos casos abaixo, o sistema não grava e
-  responde a MESMA mensagem "voto já registrado", com o mesmo status HTTP
-  e o mesmo corpo (guardrail 5):
-  - voto duplicado (token, projeto);
-  - token ausente ou inexistente;
+  edição e cadastro válido, o sistema registra e responde **201**, JSON
+  `{"status": "registrado"}`.
+- Quando `projeto_id` é malformado (ver "Validação de entrada"), o
+  sistema responde **400**, JSON
+  `{"status": "invalido", "mensagem": "requisição inválida"}`, sem
+  consultar o banco (guardrail 12). Essa é a única resposta diferente da
+  rejeição genérica: depende só do formato do `projeto_id`, nunca do
+  token.
+- Quando ocorre **qualquer** um dos casos abaixo, sozinho ou combinado
+  com outros, o sistema não grava e responde a **rejeição genérica**:
+  **409**, JSON `{"status": "rejeitado", "mensagem": "voto já registrado"}`,
+  corpo byte a byte idêntico em todos os casos (guardrail 5):
+  - voto duplicado (token, projeto), inclusive o perdedor de uma corrida;
+  - token ausente, malformado (não é UUID) ou inexistente;
   - token emitido por estação de outra edição;
+  - sem cadastro válido;
   - votação fechada (nenhuma edição em votação);
   - projeto inexistente;
   - projeto com status diferente de `publicado`;
   - projeto de outra edição (turma de outra edição).
 - As verificações acima e a inserção acontecem na mesma transação
-  atômica; a unicidade continua garantida pela constraint do banco
-  (guardrail 4).
+  atômica, depois da trava da edição; a unicidade continua garantida pela
+  constraint do banco — o `IntegrityError` da constraint vira a rejeição
+  genérica (guardrail 4).
 - Quando dois requests simultâneos tentam o mesmo (token, projeto), apenas
   um é gravado (constraint no banco, guardrail 4); o outro recebe a
-  resposta genérica.
+  rejeição genérica.
+
+### Validação de entrada (guardrail 12)
+Feita antes de qualquer consulta de negócio. Tamanhos em caracteres,
+depois de remover espaços nas pontas.
+
+| Endpoint | Entrada | Regra | Falha → resposta |
+|---|---|---|---|
+| `GET /estacao/<id>` | `id` (rota) | conversor `<int:id>` | não casa → 404 (rota inexistente); estação inexistente ou inativa → 404 |
+| `GET /entrar` | `w` | exatamente 1 ocorrência; até 32 caracteres; formato `<estacao>:<timestamp>`, `estacao` = inteiro 1–2147483647 sem sinal nem zero à esquerda, `timestamp` = inteiro Unix em segundos, 10 dígitos | página "QR expirado" (400) |
+| `GET /entrar` | `sig` | exatamente 1 ocorrência; 64 caracteres hexadecimais minúsculos (HMAC-SHA256); comparação com `hmac.compare_digest` (G2) | página "QR expirado" (400) |
+| `GET /entrar` | cookie do token | UUID canônico (36 caracteres, com hífens); outro valor = cookie ausente | emite token novo |
+| `POST /visitantes` | `nome` | obrigatório; 2–120 caracteres; sem caractere de controle | 400, formulário com mensagem genérica |
+| `POST /visitantes` | `email` | obrigatório; até 254 caracteres; `EmailValidator` do Django | 400, idem |
+| `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-`, `+`; depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
+| `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
+| `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
+| `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para instrução |
+| `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
+| `POST /votos` | cookie do token | UUID canônico; outro valor = token inexistente | 409 rejeição genérica |
+| todas | cookie de cadastro | assinatura válida; `edicao_id` = edição em votação | sem cadastro (ver "Liberação da cédula") |
+
+- Campos de formulário além dos listados são ignorados.
+- Mensagens de erro nunca citam o valor recebido, o segredo HMAC nem qual
+  regra barrou (G3, G5).
+
+## Proposta B1 — correlação visitante × token por ordem e log
+> **Proposta — aguardando decisão do coordenador.** Revisão do Codex
+> (B1): o horário truncado não fecha sozinho os caminhos de correlação.
+> Esta spec não vai para "pronta para implementar" sem a decisão.
+
+**P1 — id de visitante sem ordem.** `Visitante.id` é `UUIDField`
+(`primary_key=True`, `default=uuid.uuid4`, `editable=False`). Sem
+sequência no banco, o id não revela a ordem de cadastro, que se aproxima
+da ordem de `tokens.criado_em`. O model não declara `Meta.ordering`
+por id.
+
+**P2 — log da aplicação sem rastro do visitante.** Nas rotas `/entrar`,
+`/visitantes`, `/votar` e `/votos`, a aplicação **não registra nenhuma
+linha por request** — nem a linha de 4xx do logger `django.request`
+(ex: "Bad Request: /entrar"), nem `django.security` (CSRF). Erros 5xx
+dessas rotas são registrados só com o tipo da exceção e o nome da rota:
+sem o objeto `request`, sem IP, sem cookie, sem query string (`w`, `sig`),
+sem corpo, sem user-agent, sem id de request/sessão, sem token, sem nome
+ou email. Implementação: filtro `votacao/logs.py` aplicado aos loggers
+`django.request`, `django.security` e `votacao`; ligá-lo em `LOGGING`
+(`settings.py`) é do coordenador.
+
+**Dependência do coordenador — logs da hospedagem (ADR-006).** O log de
+acesso do servidor de aplicação (gunicorn ou equivalente), do proxy e da
+plataforma registra método, caminho, IP e horário com segundos, fora do
+alcance do código. Precisa ficar desligado ou sem essas rotas, inclusive
+o log de erro do proxy. A plataforma também carimba com segundos cada
+linha que a aplicação escreve no console — por isso P2 não escreve linha
+nos fluxos de sucesso. Retenção curta não basta: enquanto o log existe,
+o vínculo existe.
+
+**Risco residual (para a decisão).** Mesmo com P1 e P2, quem tem acesso
+ao banco ou a um `pg_dump` vê as linhas de `visitantes` e `tokens` na
+ordem física de gravação, e numa hora com poucos cadastros o horário
+truncado ainda permite inferência. O controle que resta é o acesso
+restrito ao banco e aos dumps (ADR-006). A spec não promete anonimato
+absoluto contra quem tem o banco inteiro.
+
+**Aceites, se a proposta for aceita:**
+- [ ] Revisão de schema: `visitantes.id` é UUID com `default=uuid4`; a migration não cria sequência para `visitantes`
+- [ ] Teste: dois cadastros seguidos geram ids sem relação de ordem com a ordem de cadastro (não é inteiro; não é UUID v1/v7)
+- [ ] Teste com `assertLogs` em nível DEBUG nos loggers `django`, `django.request`, `django.security` e `votacao`, cobrindo o fluxo `/entrar` → `/visitantes` → `/votar` → `/votos` com sucesso e com rejeições (400, 409, CSRF): **nenhum registro** é emitido
+- [ ] Teste forçando exceção em `POST /visitantes` e em `GET /entrar`: o registro de erro não tem atributo `request` e não contém o IP fictício (`203.0.113.7`), o token, o cookie, `w`, `sig`, nome ou email fictícios
+- [ ] Revisão de código: nenhum `logger.*` nas views do visitante passa dado de request, token ou visitante
+- [ ] Dependência (coordenador, antes do ensaio de 22/10): configuração de log da hospedagem conferida e anexada ao PR de deploy (ADR-006)
 
 ## Dados
-Alterações de schema com migration versionada (guardrail 16).
-- `tokens`: id (uuid, pk), estacao_id (fk), criado_em. A edição do token
-  é `estacoes.edicao_id` — sem coluna própria de edição.
-- `votos`: id, token_id (fk), projeto_id (fk), criado_em,
-  **unique (token_id, projeto_id)**.
-- `visitantes`: id, nome, email, telefone (null), consentimento_em
-  (**truncado para a hora**), **edicao_id (fk → `Edicao`, obrigatório,
-  preenchido com a edição em votação no cadastro)**.
-  **Sem coluna de token, voto ou estação** (guardrail 6). Nenhum outro
-  campo de data/hora.
-- `estacoes`: id, nome, ativa, **edicao_id (fk → `Edicao`, obrigatório)**.
-- `config_votacao`: edicao_id (fk → `Edicao`, único), aberta_em,
-  encerrada_em.
-- **Lê** da spec 01: `Edicao`; `Turma` (edição); `Projeto` (título,
-  turma, status — só `publicado` entra na cédula e no voto).
+Alterações de schema com migration versionada (guardrail 16). Models do
+app `votacao`, com `db_table` explícito — os nomes de tabela são os que
+a spec 04 e o G6 citam:
+
+| Model | Tabela | Campos |
+|---|---|---|
+| `Estacao` | `estacoes` | id, nome (char 60), ativa (bool), **edicao (FK → `Edicao`, `PROTECT`, obrigatório; não muda depois da primeira emissão)** |
+| `Token` | `tokens` | id (uuid, pk), estacao (FK → `Estacao`, `PROTECT`), criado_em. A edição do token é `estacoes.edicao_id` — sem coluna própria de edição |
+| `Voto` | `votos` | id, token (FK `PROTECT`), projeto (FK → `Projeto`, `PROTECT`), criado_em, **unique (token_id, projeto_id)** |
+| `Visitante` | `visitantes` | id (**UUID — proposta P1**), nome (char 120), email (char 254), telefone (char 13, só dígitos, null), consentimento_em (**truncado para a hora**), **edicao (FK → `Edicao`, `PROTECT`, obrigatório, preenchido com a edição em votação no cadastro)**. **Sem coluna de token, voto ou estação** (guardrail 6). Nenhum outro campo de data/hora |
+| `EdicaoVotacao` | — | proxy de `Edicao` (sem tabela), só para as ações de abrir/encerrar no admin |
+
+- **Escreve** na spec 01: só `Edicao.votacao_aberta_em` e
+  `Edicao.votacao_encerrada_em`, pelas ações de abrir/encerrar.
+- **Lê** da spec 01: `Edicao`; `Turma.edicao`; `Projeto` (título, turma,
+  status — só `publicado` entra na cédula e no voto).
+- A tabela `config_votacao` não existe mais (spec 01, PR #16).
 
 ## Endpoints / telas
 | Método | Rota | Entrada | Saída | Erros |
 |---|---|---|---|---|
-| GET | `/estacao/<id>` | — | HTML com QR autoatualizável | 404 estação inexistente/inativa |
-| GET | `/entrar` | `w`, `sig` (query) | redirect p/ formulário + cookie token | página "QR expirado" (assinatura, expiração, estação inativa ou de outra edição, votação fechada) |
-| POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula | 400 validação; página "QR expirado" se votação fechada |
-| GET | `/votar` | cookie/localStorage token | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ instrução se sem token, token inexistente ou de outra edição; aviso "Votação encerrada" |
-| POST | `/votos` | projeto_id | confirmação | 400 `projeto_id` malformado; "voto já registrado" (genérico) para todas as demais rejeições |
+| GET | `/estacao/<int:id>` | — | HTML com QR autoatualizável | 404 estação inexistente/inativa ou id não inteiro |
+| GET | `/entrar` | `w`, `sig` (query); cookie do token | redirect p/ formulário (ou cédula, com cadastro válido) + cookie do token | 400 página "QR expirado" (entrada malformada, assinatura, expiração, estação inativa ou de outra edição, votação fechada) |
+| POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula + cookie de cadastro | 400 formulário com mensagem genérica; 400 página "QR expirado" se votação fechada; 403 CSRF |
+| GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ instrução (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
+| POST | `/votos` | `projeto_id`; cookies | 201 `registrado` | 400 `invalido` (`projeto_id` malformado); 409 rejeição genérica (todas as demais); 403 CSRF |
+| admin | Votação por edição | ações Abrir / Encerrar | mensagem de sucesso | mensagens de recusa acima; 403 não superusuário |
+| admin | Estações | nome, edição, ativa | — | `ValidationError` ao mudar edição com tokens; apagar com tokens bloqueado |
 
 ## Guardrails aplicáveis
-1, 2, 3, 4, 5, 6, 7, 9, 10, 12, 13, 16, 17.
+1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17.
 
-- 4: verificação de projeto/edição/token e inserção do voto na mesma
-  transação; unicidade `(token_id, projeto_id)` no banco.
-- 5: projeto não publicado, de outra edição ou inexistente, e token de
-  outra edição, caem na mesma resposta genérica das demais rejeições.
-- 6: `visitantes.edicao_id` vem de `config_votacao`, nunca do token;
-  `consentimento_em` truncado para a hora impede o cruzamento pelo
-  horário; nenhum outro timestamp em `visitantes`.
+- 4: verificação de projeto/edição/token/cadastro e inserção do voto na
+  mesma transação, depois da trava da `Edicao`; unicidade
+  `(token_id, projeto_id)` no banco; abertura concorrente serializada.
+- 5: token ausente, malformado, inexistente ou de outra edição, sem
+  cadastro, votação fechada e projeto inexistente, não publicado ou de
+  outra edição caem na mesma resposta 409 com corpo idêntico.
+- 6: `visitantes.edicao_id` vem da `Edicao`, nunca do token; a liberação
+  da cédula não grava vínculo no servidor; horário truncado + P1 + P2
+  reduzem a correlação (residual descrito na Proposta B1).
 - 9: `edicao_id` não é dado pessoal; nenhum campo pessoal novo.
 - 10: o aceite continua registrado com data e hora (hora cheia), junto ao
   cadastro.
-- 12: `projeto_id` validado como inteiro positivo antes do banco; campos
-  do formulário com tipo e tamanho validados.
+- 11: nenhum dado de visitante em log (P2).
+- 12: matriz de validação acima, antes do banco.
+- 15: abrir/encerrar e estações só para superusuário no admin.
 
 ## Critérios de aceite
 
@@ -188,59 +360,100 @@ Alterações de schema com migration versionada (guardrail 16).
 - [ ] QR da estação muda sozinho a cada 45s sem recarregar manualmente
 - [ ] URL capturada deixa de emitir token após a expiração da janela
 - [ ] Re-scan no mesmo navegador devolve o mesmo token (cookie)
+- [ ] Cookie do token com valor que não é UUID (`abc`, UUID sem hífens, 37 caracteres) → token novo emitido, sem erro 500
+- [ ] `w` malformado (`abc`, `1:`, `:1700000000`, `01:1700000000`, `-1:1700000000`, 33 caracteres, `w` repetido) e `sig` malformado (63 e 65 caracteres, maiúsculas, não hex, ausente) → mesma página "QR expirado", status 400, corpo idêntico ao da assinatura inválida
+- [ ] `/estacao/abc` → 404; estação inativa → 404
 - [ ] Com votação encerrada, `/entrar`, `POST /visitantes` e `/votos` recusam
-- [ ] Abrir a votação de uma edição com outra edição em votação é recusado e não altera nenhuma `config_votacao`
+
+**Abrir e encerrar**
+- [ ] Abrir com outra edição em votação → recusado, nenhuma `Edicao` alterada
+- [ ] Teste de concorrência: duas aberturas simultâneas de edições diferentes → no máximo uma edição com `votacao_aberta_em` preenchido e `votacao_encerrada_em` vazio
+- [ ] Abrir edição já encerrada → "não pode ser reaberta", campos inalterados
+- [ ] Encerrar edição não aberta ou já encerrada → recusado, campos inalterados
+- [ ] Teste de concorrência: voto que obtém a trava depois do encerramento → 409 e nenhum voto gravado; voto que obteve a trava antes → gravado
+- [ ] Staff não superusuário (grupo `digitacao-banca`) não vê as ações e recebe 403 ao chamá-las; anônimo → login
+
+**Estação**
+- [ ] Mudar a edição de estação com token emitido → `ValidationError`, edição inalterada; sem token emitido → permitido
+- [ ] Apagar estação com token emitido → bloqueado (`ProtectedError`)
 
 **Visitante**
-- [ ] Formulário sem nome/email ou sem consentimento não libera cédula (400)
+- [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
+- [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
+- [ ] `telefone` com 9 dígitos, 14 dígitos, letras ou 21 caracteres → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
+- [ ] Consentimento ausente ou desmarcado → 400, nada gravado, sem cookie de cadastro, `/votar` não libera a cédula
 - [ ] `visitantes` não tem nenhuma coluna ligando ao token, voto ou estação (revisão de schema)
 - [ ] Visitante cadastrado recebe `edicao_id` da edição em votação; teste com cookie de token de **outra** edição presente no request mostra que o `edicao_id` gravado continua o da edição em votação
-- [ ] O código do cadastro de visitante não lê token, cookie nem estação (revisão de código)
-- [ ] Aceite às 19:42:17 grava `consentimento_em` = 19:00:00 do mesmo dia (minutos, segundos e microssegundos zerados)
+- [ ] O código do cadastro de visitante não lê token, cookie do token, localStorage nem estação (revisão de código)
+- [ ] Aceite às 19:42:17 de 25/10/2026 em `America/Sao_Paulo` grava `consentimento_em` = 2026-10-25 22:00:00 UTC (19:00:00 em Brasília), com minutos, segundos e microssegundos zerados
 - [ ] `visitantes` não tem outro campo de data/hora além de `consentimento_em` (revisão de schema: sem `auto_now`/`auto_now_add`)
+
+**Liberação da cédula**
+- [ ] Token recém-emitido, sem cadastro: `GET /votar` → redirect para o formulário; `POST /votos` → 409 genérico, nenhum voto gravado
+- [ ] Formulário inválido enviado → `/votar` continua redirecionando para o formulário
+- [ ] Cadastro válido → `/votar` mostra a cédula; o cookie de cadastro de dois visitantes da mesma edição tem o mesmo valor
+- [ ] Cookie de cadastro adulterado ou do ensaio, na votação do evento → sem cadastro (redirect para o formulário)
+- [ ] Re-scan na mesma edição com cadastro válido → cédula direto, nenhum novo registro em `visitantes`
+- [ ] Nenhum registro é criado na tabela de sessão do Django nem no cache durante o fluxo (teste conta as linhas antes e depois)
 
 **Cédula e voto**
 - [ ] Cédula lista só projetos `publicado` da edição em votação: projeto em `em_revisao` da mesma turma e projeto `publicado` de outra edição não aparecem
-- [ ] Segundo voto no mesmo projeto pelo mesmo token é recusado com mensagem genérica
-- [ ] POST de voto em projeto não `publicado`, em projeto de outra edição, em projeto inexistente, com token de outra edição, com token inexistente e com votação fechada → resposta idêntica (status e corpo) à do voto duplicado, e nenhum voto gravado
-- [ ] `projeto_id` não inteiro (`abc`, `1.5`, vazio) → 400 genérico, nenhuma query de voto
-- [ ] Teste de corrida: 2 POSTs simultâneos (mesmo token+projeto) → 1 voto no banco
+- [ ] Voto válido → 201 `{"status": "registrado"}`
+- [ ] Segundo voto no mesmo projeto pelo mesmo token → 409 genérico
+- [ ] Igualdade da rejeição: voto duplicado, perdedor da corrida, token ausente, token malformado, token inexistente, token de outra edição, sem cadastro, votação fechada, projeto inexistente, projeto não `publicado`, projeto de outra edição, e combinações (ex: votação fechada + token inexistente) → todos com status 409 e corpo byte a byte igual, e nenhum voto gravado
+- [ ] `projeto_id` malformado (`abc`, `1.5`, vazio, ausente, `0`, `-1`, `+1`, `2147483648`, 11 dígitos, repetido) → 400 `invalido`, nenhuma query ao banco (`assertNumQueries(0)`; a validação vem antes da trava da edição)
+- [ ] Teste de corrida: 2 POSTs simultâneos (mesmo token+projeto) → 1 voto no banco; o outro recebe 409 genérico
 
 **Isolamento por edição** (fixture com a edição do evento e a edição "Ensaio", cada uma com turma, projetos e estação próprios)
-- [ ] Token emitido por estação do ensaio não vota em projeto do evento (resposta genérica, nenhum voto gravado)
+- [ ] Token emitido por estação do ensaio não vota em projeto do evento (409 genérico, nenhum voto gravado)
 - [ ] Re-scan no evento com cookie de token do ensaio emite token **novo**, ligado a estação do evento; o token do ensaio continua intacto
 - [ ] Votos do ensaio não aparecem como votados na cédula do evento (e vice-versa)
 - [ ] Visitante cadastrado durante a votação do ensaio fica com `edicao_id` do ensaio; durante a do evento, com o do evento
 - [ ] Encerrar o ensaio e abrir o evento não altera nem apaga tokens, votos ou visitantes do ensaio
 
-- [ ] Testes do caminho crítico passando (emissão, unicidade, rejeições, isolamento)
+- [ ] Testes do caminho crítico passando (emissão, unicidade, rejeições, liberação da cédula, isolamento)
 
-## Decisões do coordenador incorporadas (PR #14)
+## Decisões do coordenador incorporadas
 - Cédula e voto só com projetos `publicado` — mesmo filtro do ranking da
-  spec 04 (resposta 7).
+  spec 04 (PR #14, resposta 7).
 - O ensaio é outra edição ("Ensaio 2026/2"), com turmas, projetos e
-  estações próprios; nada de reabrir votação ou apagar dados (resposta 8).
+  estações próprios; nada de reabrir votação ou apagar dados (PR #14,
+  resposta 8).
 - `Estacao` ganha `edicao_id` e os tokens chegam à edição pela estação;
   `Visitante` ganha `edicao_id` direto, preenchido pela edição em votação,
-  nunca pelo token (resposta 13).
-- `visitantes.consentimento_em` gravado truncado para a hora ("Ponto para
-  a spec 03"); registro na ADR-003 pendente pelo coordenador.
+  nunca pelo token (PR #14, resposta 13).
+- `visitantes.consentimento_em` gravado truncado para a hora (PR #14,
+  "Ponto para a spec 03"); registro na ADR-003 pendente pelo coordenador.
+- Abertura e encerramento nos campos `Edicao.votacao_aberta_em` e
+  `Edicao.votacao_encerrada_em`, preenchidos pela spec 03;
+  `votacao_aberta_em` não muda depois de preenchido; a tabela
+  `config_votacao` deixa de existir (spec 01, PR #16, commit `e5a594a`).
 
-## Perguntas em aberto
-- Intervalo exato de rotação (45s é proposta) e tolerância de relógio.
-- Texto final do consentimento LGPD (coordenação).
-- **Uma edição em votação por vez**: esta spec impede abrir uma votação
-  com outra aberta, porque `Visitante.edicao_id` depende de existir uma
-  única edição em votação. Confirmar com o coordenador (ensaio e evento
-  não se sobrepõem no cronograma).
-- **Correlação residual visitante × token** (não trava a spec, mas pede
-  posição do coordenador): mesmo com a hora truncada, (a) o `id`
-  sequencial de `visitantes` segue a ordem de cadastro, que se aproxima
-  da ordem de `tokens.criado_em` dentro da mesma hora; (b) o log de
-  acesso do servidor web (ADR-006) registra `GET /entrar` e
-  `POST /visitantes` com segundos e IP. Opções: id não sequencial (UUID)
-  em `visitantes` e/ou log de acesso sem esses caminhos ou com retenção
-  curta.
-- Nomes finais dos campos de `Edicao`, `Turma` e `Projeto` dependem da
-  spec 01 (PR #16); esta spec usa `Turma` → edição, `Projeto.turma` e
-  `Projeto.status = publicado`. Ajustar se o PR #16 mudar algum nome.
+## Decisões pendentes
+Mantêm a spec em `rascunho`. As de 1 a 4 travam a implementação; a 5 e a
+6 têm proposta e não impedem começar.
+
+1. **Proposta B1 (P1 e P2)** — id de visitante UUID e log da aplicação
+   sem rastro nas rotas do visitante. Aguarda decisão do coordenador.
+2. **Logs da hospedagem** (ADR-006, servidor até 08/10) — log de acesso
+   do servidor de aplicação, proxy e plataforma sem as rotas do
+   visitante ou desligado; e ligar o filtro P2 em `LOGGING`
+   (`settings.py`). Dependência do coordenador.
+3. **Uma edição em votação por vez** — esta spec impede abrir uma votação
+   com outra aberta, porque `Visitante.edicao_id` depende de existir uma
+   única edição em votação. Confirmar a regra com o coordenador (o
+   cronograma sem sobreposição não é a aprovação dela).
+4. **Registro na ADR-003** do horário truncado para a hora — o
+   coordenador assumiu o registro no PR #14; falta na `main`.
+5. **Rotação e tolerância do QR** — proposta: QR novo a cada 45s; `/entrar`
+   aceita `timestamp` entre agora − 90s e agora + 5s (a janela atual e a
+   anterior, mais folga para o caminho do celular). O `timestamp` é gerado
+   pelo próprio servidor, então não há relógio de estação a tolerar.
+6. **Texto do consentimento LGPD** — aprovação da coordenação até 20/10
+   (`docs/03-estado.md`). Até lá, texto provisório com a finalidade de
+   `docs/00-contexto.md`: "Aceito receber comunicações da FATEC Olímpia."
+   O texto fica no template; trocar pelo final não muda código nem dados.
+7. **Spec 01 (PR #16)** — esta spec usa `Edicao.votacao_aberta_em`,
+   `Edicao.votacao_encerrada_em`, `Turma.edicao`, `Projeto.turma` e
+   `Projeto.status = publicado`; ajustar se o PR mudar algum nome antes do
+   merge.
