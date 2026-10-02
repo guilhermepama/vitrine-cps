@@ -30,11 +30,16 @@ e votação presencial do público no dia do evento.
 
 ## Rodando no seu computador
 
-Precisa de Python 3.12 e de um PostgreSQL (SQLite não é aceito — ADR-002).
+Precisa de Python 3.12 ou 3.13 (o CI usa 3.12) e de um PostgreSQL (SQLite
+não é aceito — ADR-002).
 
 1. **Banco** — escolha um:
-   - **Neon (mais simples, nada para instalar)**: no projeto do Neon, crie um
-     branch com o seu nome e copie a connection string.
+   - **Neon (mais simples, nada para instalar)**: na **sua** conta grátis do
+     Neon, crie um projeto `vitrine-dev` (região São Paulo, Postgres 16) e
+     copie a connection string **sem `-pooler`** no endereço — o `pytest`
+     precisa criar e apagar o banco de teste. Nunca use o projeto de
+     produção para desenvolver: as horas de processamento são do projeto
+     inteiro e, se acabarem, o banco do evento fica suspenso.
    - **Docker**: `docker compose up -d` →
      `postgres://vitrine:vitrine@localhost:5432/vitrine`
 2. **Ambiente**:

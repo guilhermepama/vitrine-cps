@@ -191,7 +191,14 @@ Formato:
   usado em ondas semestrais) e não tem backup no plano gratuito. O Neon
   "dorme" após 5 min sem acesso, mas acorda em cerca de 1 s — aceitável;
   no dia do evento o acesso é contínuo. Limites do plano gratuito
-  (verificados em 2026-10-01): 1 GB por projeto, 100 CU-hora/mês.
+  (verificados em 2026-10-02): 0,5 GB por projeto (exibido na criação do
+  projeto), 100 CU-hora/mês **por projeto, somando todos os branches** —
+  esgotou, o banco fica suspenso até o mês seguinte. Por isso o projeto
+  `vitrine-cps` é só produção; desenvolvimento usa projeto separado
+  (`vitrine-dev`) ou Postgres local.
+  - Pendente: o projeto está na conta pessoal do coordenador. Para o
+    sistema sobreviver às turmas, transferir para uma organização do Neon
+    com mais de um administrador.
 
 ## ADR-008 — Banca em ficha impressa nesta edição
 - Status: aceita
