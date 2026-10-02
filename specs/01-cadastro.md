@@ -22,7 +22,8 @@ pelos próprios grupos (ADR-009); a equipe importa e aprova.
   ambiente). RA em claro nunca é gravado nem logado.
 - Token de edição: aleatório, guardado como hash; revogável; regerado
   pelo admin em 1 clique (o anterior deixa de valer).
-- Importação da lista das coordenações (CSV no formato da planilha modelo)
+- Importação da lista das coordenações (planilha modelo em
+  `docs/modelos/lista-projetos-vitrine-cps.xlsx`, exportada para CSV)
   por comando de gerenciamento: idempotente, relatório de erros por linha.
 - Admin: filtros por status/turma, ação em lote "publicar" e "devolver
   para ajustes", regerar link de edição, prazo de edição por edição.
