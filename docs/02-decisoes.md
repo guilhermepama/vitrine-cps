@@ -123,7 +123,7 @@ Formato:
   `CODEOWNERS`, senão nenhum PR de aluno é mergeável.
 
 ## ADR-007 — Avaliação da banca e nota final composta
-- Status: aceita
+- Status: aceita (login de jurado substituído pela ADR-008 nesta edição)
 - Data: 2026-10-01
 - Contexto: além do voto do público, uma banca avalia os projetos, e o
   peso da banca deve ser maior. Os dois votos têm naturezas diferentes:
@@ -190,3 +190,20 @@ Formato:
   "dorme" após 5 min sem acesso, mas acorda em cerca de 1 s — aceitável;
   no dia do evento o acesso é contínuo. Limites do plano gratuito
   (verificados em 2026-10-01): 1 GB por projeto, 100 CU-hora/mês.
+
+## ADR-008 — Banca em ficha impressa nesta edição
+- Status: aceita
+- Data: 2026-10-02
+- Contexto: a equipe de desenvolvimento ficou com 3 pessoas (Barbara
+  passou para apoio em documentação) e o prazo é 29/10. A ADR-007 previa
+  login de jurado e tela de avaliação no celular, com a ficha impressa
+  como plano B.
+- Decisão: o plano B vira o plano A. Jurados avaliam em **ficha impressa
+  e assinada**; a equipe digita as notas no admin do Django. Jurado é um
+  registro (nome, edição), não um usuário com login. Normalização, pesos
+  e desempate da ADR-007 não mudam.
+- Consequências: a spec 06 cai para models, admin e ficha para imprimir.
+  Sem dependência de Wi-Fi para a banca no dia do evento. A auditoria
+  passa a ser a ficha assinada + registro de quem digitou cada nota. Custo:
+  digitação manual após a avaliação (risco de erro — conferir por amostra).
+  Login e tela do jurado ficam para a próxima edição.

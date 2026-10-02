@@ -1,29 +1,53 @@
 # TAREFAS — divisão por responsável
 
-Cada módulo tem **um** representante responsável. Regras:
+Equipe desta edição: **Guilherme** (coordenação), **Renan** e **Cleiton**.
+Barbara apoia com documentação (sem código, sem caminho crítico).
 
-- O responsável completa a spec do seu módulo (usando `specs/_template.md`)
-  e só então gera código com a IA de sua preferência.
-- Mudança que atravessa módulos (schema compartilhado, rotas de outro
-  módulo) passa pelo coordenador antes.
-- PR aprovado pelo coordenador antes do merge (guardrail 18).
+## Regras
 
-| Módulo | Spec | Responsável | Turma | Status |
-|---|---|---|---|---|
-| Cadastro (edições/turmas/projetos) | `specs/01-cadastro.md` | — | — | aguardando |
-| Vitrine pública | `specs/02-vitrine-publica.md` | — | — | aguardando |
-| Credenciamento + votação | `specs/03-credenciamento-votacao.md` | — | — | spec pronta |
-| Resultados/relatórios | `specs/04-resultados.md` | — | — | aguardando |
-| Administração | `specs/05-admin.md` | — | — | aguardando |
-| Avaliação da banca | `specs/06-avaliacao-banca.md` | — | — | aguardando |
-| Coordenação, infra, revisão final | — | Guilherme Pama | DSM | ativo |
+- O responsável completa a spec da sua frente (`/nova-spec`, a partir de
+  `specs/_template.md`), abre PR **só com a spec** e espera a aprovação
+  antes de gerar código.
+- **Cada frente é um app Django próprio** (`cadastro/`, `vitrine/`,
+  `votacao/`, `banca/`, `resultados/`). Você e o seu agente só alteram a
+  pasta do seu app. `settings.py`, `urls.py` raiz e os models do
+  `cadastro` são do coordenador — precisou mudar, peça.
+- **PR pequeno**: até ~300 linhas alteradas, sem contar migrations e
+  testes. Maior que isso, fatie (ex: models → admin → telas).
+- PR aprovado pelo coordenador antes do merge (guardrail 18). PRs do
+  coordenador são revisados pelo Renan (revisão cruzada combinada).
+- Status da tarefa vai na **descrição do PR**. `docs/03-estado.md` é
+  atualizado só pelo coordenador.
+- Branch desatualizada com a `main` ("out-of-date") é normal depois de
+  cada merge: clique em **Update branch** no PR.
 
-## Ordem sugerida de dependências
+## Frentes
+
+| Frente | Specs | App | Responsável | GitHub | Entrega |
+|---|---|---|---|---|---|
+| Fundação: cadastro, admin, esqueleto, infra | 01, 05 | `cadastro/` | Guilherme | @guilhermepama | 05–08/10 |
+| Vitrine pública | 02 | `vitrine/` | Cleiton | @gustimmolp | 12/10 |
+| Credenciamento + votação | 03 | `votacao/` | Renan | @ReCroffi | 20/10 |
+| Avaliação da banca (ficha em papel, ADR-008) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
+| Resultados (nota composta 70/30) | 04 | `resultados/` | Renan | @ReCroffi | 27/10 |
+| Documentação de apoio | — | `docs/` | Barbara | (a confirmar) | 10/10 e 22/10 |
+
+**Vitrine**: o coordenador entrega o template base (layout, cores,
+tipografia) junto com o esqueleto; a frente preenche as páginas.
+
+**Votação**: não se divide entre pessoas — é o módulo de maior risco.
+Revisão linha a linha.
+
+**Documentação de apoio (Barbara)**: guia do aluno para cadastro do
+projeto (10/10); roteiro do staff nas estações e ficha de avaliação da
+banca com os critérios para divulgação (22/10). Entra por PR em `docs/`.
+
+## Ordem de dependências
 
 1. ~~ADR-002 (stack)~~ — aceita: Python + Django + PostgreSQL
-2. Spec 01 (modelo de dados base: edições, turmas, projetos)
-3. Specs 02 e 03 em paralelo (dependem do modelo da 01)
-4. Specs 04 e 05 por último (dependem de dados existirem)
+2. Spec 01 + esqueleto (fundação) — destrava todo o resto
+3. Specs 02, 03 e 06 em paralelo (dependem do modelo da 01)
+4. Spec 04 por último (depende de votos e notas da banca)
 
 ## Ferramentas de IA do time
 
@@ -36,3 +60,7 @@ Qualquer ferramenta serve, desde que leia as instruções do repositório:
 
 Se a sua ferramenta não carregar nada disso sozinha, cole o conteúdo de
 `AGENTS.md` + a spec da sua tarefa no início da conversa.
+
+Agente rodando em servidor próprio segue as mesmas regras e usa a
+credencial da conta GitHub do responsável (ver "Git — limites para
+agentes" no `AGENTS.md`).

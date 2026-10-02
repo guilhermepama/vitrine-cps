@@ -3,24 +3,27 @@
 > Stub — completar usando `specs/_template.md` antes de implementar.
 > Regras de negócio já decididas na ADR-007.
 
-- **Responsável**: (a definir em TAREFAS.md)
+- **Responsável**: Guilherme (@guilhermepama)
 - **Status**: rascunho
-- **Depende de**: ADR-002, ADR-007, spec 01 (projetos e turmas)
+- **Depende de**: ADR-002, ADR-007, ADR-008, spec 01 (projetos e turmas)
 
 ## Objetivo
-Permitir que jurados autenticados deem nota 0–10, por critério, aos
-projetos da edição, no próprio celular.
+Registrar as notas 0–10, por critério, que cada jurado deu aos projetos
+da edição. Nesta edição os jurados avaliam em **ficha impressa** e a
+equipe digita as notas no admin (ADR-008).
 
 ## Escopo (já decidido — detalhar)
 - Critérios cadastrados por edição no admin (nome, ordem).
-- Jurado = usuário do Django no grupo "banca"; login próprio.
-- Tela do jurado: lista de projetos por turma, marca os já avaliados;
-  formulário com uma nota por critério.
-- Uma avaliação por (jurado, projeto, critério) — constraint no banco;
-  jurado pode corrigir a própria nota enquanto a avaliação estiver aberta.
-- Plano B: lançamento das notas pelo admin a partir de ficha impressa.
+- Jurado = registro cadastrado no admin (nome, edição) — **sem login**.
+- Ficha impressa gerada a partir dos critérios e projetos da edição
+  (pode ser uma página para imprimir; o jurado assina a ficha).
+- Lançamento das notas no admin, por membro da equipe com permissão
+  específica; registro de quem digitou e quando.
+- Uma avaliação por (jurado, projeto, critério) — constraint no banco.
+- Fichas em papel guardadas como trilha de auditoria.
 
 ## Fora de escopo
+- Login de jurado e tela de avaliação no celular (próxima edição).
 - Cálculo da nota final (spec 04).
 - Qualquer vínculo com tokens ou votos do público.
 

@@ -2,7 +2,7 @@
 
 > Spec de referência: usa o template completo para servir de padrão às demais.
 
-- **Responsável**: (a definir em TAREFAS.md)
+- **Responsável**: Renan (@ReCroffi)
 - **Status**: pronta para implementar (ADR-002 aceita: Python + Django)
 - **Depende de**: ADR-001, ADR-003, spec 01 (modelo de edições/projetos)
 

@@ -21,6 +21,13 @@
 - Cada módulo tem um responsável (ver `TAREFAS.md`). Não altere arquivos de
   módulos de outros responsáveis sem combinar — mudanças transversais passam
   pelo coordenador (Guilherme).
+- **Um app Django por frente** (`cadastro/`, `vitrine/`, `votacao/`,
+  `banca/`, `resultados/`). Altere só o app do seu responsável.
+  `settings.py`, `urls.py` raiz e models do `cadastro` são do coordenador.
+- **PR pequeno**: até ~300 linhas alteradas (sem contar migrations e
+  testes). Passou disso, divida em PRs sequenciais.
+- **Não edite `docs/03-estado.md`** — é do coordenador. O status da
+  tarefa vai na descrição do PR.
 - Commits pequenos e descritivos, em português:
   `modulo: o que mudou` (ex: `votacao: valida assinatura HMAC da janela`).
 - Trabalhe em branch por tarefa (`feat/<modulo>-<resumo>`), PR para `main`.
