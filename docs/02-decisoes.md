@@ -53,8 +53,10 @@ Formato:
   - Bibliotecas permitidas: `django`, `psycopg[binary]`, `pytest`,
     `pytest-django`, `qrcode` (QR das estações), `Pillow` (upload de
     imagens, G14), `gunicorn` e `whitenoise` (deploy),
-    `django-storages[s3]` (imagens no R2 — ADR-006). Qualquer outra
-    exige proposta aqui.
+    `django-storages[s3]` (imagens no R2 — ADR-006), `dj-database-url`
+    (lê o `DATABASE_URL`; incluída em 2026-10-02 no esqueleto — parser
+    próprio seria código a manter sem ganho). Qualquer outra exige
+    proposta aqui.
   - Rate limit (G7) com o framework de cache do Django, sem lib extra.
   - Hospedagem: ADR-006 (banco: Neon). Requisitos:
     HTTPS, Postgres gerenciado com backup, **sem hibernação no dia do
@@ -189,7 +191,14 @@ Formato:
   usado em ondas semestrais) e não tem backup no plano gratuito. O Neon
   "dorme" após 5 min sem acesso, mas acorda em cerca de 1 s — aceitável;
   no dia do evento o acesso é contínuo. Limites do plano gratuito
-  (verificados em 2026-10-01): 1 GB por projeto, 100 CU-hora/mês.
+  (verificados em 2026-10-02): 0,5 GB por projeto (exibido na criação do
+  projeto), 100 CU-hora/mês **por projeto, somando todos os branches** —
+  esgotou, o banco fica suspenso até o mês seguinte. Por isso o projeto
+  `vitrine-cps` é só produção; desenvolvimento usa projeto separado
+  (`vitrine-dev`) ou Postgres local.
+  - Pendente: o projeto está na conta pessoal do coordenador. Para o
+    sistema sobreviver às turmas, transferir para uma organização do Neon
+    com mais de um administrador.
 
 ## ADR-008 — Banca em ficha impressa nesta edição
 - Status: aceita
