@@ -13,3 +13,8 @@ vendor/
 
 # Material de referência local (PPCs etc.) — resumo em docs/referencias/
 docs/docs-seed/
+
+# Django
+staticfiles/
+media/
+.pytest_cache/
