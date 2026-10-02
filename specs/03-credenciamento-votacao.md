@@ -20,9 +20,14 @@ máximo 1 voto por projeto por token.
 ## Escopo
 - Página `/estacao/<id>` (tela cheia): exibe QR apontando para
   `/entrar?w=<estacao>:<timestamp>&sig=<HMAC>`, regenerado a cada 45s.
+  **Proposta** (aguarda decisão do coordenador): só para usuário staff
+  logado — ver "Acesso à página da estação".
+- Página de instrução `GET /como-votar` (nome **proposto**): "escaneie o
+  QR na estação"; destino dos redirects de `/votar` e do botão "votar" da
+  vitrine (guardrail 8).
 - Rota `GET /entrar`: valida assinatura e expiração da janela; emite token
   UUID; grava cookie httpOnly e devolve página que salva em localStorage e
-  redireciona ao formulário de visitante.
+  redireciona ao formulário de visitante (`GET /visitantes`).
 - Rate limit da emissão em duas camadas — por janela de estação e por IP
   (guardrail 7, ADR-001; ver "Rate limit da emissão").
 - Formulário de visitante: nome + email obrigatórios, telefone opcional,
@@ -129,6 +134,56 @@ máximo 1 voto por projeto por token.
   uso, desativa-se.
 - `Voto.token`, `Voto.projeto`, `Estacao.edicao` e `Visitante.edicao`
   também são `PROTECT`: nada do ensaio ou do evento é apagado em cascata.
+
+### Acesso à página da estação (PROPOSTA)
+> **Proposta — aguarda decisão do coordenador.** Enquanto não for
+> decidida, a F3 (página da estação) não abre PR.
+
+- **Problema**: hoje `/estacao/<id>` é pública. Qualquer pessoa, de casa,
+  abre `/estacao/1` e lê QRs válidos o tempo todo. A exigência de
+  presença física (ADR-001: estações supervisionadas) cai, e o único
+  freio passa a ser o rate limit — 20 tokens por janela de 45s, cerca de
+  1.600 tokens por hora por estação.
+- **Proposta**: a página exige usuário **logado, ativo e com
+  `is_staff`**. O notebook/tablet da estação fica logado com uma conta de
+  staff (sem permissões no admin — não é preciso nenhuma); o staff fica
+  ao lado da tela. Não muda permissões de admin (ver "Fora de escopo").
+- **Ordem**: a autenticação é conferida **antes** de buscar a estação,
+  para não revelar quais ids existem.
+  - Anônimo → redirect (302) para o login do admin (`admin:login`) com
+    `next=/estacao/<id>`; nenhum QR, `w` ou `sig` no corpo. Usa o login
+    do admin para não depender de `LOGIN_URL` no `settings.py`.
+  - Logado sem `is_staff` → **404**, corpo igual ao da estação
+    inexistente.
+  - Staff → as regras de sempre: estação inexistente ou inativa → 404;
+    senão, a tela com o QR.
+- A renovação automática do QR (qualquer requisição da estação que
+  devolva QR, `w` ou `sig`) segue a mesma regra; se a sessão do staff
+  cair, a tela deixa de mostrar QR em vez de exibir um QR velho.
+- Respostas da estação com `Cache-Control: no-store` (o QR não fica em
+  cache do navegador nem de proxy).
+- A sessão do Django só existe no aparelho da estação (login do staff).
+  As rotas do visitante continuam sem sessão (ver "Liberação da cédula").
+- Limite aceito: quem tiver a senha de staff abre a estação de qualquer
+  lugar; a conta da estação é tratada como credencial do evento (senha
+  forte, troca depois do evento).
+
+### Formulário e página de instrução
+- `GET /visitantes`: mostra o formulário de visitante (nome, email,
+  telefone, consentimento, com o texto do consentimento). É o destino do
+  redirect de `/entrar`. Como o cadastro, **não lê** o cookie do token, o
+  localStorage nem a estação; query string ignorada. Sem edição em
+  votação → página genérica "QR expirado — escaneie novamente na estação"
+  (400), a mesma do `POST /visitantes`, para ninguém preencher um
+  formulário que será recusado. Não grava nada (nem sessão, nem cache).
+- `GET /como-votar` (nome **proposto**, dono o app `votacao`): página
+  estática de instrução — "Para votar, escaneie o QR em uma das estações
+  de credenciamento do evento." Pública, sempre 200 com o mesmo corpo:
+  não lê cookie, token, cadastro nem edição em votação (não revela por
+  que o visitante chegou ali — G5). Destino dos redirects de `GET /votar`
+  e do botão "votar" da vitrine (spec 02, guardrail 8: o botão leva à
+  explicação do voto presencial, nunca à cédula). Sem link para
+  `/entrar`, `/votar` ou `/estacao`.
 
 ### Emissão de token
 - **Rotação e tolerância**: a estação gera QR novo a cada 45s; `/entrar`
@@ -301,7 +356,8 @@ depois de remover espaços nas pontas.
 
 | Endpoint | Entrada | Regra | Falha → resposta |
 |---|---|---|---|
-| `GET /estacao/<id>` | `id` (rota) | conversor `<int:id>` | não casa → 404 (rota inexistente); estação inexistente ou inativa → 404 |
+| `GET /estacao/<id>` | `id` (rota) | conversor `<int:id>` | não casa → 404 (rota inexistente); estação inexistente ou inativa → 404. **Proposta**: antes disso, anônimo → login do admin; logado sem `is_staff` → 404 |
+| `GET /visitantes`, `GET /como-votar` | — | sem entrada; query string ignorada | — |
 | `GET /entrar` | `w` | exatamente 1 ocorrência; até 32 caracteres; formato `<estacao>:<timestamp>`, `estacao` = inteiro 1–2147483647 sem sinal nem zero à esquerda, `timestamp` = inteiro Unix em segundos, 10 dígitos | página "QR expirado" (400) |
 | `GET /entrar` | `sig` | exatamente 1 ocorrência; 64 caracteres hexadecimais minúsculos (HMAC-SHA256); comparação com `hmac.compare_digest` (G2) | página "QR expirado" (400) |
 | `GET /entrar` | cookie do token | UUID canônico (36 caracteres, com hífens); outro valor = cookie ausente | emite token novo |
@@ -399,7 +455,9 @@ a spec 04 e o G6 citam:
 ## Endpoints / telas
 | Método | Rota | Entrada | Saída | Erros |
 |---|---|---|---|---|
-| GET | `/estacao/<int:id>` | — | HTML com QR autoatualizável | 404 estação inexistente/inativa ou id não inteiro |
+| GET | `/estacao/<int:id>` | sessão de staff (**proposta**) | HTML com QR autoatualizável, `Cache-Control: no-store` | 404 estação inexistente/inativa ou id não inteiro; **proposta**: 302 para `admin:login` (anônimo), 404 (logado sem `is_staff`) |
+| GET | `/visitantes` | — | formulário de visitante | 400 página "QR expirado" se votação fechada |
+| GET | `/como-votar` (nome proposto) | — | página de instrução "escaneie o QR na estação", 200, corpo fixo | — |
 | GET | `/entrar` | `w`, `sig` (query); cookie do token | redirect p/ formulário (ou cédula, com cadastro válido) + cookie do token | 400 página "QR expirado" (entrada malformada, assinatura, expiração, estação inativa ou de outra edição, votação fechada, rate limit estourado) |
 | POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula + cookie de cadastro | 400 formulário com mensagem genérica; 400 página "QR expirado" se votação fechada; 403 CSRF |
 | GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ instrução (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
@@ -408,7 +466,7 @@ a spec 04 e o G6 citam:
 | admin | Estações | nome, edição, ativa | — | `ValidationError` ao mudar edição com tokens; apagar com tokens bloqueado |
 
 ## Guardrails aplicáveis
-1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 15, 16, 17.
+1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17.
 
 - 4: verificação de projeto/edição/token/cadastro e inserção do voto na
   mesma transação, depois da trava da `Edicao`; unicidade
@@ -423,6 +481,8 @@ a spec 04 e o G6 citam:
 - 7: rate limit em `/entrar` em duas camadas — 20 tokens por janela de
   45s por estação e 300 emissões por 10 min por IP; estouro = página "QR
   expirado" idêntica; IP só como chave de cache com expiração.
+- 8: `/como-votar` é a explicação do voto presencial para onde aponta o
+  botão "votar" da vitrine; não leva à cédula.
 - 9: `edicao_id` não é dado pessoal; nenhum campo pessoal novo.
 - 10: o aceite continua registrado com data e hora (hora cheia), junto ao
   cadastro.
@@ -464,6 +524,23 @@ a spec 04 e o G6 citam:
 - [ ] Mudar a edição de estação com token emitido → `ValidationError`, edição inalterada; sem token emitido → permitido
 - [ ] Apagar estação com token emitido → bloqueado (`ProtectedError`)
 
+**Acesso à página da estação** (PROPOSTA — vale se o coordenador aprovar)
+- [ ] Anônimo em `/estacao/<id>` de estação ativa → 302 para `admin:login` com `next=/estacao/<id>`; o corpo não contém QR, `w` nem `sig`
+- [ ] Anônimo em `/estacao/<id>` de estação inexistente → o mesmo 302 (não revela se a estação existe)
+- [ ] Usuário logado sem `is_staff` → 404, corpo igual ao da estação inexistente
+- [ ] Usuário staff com `is_active = False` não loga; com sessão antiga, recebe o mesmo tratamento do anônimo
+- [ ] Staff ativo → 200 com o QR; estação inexistente ou inativa → 404
+- [ ] A renovação do QR exige a mesma autenticação (anônimo não obtém `w`/`sig` por ela)
+- [ ] Resposta da estação com `Cache-Control: no-store`
+
+**Formulário e página de instrução**
+- [ ] `GET /visitantes` com votação aberta → 200 com o formulário e o texto do consentimento, com ou sem cookie do token
+- [ ] `GET /visitantes` sem edição em votação → página "QR expirado", 400
+- [ ] `GET /visitantes` não lê o cookie do token nem a estação (revisão de código) e não cria registro em sessão nem cache
+- [ ] `GET /votar` sem token, com token malformado, inexistente ou de outra edição → redirect para `/como-votar`
+- [ ] `GET /como-votar` → 200, corpo byte a byte igual sem cookies, com token válido, com token de outra edição e com votação fechada
+- [ ] `/como-votar` não contém link para `/entrar`, `/votar` nem `/estacao`
+
 **Visitante**
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
 - [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
@@ -499,6 +576,15 @@ a spec 04 e o G6 citam:
 - [ ] Encerrar o ensaio e abrir o evento não altera nem apaga tokens, votos ou visitantes do ensaio
 
 - [ ] Testes do caminho crítico passando (emissão, rate limit, unicidade, rejeições, liberação da cédula, isolamento)
+
+## Sugestões ao coordenador (fora deste arquivo)
+- **`QR_ROTATION_SECONDS` sem uso**: o `.env.example` declara
+  `QR_ROTATION_SECONDS=45`, mas esta spec fixa a rotação em 45s — a
+  tolerância (−90s/+5s), a janela do rate limit (20 por janela de 45s) e
+  a expiração da chave da janela (150s) dependem desse valor. O app usa
+  constante própria e **não lê** a variável. Sugestão: tirar a variável
+  do `.env.example` ou marcá-la como ignorada (o `.env.example` é do
+  coordenador; esta spec não o altera).
 
 ## Decisões do coordenador incorporadas
 - Cédula e voto só com projetos `publicado` — mesmo filtro do ranking da
