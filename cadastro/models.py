@@ -28,6 +28,9 @@ class Edicao(models.Model):
     prazo_edicao = models.DateTimeField(help_text="Depois disso, o link do grupo só mostra o conteúdo.")
     peso_banca = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0.70"))
     peso_publico = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0.30"))
+    # Preenchidos pela votação (spec 03). Depois de aberta, a edição trava.
+    votacao_aberta_em = models.DateTimeField(null=True, blank=True, editable=False)
+    votacao_encerrada_em = models.DateTimeField(null=True, blank=True, editable=False)
     banca_conferida_em = models.DateTimeField(null=True, blank=True)
     criado_em = models.DateTimeField(auto_now_add=True)
 
@@ -44,6 +47,11 @@ class Edicao(models.Model):
                 & Q(peso_banca__gte=0, peso_publico__gte=0),
                 name="pesos_somam_um",
             ),
+            models.CheckConstraint(
+                condition=Q(votacao_encerrada_em__isnull=True)
+                | Q(votacao_aberta_em__isnull=False, votacao_encerrada_em__gte=F("votacao_aberta_em")),
+                name="encerramento_apos_abertura",
+            ),
         ]
 
     def __str__(self):
@@ -51,6 +59,34 @@ class Edicao(models.Model):
 
     def edicao_aberta(self):
         return timezone.now() <= self.prazo_edicao
+
+    def votacao_foi_aberta(self):
+        return self.votacao_aberta_em is not None and self.votacao_aberta_em <= timezone.now()
+
+    def clean(self):
+        super().clean()
+        if self.peso_banca is not None and self.peso_publico is not None and self.peso_banca <= self.peso_publico:
+            raise ValidationError({"peso_banca": "O peso da banca deve ser maior que o do público (ADR-007)."})
+        self._verificar_travas()
+
+    def save(self, *args, **kwargs):
+        self._verificar_travas()
+        super().save(*args, **kwargs)
+
+    def _verificar_travas(self):
+        """Depois de aberta a votação, pesos e abertura não mudam (sem snapshot — PR #14)."""
+        if not self.pk:
+            return
+        antes = Edicao.objects.filter(pk=self.pk).values("peso_banca", "peso_publico", "votacao_aberta_em").first()
+        if not antes or antes["votacao_aberta_em"] is None:
+            return
+        erros = {}
+        if self.votacao_aberta_em != antes["votacao_aberta_em"]:
+            erros["votacao_aberta_em"] = "A abertura da votação não pode ser alterada nem apagada."
+        if (self.peso_banca, self.peso_publico) != (antes["peso_banca"], antes["peso_publico"]):
+            erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
+        if erros:
+            raise ValidationError(erros)
 
 
 class Curso(models.Model):
@@ -100,6 +136,23 @@ class Turma(models.Model):
     def __str__(self):
         return self.rotulo
 
+    def clean(self):
+        super().clean()
+        self._verificar_travas()
+
+    def save(self, *args, **kwargs):
+        self._verificar_travas()
+        super().save(*args, **kwargs)
+
+    def _verificar_travas(self):
+        """Turma com projeto não muda de edição nem de curso: os votos iriam junto."""
+        if not self.pk:
+            return
+        antes = Turma.objects.filter(pk=self.pk).values("edicao_id", "curso_id").first()
+        mudou = antes and (antes["edicao_id"], antes["curso_id"]) != (self.edicao_id, self.curso_id)
+        if mudou and self.projetos.exists():
+            raise ValidationError("Turma com projetos não muda de edição nem de curso.")
+
     @property
     def rotulo(self):
         texto = f"{self.curso.sigla} — {self.numero_periodo}º {self.get_tipo_periodo_display()}"
@@ -125,7 +178,10 @@ class Projeto(models.Model):
     link_repositorio = models.URLField(blank=True, validators=[somente_https])
     link_demo = models.URLField(blank=True, validators=[somente_https])
     link_video = models.URLField(blank=True, validators=[somente_https])
-    status = models.CharField(max_length=14, choices=Status.choices, default=Status.PRE_CADASTRADO, db_index=True)
+    # Não editável: muda só por publicar(), devolver_para_ajustes() e pelo fluxo do grupo (spec 02).
+    status = models.CharField(
+        max_length=14, choices=Status.choices, default=Status.PRE_CADASTRADO, db_index=True, editable=False
+    )
     motivo_ajustes = models.TextField(blank=True)
     representante_nome = models.CharField(max_length=120)
     ra_hmac = models.CharField(max_length=64, editable=False)
@@ -142,10 +198,39 @@ class Projeto(models.Model):
     def __str__(self):
         return self.titulo
 
+    def clean(self):
+        super().clean()
+        self._verificar_travas()
+
     def save(self, *args, **kwargs):
+        self._verificar_travas()
         if not self.slug:
             self.slug = self._slug_livre()
         super().save(*args, **kwargs)
+
+    def _verificar_travas(self):
+        """Status e turma fixos depois de aberta a votação; nunca muda de edição.
+
+        Sem snapshot do resultado (PR #14), mudar status ou turma de um projeto
+        com votos alteraria o ranking em silêncio. `QuerySet.update()` passa por
+        cima disto — mude status e turma só pelos métodos do model.
+        """
+        if not self.pk:
+            return
+        antes = (
+            Projeto.objects.filter(pk=self.pk)
+            .values("status", "turma_id", "turma__edicao_id", "turma__edicao__votacao_aberta_em")
+            .first()
+        )
+        if not antes:
+            return
+        if self.turma_id != antes["turma_id"]:
+            nova_edicao = Turma.objects.filter(pk=self.turma_id).values_list("edicao_id", flat=True).first()
+            if nova_edicao != antes["turma__edicao_id"]:
+                raise ValidationError({"turma": "O projeto não pode mudar de edição."})
+        mudou = (self.status, self.turma_id) != (antes["status"], antes["turma_id"])
+        if mudou and antes["turma__edicao__votacao_aberta_em"] is not None:
+            raise ValidationError("A votação desta edição já foi aberta: status e turma do projeto não mudam.")
 
     def _slug_livre(self):
         base = slugify(self.titulo)[:60].strip("-") or "projeto"
@@ -169,7 +254,9 @@ class Projeto(models.Model):
         return faltando
 
     def publicar(self):
-        """Publica se estiver completo. Devolve a lista de pendências (vazia = publicado)."""
+        """Publica se estiver completo. Devolve a lista de pendências (vazia = publicado).
+
+        Com a votação da edição aberta, levanta ValidationError (trava)."""
         faltando = self.pendencias_para_publicar()
         if faltando:
             return faltando
@@ -180,7 +267,9 @@ class Projeto(models.Model):
         return []
 
     def devolver_para_ajustes(self):
-        """Volta ao grupo. Exige motivo preenchido; devolve True se devolveu."""
+        """Volta ao grupo. Exige motivo preenchido; devolve True se devolveu.
+
+        Com a votação da edição aberta, levanta ValidationError (trava)."""
         if not self.motivo_ajustes.strip():
             return False
         self.status = self.Status.AJUSTES

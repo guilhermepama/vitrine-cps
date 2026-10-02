@@ -1,11 +1,13 @@
 """Critérios de aceite "Modelo" e "Moderação" (specs/01-cadastro.md)."""
 
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import ProtectedError
+from django.utils import timezone
 
 from cadastro.models import Curso, Edicao, Integrante, Projeto, Turma
 from cadastro.tests import fabricas
@@ -164,3 +166,152 @@ def test_devolver_exige_motivo():
     assert p.devolver_para_ajustes() is True
     p.refresh_from_db()
     assert p.status == Projeto.Status.AJUSTES
+
+
+# --- Travas (revisão do Renan no PR #16) ----------------------------------------
+
+
+def test_pesos_fora_de_0_a_1_com_soma_1_sao_recusados():
+    with pytest.raises(IntegrityError), transaction.atomic():
+        fabricas.edicao(peso_banca=Decimal("1.70"), peso_publico=Decimal("-0.70"))
+
+
+@pytest.mark.parametrize("banca,publico", [("0.50", "0.50"), ("0.30", "0.70")])
+def test_banca_precisa_pesar_mais_que_o_publico(banca, publico):
+    e = fabricas.edicao(peso_banca=Decimal(banca), peso_publico=Decimal(publico))
+    with pytest.raises(ValidationError) as erro:
+        e.full_clean()
+    assert "peso_banca" in erro.value.message_dict
+
+
+def _abrir_votacao(e):
+    Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=timezone.now())
+    e.refresh_from_db()
+    return e
+
+
+def test_pesos_editaveis_antes_de_abrir_a_votacao():
+    e = fabricas.edicao()
+    e.peso_banca, e.peso_publico = Decimal("0.80"), Decimal("0.20")
+    e.save()
+    e.refresh_from_db()
+    assert e.peso_banca == Decimal("0.80")
+
+
+@pytest.mark.parametrize("encerrar", [False, True])
+def test_pesos_travados_depois_de_abrir_ou_encerrar(encerrar):
+    e = _abrir_votacao(fabricas.edicao())
+    if encerrar:
+        Edicao.objects.filter(pk=e.pk).update(votacao_encerrada_em=timezone.now())
+        e.refresh_from_db()
+    e.peso_banca, e.peso_publico = Decimal("0.80"), Decimal("0.20")
+    with pytest.raises(ValidationError):
+        e.save()
+    e.refresh_from_db()
+    assert (e.peso_banca, e.peso_publico) == (Decimal("0.70"), Decimal("0.30"))
+
+
+def test_abertura_da_votacao_nao_muda_nem_e_apagada():
+    e = _abrir_votacao(fabricas.edicao())
+    e.votacao_aberta_em = None
+    with pytest.raises(ValidationError):
+        e.save()
+    e.refresh_from_db()
+    e.votacao_aberta_em = e.votacao_aberta_em - timedelta(hours=1)
+    with pytest.raises(ValidationError):
+        e.save()
+
+
+def test_outros_campos_da_edicao_continuam_editaveis_apos_abrir():
+    e = _abrir_votacao(fabricas.edicao())
+    e.banca_conferida_em = timezone.now()
+    e.save()
+
+
+def test_encerramento_exige_abertura_anterior():
+    e = fabricas.edicao()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Edicao.objects.filter(pk=e.pk).update(votacao_encerrada_em=timezone.now())
+    agora = timezone.now()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=agora, votacao_encerrada_em=agora - timedelta(minutes=1))
+
+
+def test_turma_com_projeto_nao_muda_de_edicao_nem_de_curso():
+    p = fabricas.projeto()
+    t = p.turma
+    t.edicao = fabricas.edicao(nome="Ensaio 2026/2")
+    with pytest.raises(ValidationError):
+        t.save()
+    t.refresh_from_db()
+    t.curso = fabricas.curso("GTUR")
+    with pytest.raises(ValidationError):
+        t.save()
+
+
+def test_turma_sem_projeto_pode_mudar():
+    t = fabricas.turma()
+    t.curso = fabricas.curso("GTUR")
+    t.save()
+
+
+def test_projeto_nao_muda_para_turma_de_outra_edicao():
+    p = fabricas.projeto()
+    ensaio = fabricas.turma(fabricas.edicao(nome="Ensaio 2026/2"), p.turma.curso)
+    p.turma = ensaio
+    with pytest.raises(ValidationError):
+        p.save()
+
+
+def test_projeto_muda_de_turma_na_mesma_edicao_antes_de_abrir():
+    p = fabricas.projeto()
+    outra = fabricas.turma(p.turma.edicao, p.turma.curso, numero_periodo=2)
+    p.turma = outra
+    p.save()
+
+
+def test_com_votacao_aberta_status_e_turma_nao_mudam(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    p.publicar()
+    _abrir_votacao(p.turma.edicao)
+    p.refresh_from_db()
+
+    p.motivo_ajustes = "Trocar a capa"
+    with pytest.raises(ValidationError):
+        p.devolver_para_ajustes()
+
+    p.refresh_from_db()
+    p.turma = fabricas.turma(p.turma.edicao, p.turma.curso, numero_periodo=2)
+    with pytest.raises(ValidationError):
+        p.save()
+
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.PUBLICADO
+
+
+def test_com_votacao_aberta_publicar_e_recusado(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    _abrir_votacao(p.turma.edicao)
+    p.refresh_from_db()
+    with pytest.raises(ValidationError):
+        p.publicar()
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.EM_REVISAO
+
+
+def test_com_votacao_aberta_conteudo_do_projeto_ainda_e_editavel():
+    p = fabricas.projeto()
+    _abrir_votacao(p.turma.edicao)
+    p.refresh_from_db()
+    p.resumo = "Correção de digitação"
+    p.save()
+
+
+def test_status_nao_aparece_no_formulario():
+    from django.forms import modelform_factory
+
+    campos = modelform_factory(Projeto, exclude=[]).base_fields
+    for nome in ["status", "slug", "ra_hmac", "token_edicao_hash"]:
+        assert nome not in campos
