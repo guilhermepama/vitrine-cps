@@ -67,7 +67,8 @@ máximo 1 voto por projeto por token.
   recusada (ver "Abrir e encerrar").
 - Registro da decisão do horário truncado na ADR-003 (do coordenador,
   em `docs/02-decisoes.md`, no PR da importação — cadastro 2/3).
-- `settings.py` (`LOGGING`) e configuração de log da hospedagem: são do
+- `settings.py` (`LOGGING` e a leitura do `IP_HMAC_SECRET`),
+  `.env.example` e configuração de log da hospedagem: são do
   coordenador; esta spec entrega o filtro e diz o que precisa ser ligado.
 - Escolha do servidor e do cabeçalho que traz o IP real atrás do proxy
   (ADR-006, coordenador, até 08/10).
@@ -229,8 +230,21 @@ WhatsApp). Decisão do coordenador no PR #18.
   proxy. O IP vem do cabeçalho definido pela ADR-006 (o coordenador
   informa até 08/10); o nome do cabeçalho fica numa constante única do
   app `votacao`, trocada quando a ADR-006 sair.
-- **O IP só existe como chave do cache, com expiração** (10 min), nunca
-  em log nem em tabela de model (coerente com P2).
+- **A chave do IP no cache é o HMAC-SHA256 do IP, nunca o IP em claro**,
+  com expiração (10 min); o IP não vai para log nem para tabela de model
+  (coerente com P2). Motivo: a tabela do `DatabaseCache` entra no
+  `pg_dump` com o horário de expiração, que dá o horário da emissão; com
+  o IP em claro, o dump ligaria IP e horário. Recomendação do coordenador
+  no PR #18.
+  - Segredo próprio em variável de ambiente, nome **proposto**
+    `IP_HMAC_SECRET` (no padrão do `RA_HMAC_SECRET` da spec 01);
+    **não reutiliza** o `QR_HMAC_SECRET` nem o `RA_HMAC_SECRET`.
+    Obrigatória: sem ela, a aplicação não sobe.
+  - Chave: prefixo do contador + HMAC-SHA256 em hex do IP (texto como
+    vem do cabeçalho da ADR-006, sem espaços nas pontas). O IP em claro
+    só existe em memória durante a requisição.
+  - Ler o segredo no `settings.py` e declará-lo no `.env.example` é do
+    coordenador (ver "Fora de escopo").
 - **Contadores no `DatabaseCache`** já configurado no esqueleto
   (`CACHES["default"]`, compartilhado entre os workers). Chave da janela
   expira com a tolerância do QR (150s). Limite aceito: o `incr` do
@@ -423,7 +437,8 @@ truncado ainda permite inferência. O controle que resta é o acesso
 restrito ao banco e aos dumps (ADR-006). A spec não promete anonimato
 absoluto contra quem tem o banco inteiro. As chaves por IP do rate limit
 ficam na tabela do `DatabaseCache` até expirarem e serem removidas pela
-limpeza do cache; não têm token nem visitante.
+limpeza do cache; guardam o HMAC do IP (nunca o IP em claro) e não têm
+token nem visitante.
 
 **Aceites:**
 - [ ] Revisão de schema: `visitantes.id` é UUID com `default=uuid4`; a migration não cria sequência para `visitantes`
@@ -480,7 +495,7 @@ a spec 04 e o G6 citam:
   token (B1)").
 - 7: rate limit em `/entrar` em duas camadas — 20 tokens por janela de
   45s por estação e 300 emissões por 10 min por IP; estouro = página "QR
-  expirado" idêntica; IP só como chave de cache com expiração.
+  expirado" idêntica; IP só como HMAC na chave de cache, com expiração.
 - 8: `/como-votar` é a explicação do voto presencial para onde aponta o
   botão "votar" da vitrine; não leva à cédula.
 - 9: `edicao_id` não é dado pessoal; nenhum campo pessoal novo.
@@ -509,6 +524,8 @@ a spec 04 e o G6 citam:
 - [ ] Resposta do limite estourado: status 400 e corpo byte a byte idêntico ao da assinatura inválida; nenhum token criado
 - [ ] Requisições com assinatura inválida não contam no contador da janela (a 21ª válida depois de 50 forjadas ainda é a que estoura)
 - [ ] O IP não aparece em log nem em tabela de model; a chave do IP no cache tem expiração de 10 min (revisão de código + teste lendo a chave)
+- [ ] Nenhuma chave de cache contém o IP em claro: teste emite com o IP fictício `203.0.113.7` e confere que nenhuma linha da tabela do `DatabaseCache` (chave nem valor) contém `203.0.113.7`; a chave do IP contém o HMAC-SHA256 do IP com `IP_HMAC_SECRET`
+- [ ] Sem `IP_HMAC_SECRET`, a aplicação não sobe; o segredo não é o mesmo valor do `QR_HMAC_SECRET` nem do `RA_HMAC_SECRET` (revisão de código: o rate limit lê só `IP_HMAC_SECRET`)
 - [ ] Contadores no `DatabaseCache` (`CACHES["default"]`), sem cache por processo
 
 **Abrir e encerrar**
@@ -605,9 +622,11 @@ a spec 04 e o G6 citam:
 
 ## Decisões do PR #18
 Respostas do coordenador à revisão da spec 03 (decisão do coordenador no
-PR #18). Restam só dependências do coordenador com data, que não
-impedem começar: cabeçalho do IP real e logs da hospedagem (ADR-006, até
-08/10) e texto LGPD final (até 20/10).
+PR #18). Restam só dependências do coordenador, que não impedem
+começar: cabeçalho do IP real e logs da hospedagem (ADR-006, até
+08/10), texto LGPD final (até 20/10) e o segredo `IP_HMAC_SECRET`
+(nome proposto) no `settings.py` e no `.env.example`, quando o PR de
+código entrar.
 
 1. **Proposta B1 / P1** (id de visitante UUID) — aceito.
 2. **Proposta B1 / P2** (sem log nas rotas do visitante) — aceito, com
@@ -631,7 +650,8 @@ impedem começar: cabeçalho do IP real e logs da hospedagem (ADR-006, até
 9. **Rate limit (guardrail 7)** — duas camadas: 20 tokens por janela de
    45s por estação; 300 emissões por 10 min por IP; IP do cabeçalho da
    ADR-006 (coordenador informa até 08/10), só como chave de cache com
-   expiração; estouro = página "QR expirado" 400 idêntica; contadores no
+   expiração, com o HMAC do IP e nunca o IP em claro (recomendação do
+   coordenador no PR #18; segredo `IP_HMAC_SECRET`, nome proposto); estouro = página "QR expirado" 400 idêntica; contadores no
    `DatabaseCache`.
 10. **Trava por voto** — mantida; medir no pré-ensaio de 21/10. Plano B,
     não implementar agora: o voto deixa de travar a `Edicao` e a spec 04
