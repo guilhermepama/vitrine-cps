@@ -350,6 +350,9 @@ nesta edição):
 - [ ] Com a votação aberta: publicar, devolver para ajustes e trocar a turma do projeto → `ValidationError`, nada muda no banco
 - [ ] Trocar a turma do projeto para turma de outra edição → `ValidationError`, mesmo antes de abrir a votação
 - [ ] `status` não é editável no formulário do admin
+- [ ] Publicar enquanto outra transação abre a votação → espera e é recusado (teste de concorrência)
+- [ ] Foto de celular no formato MPO → aceita e gravada como `.jpg`
+- [ ] Dois projetos da mesma edição com o mesmo RA → `ValidationError` no `full_clean()`, sem o RA na mensagem
 - [ ] Projeto criado no admin com RA → grava só `ra_hmac`; o campo de RA volta vazio ao reabrir
 - [ ] 11º integrante → recusado pelo formset do admin (o formulário do grupo é testado na spec 02)
 - [ ] Usuário anônimo no admin → login (G15)
@@ -377,6 +380,10 @@ Não bloqueiam a implementação:
 - Spec 03 (Renan): trocar `config_votacao` pelos campos
   `Edicao.votacao_aberta_em` / `votacao_encerrada_em`; spec 04 acompanha
   (onde diz "sem `config_votacao`", vale "`votacao_aberta_em` vazio").
+  **Abrir a votação** grava `votacao_aberta_em` dentro de
+  `transaction.atomic()` com `select_for_update()` na linha da `Edicao` —
+  a mesma trava que `Projeto.save()` usa, para publicar e abrir ao mesmo
+  tempo não furar a regra (parecer do #17).
 - Planilha modelo: incluir a coluna "Turno" na próxima edição.
 - Spec 02 (Cleiton): nome completo para Fatec, só primeiro nome para
   Etec; projeto `publicado` não editável pelo grupo — testado lá.
