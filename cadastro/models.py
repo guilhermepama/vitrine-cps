@@ -226,7 +226,7 @@ class Projeto(models.Model):
             super().save(*args, **kwargs)
 
     def _verificar_travas(self, travar_edicao=False):
-        """Status e turma fixos depois de aberta a votação; nunca muda de edição.
+        """Slug nunca muda; status e turma fixos depois de aberta a votação; nunca muda de edição.
 
         Sem snapshot do resultado (PR #14), mudar status ou turma de um projeto
         com votos alteraria o ranking em silêncio. `QuerySet.update()` passa por
@@ -234,9 +234,11 @@ class Projeto(models.Model):
         """
         if not self.pk:
             return
-        antes = Projeto.objects.filter(pk=self.pk).values("status", "turma_id", "turma__edicao_id").first()
+        antes = Projeto.objects.filter(pk=self.pk).values("slug", "status", "turma_id", "turma__edicao_id").first()
         if not antes:
             return
+        if self.slug != antes["slug"]:
+            raise ValidationError({"slug": "O slug não muda: o link público do projeto não pode quebrar."})
         # Trava a linha da edição: abrir a votação ao mesmo tempo espera esta gravação.
         edicoes = Edicao.objects.select_for_update() if travar_edicao else Edicao.objects
         aberta_em = edicoes.filter(pk=antes["turma__edicao_id"]).values_list("votacao_aberta_em", flat=True).first()

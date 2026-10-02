@@ -5,12 +5,13 @@
 > coordenador (Guilherme). Demais membros: status da tarefa vai na
 > descrição do PR (evita conflito de merge neste arquivo).
 >
-> **Última atualização**: 2026-10-02 — Guilherme
+> **Última atualização**: 2026-10-02 (noite) — Guilherme
 
 ## Fase atual
 
-**Especificação → início do código.** Stack decidida (ADR-002: Python +
-Django + PostgreSQL). Próximo passo: spec 01 e esqueleto do projeto.
+**Código em andamento.** Esqueleto e models do cadastro na `main`; specs
+01 e 03 prontas; 04 em rascunho até a 06. Próximo: importação da lista
+(cadastro 2/3), admin e moderação (3/3), specs 02 e 06 até 06/10.
 
 **Evento: quinta, 2026-10-29.** Tudo abaixo é planejado de trás para frente
 a partir dessa data.
@@ -72,16 +73,24 @@ em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
 - [x] Referência dos cursos para a modelagem (`docs/referencias/cursos.md`)
 - [x] Stack decidida (ADR-002)
 - [x] Banco: Neon; imagens: Cloudflare R2 (ADR-006); servidor pendente
+- [x] Esqueleto Django na `main` com CI verde (spec 00, PR #15)
+- [x] Planilha modelo enviada às coordenações (02/10, sem coluna de turno)
+- [x] Spec 01 completa, absorvendo a 05 (PR #16); models do cadastro com
+      travas após abrir a votação (PR #17)
+- [x] Spec 03 pronta para implementar, com rate limit (PR #18)
+- [x] Spec 04 em rascunho, aguardando a spec 06 (PR #14)
 
 ## Em andamento
 
 - [x] Equipe e frentes definidas (`TAREFAS.md`): Guilherme, Renan,
       Cleiton; Barbara na operação do evento e no ensaio
-- [ ] Planilha modelo para as coordenações + pedido das listas (até 08/10)
+- [ ] Listas das coordenações (até 08/10)
 - [ ] Coordenação: regra para alunos da Etec menores em página pública
-- [ ] Spec 01 (modelo de dados base)
-- [ ] Levantamento dos cursos da Etec (Guilherme) — período pode ser
-      semestre **ou ano**; a spec 01 já deve prever os dois
+- [ ] Cadastro 2/3 (importação da lista) e 3/3 (admin e moderação)
+- [ ] Specs 02 (Cleiton) e 06 (Guilherme) até 06/10
+- [ ] Identidade visual (05/10) e servidor (08/10 — critério: tirar o log
+      de acesso das rotas do visitante; informar o cabeçalho do IP real)
+- [ ] Levantamento dos cursos e turnos da Etec (Guilherme)
 
 ## Turmas desta edição
 
@@ -122,3 +131,7 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-02 Guilherme: cadastro pelo grupo volta ao escopo — lista das coordenações + RA + link de edição + aprovação (ADR-009).
 - 2026-10-02 Guilherme: ensaio geral movido para 22/10 (horário de aula); Barbara na operação da banca no evento e no roteiro do staff.
 - 2026-10-02 Guilherme: notas da banca digitadas depois do evento (30/10, em aula); resultado oficial após a conferência.
+- 2026-10-02 Guilherme: esqueleto Django na main (#15); Neon: projeto vitrine-cps só produção, dev em vitrine-dev por pessoa.
+- 2026-10-02 Guilherme: specs 01 (#16), 03 (#18) e 04 (#14) na main; models do cadastro com travas após abrir a votação (#17).
+- 2026-10-02 Guilherme: abertura/encerramento da votação viraram campos da Edicao (sem config_votacao); ensaio de 22/10 é edição separada.
+- 2026-10-02 Guilherme: ADR-003 complementada — consentimento truncado para a hora, id UUID, sem log nas rotas do visitante.

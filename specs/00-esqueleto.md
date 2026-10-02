@@ -1,7 +1,7 @@
 # Spec — Esqueleto do projeto Django
 
 - **Responsável**: Guilherme (@guilhermepama)
-- **Status**: em implementação
+- **Status**: entregue (PR #15)
 - **Depende de**: ADR-002 (stack), ADR-006 (banco Neon, imagens R2)
 
 ## Objetivo
