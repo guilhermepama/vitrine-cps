@@ -19,37 +19,42 @@ a partir dessa data.
 
 | Até | Entrega | Responsável |
 |---|---|---|
-| 05/10 | Frentes definidas (`TAREFAS.md`); spec 01 pronta; **esqueleto Django no `main` com CI verde** + template base | Guilherme |
-| 06/10 | Specs 02 (vitrine) e 06 (banca) completas, via PR | Cleiton, Guilherme |
+| 05/10 | Frentes definidas (`TAREFAS.md`); spec 01 pronta; **esqueleto Django no `main` com CI verde** + identidade visual | Guilherme |
+| 05/10 | Planilha modelo enviada às coordenações (ADR-009) | Guilherme |
+| 06/10 | Specs 02 (vitrine + área do grupo) e 06 (banca) completas, via PR | Cleiton, Guilherme |
+| 08/10 | Listas das coordenações recebidas (projeto, turma, representante, RA) | Guilherme (externo) |
 | 08/10 | Servidor decidido (ADR-006), domínio configurado e ambiente publicado | Guilherme |
-| 10/10 | Guia do aluno para cadastro de projetos | Barbara |
-| 12/10 | Cadastro (via admin) + vitrine pública funcionando | Guilherme, Cleiton |
-| **13/10** | **Vitrine no ar**: projetos cadastrados, links começam a circular | todos |
+| 09/10 | Models + importação da lista + moderação no admin | Guilherme |
+| **10/10** | **Cadastro aberto**: área do grupo no ar + guia do representante enviado | Cleiton, Guilherme |
+| 12/10 | Vitrine pública funcionando; primeiros projetos aprovados | Cleiton, Guilherme |
+| **13/10** | **Vitrine no ar**: links começam a circular | todos |
 | 20/10 | Texto LGPD aprovado pela coordenação | Guilherme (externo) |
 | 20/10 | Credenciamento + votação completos (spec 03); texto LGPD provisório até a aprovação | Renan |
-| 20/10 | Banca (spec 06): critérios e jurados cadastrados, ficha impressa pronta | Guilherme |
+| 20/10 | Banca (spec 06): critérios, jurados, ficha impressa e usuário de digitação | Guilherme |
 | 21/10 | **Pré-ensaio interno** (só o time): fluxo completo em celulares reais | todos |
-| 22/10 | Roteiro do staff nas estações + ficha da banca com critérios publicados | Barbara |
-| 24/10 | **Ensaio geral**: estações reais, celulares reais, votos de teste | todos |
+| **22/10** | **Ensaio geral** (quinta, horário de aula): estações reais, votos de teste, digitação de fichas de teste | todos |
+| 22/10 | Roteiro do staff, a partir do ensaio | Barbara |
 | 27/10 | Resultados (spec 04) implementado e testado com dados do ensaio | Renan |
 | 27/10 | **Congelamento**: só entram correções de bug | — |
 | 28/10 | Backup do banco (`pg_dump`) | Guilherme |
-| 29/10 | Evento | — |
+| 29/10 | Evento; fichas da banca digitadas durante o evento e conferidas | Barbara, Guilherme |
 | 29/10 | Backup ao encerrar a votação | Guilherme |
 | 30/10 | Resultado oficial: nota composta 70% banca + 30% público (ADR-007) | Renan |
 
 As entregas de código foram antecipadas; ensaio, congelamento e evento
-não mudam. A folga ganha fica entre 21/10 e 27/10 para correções.
+não mudam. Ensaio geral em 22/10 (quinta, mesmo dia da semana do evento,
+em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
 
 ## Escopo desta edição (corte por prazo)
 
-- **Entra**: cadastro pelo admin, vitrine pública, credenciamento + votação
-  completos (com todos os guardrails), avaliação da banca, resultado por
-  turma com nota composta.
+- **Entra**: cadastro pelo próprio grupo a partir da lista das coordenações
+  (RA + link de edição, com aprovação — ADR-009), vitrine pública,
+  credenciamento + votação completos (com todos os guardrails), avaliação
+  da banca em ficha impressa (ADR-008), resultado por turma com nota
+  composta.
 - **Fica para a próxima edição**: painel admin próprio (usar o do Django),
-  cadastro de projeto pelo próprio aluno (se não couber até 12/10, o admin
-  cadastra), relatórios elaborados, login e tela de avaliação do jurado
-  (nesta edição a banca usa ficha impressa digitada no admin — ADR-008).
+  login de aluno e envio de link por e-mail, relatórios elaborados, login
+  e tela de avaliação do jurado.
 - A votação (spec 03) **não é dividida** entre várias pessoas — é o módulo
   de maior risco.
 
@@ -69,7 +74,9 @@ não mudam. A folga ganha fica entre 21/10 e 27/10 para correções.
 ## Em andamento
 
 - [x] Equipe e frentes definidas (`TAREFAS.md`): Guilherme, Renan,
-      Cleiton; Barbara em documentação de apoio
+      Cleiton; Barbara na operação do evento e no ensaio
+- [ ] Planilha modelo para as coordenações + pedido das listas (até 08/10)
+- [ ] Coordenação: regra para alunos da Etec menores em página pública
 - [ ] Spec 01 (modelo de dados base)
 - [ ] Levantamento dos cursos da Etec (Guilherme) — período pode ser
       semestre **ou ano**; a spec 01 já deve prever os dois
@@ -80,6 +87,8 @@ Fatec: DSM 1º, 2º, 3º · GTUR 2º, 3º (5 turmas). Etec: a levantar.
 
 ## Riscos / atenção
 
+- **Listas das coordenações (ADR-009)**: dependência externa até 08/10.
+  Turma sem lista no prazo é cadastrada pelo admin (plano B).
 - **Equipe de 3 pessoas**: sem folga de gente. Se uma frente travar,
   cortar escopo daquela frente antes de redistribuir.
 
@@ -108,3 +117,5 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-01 Guilherme: imagens no Cloudflare R2 (ADR-006).
 - 2026-10-02 Guilherme: equipe definida (Renan: votação e resultados; Cleiton: vitrine; Guilherme: fundação e banca; Barbara: docs de apoio).
 - 2026-10-02 Guilherme: banca em ficha impressa digitada no admin (ADR-008); cronograma de código antecipado, pré-ensaio em 21/10.
+- 2026-10-02 Guilherme: cadastro pelo grupo volta ao escopo — lista das coordenações + RA + link de edição + aprovação (ADR-009).
+- 2026-10-02 Guilherme: ensaio geral movido para 22/10 (horário de aula); Barbara na operação da banca no evento e no roteiro do staff.

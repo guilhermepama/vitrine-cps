@@ -1,7 +1,7 @@
 # TAREFAS — divisão por responsável
 
 Equipe desta edição: **Guilherme** (coordenação), **Renan** e **Cleiton**.
-Barbara apoia com documentação (sem código, sem caminho crítico).
+Barbara atua na operação do evento e no ensaio (em horário de aula).
 
 ## Regras
 
@@ -25,22 +25,29 @@ Barbara apoia com documentação (sem código, sem caminho crítico).
 
 | Frente | Specs | App | Responsável | GitHub | Entrega |
 |---|---|---|---|---|---|
-| Fundação: cadastro, admin, esqueleto, infra | 01, 05 | `cadastro/` | Guilherme | @guilhermepama | 05–08/10 |
-| Vitrine pública | 02 | `vitrine/` | Cleiton | @gustimmolp | 12/10 |
+| Fundação: models, admin, importação da lista, moderação, esqueleto, infra, guia do representante | 01, 05 | `cadastro/` | Guilherme | @guilhermepama | 05–10/10 |
+| Área do grupo (RA + link de edição) e vitrine pública | 02 | `vitrine/` | Cleiton | @gustimmolp | 10/10 e 12/10 |
 | Credenciamento + votação | 03 | `votacao/` | Renan | @ReCroffi | 20/10 |
-| Avaliação da banca (ficha em papel, ADR-008) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
+| Banca — sistema (ficha para imprimir, digitação, conferência) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
 | Resultados (nota composta 70/30) | 04 | `resultados/` | Renan | @ReCroffi | 27/10 |
-| Documentação de apoio | — | `docs/` | Barbara | (a confirmar) | 10/10 e 22/10 |
+| Roteiro do staff (escrito no ensaio geral) | — | `docs/` | Barbara | (a confirmar) | 22/10 |
+| Banca — operação no evento (fichas e digitação) | — | — | Barbara | — | 29/10 |
 
-**Vitrine**: o coordenador entrega o template base (layout, cores,
-tipografia) junto com o esqueleto; a frente preenche as páginas.
+**Cadastro (ADR-009)**: as coordenações enviam a lista (projeto, turma,
+representante, RA) na planilha modelo até 08/10; o coordenador importa;
+o representante reivindica o projeto com o RA e edita pelo link secreto;
+o coordenador aprova a publicação.
+
+**Vitrine**: o coordenador entrega a identidade visual (cores, tipografia,
+logo) junto com o esqueleto; a frente monta o template único.
 
 **Votação**: não se divide entre pessoas — é o módulo de maior risco.
 Revisão linha a linha.
 
-**Documentação de apoio (Barbara)**: guia do aluno para cadastro do
-projeto (10/10); roteiro do staff nas estações e ficha de avaliação da
-banca com os critérios para divulgação (22/10). Entra por PR em `docs/`.
+**Barbara**: disponível em horário de aula e no evento. Roteiro do staff
+escrito durante o ensaio geral (22/10); no dia 29 entrega e recolhe as
+fichas dos jurados e digita as notas no admin (usuário com permissão só
+de digitação). A conferência das notas é do coordenador.
 
 ## Ordem de dependências
 

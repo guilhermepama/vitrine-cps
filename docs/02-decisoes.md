@@ -207,3 +207,41 @@ Formato:
   passa a ser a ficha assinada + registro de quem digitou cada nota. Custo:
   digitação manual após a avaliação (risco de erro — conferir por amostra).
   Login e tela do jurado ficam para a próxima edição.
+
+## ADR-009 — Cadastro do projeto pelo próprio grupo (RA + link de edição)
+- Status: aceita
+- Data: 2026-10-02
+- Contexto: são no mínimo 5 turmas com vários projetos cada. Cadastrar
+  todos pelo admin concentraria o trabalho na equipe e viraria gargalo
+  entre 10 e 13/10. O escopo original deixava o cadastro pelo aluno para
+  a próxima edição. Sistema de contas (login, senha, recuperação) não
+  cabe no prazo.
+- Decisão:
+  - **Lista prévia das coordenações**: cada coordenação de curso envia,
+    em planilha modelo, projeto, turma, nome do representante e RA. O
+    admin importa a lista; os projetos nascem como `pre_cadastrado`.
+    Isso elimina duplicidade e cadastro de terceiros.
+  - **RA reivindica, link secreto edita**: o representante informa o RA
+    uma única vez; o sistema mostra o **link de edição exclusivo** do
+    projeto (token aleatório). A partir daí o RA não abre mais nada —
+    RA não é senha (colegas conhecem o RA uns dos outros). Link perdido
+    ou reivindicação indevida: o admin gera um novo link e o anterior
+    deixa de valer.
+  - **RA nunca é guardado em claro**: só HMAC-SHA256 do RA com segredo em
+    variável de ambiente. O token de edição também é guardado como hash.
+    RA nunca aparece em página pública nem em log.
+  - **Moderação**: nada é público sem aprovação. Fluxo de status:
+    `pre_cadastrado` → `em_revisao` → `publicado` (ou `ajustes`, volta ao
+    grupo). Admin aprova em lote.
+  - **Prazo de edição** por edição; depois dele o link de edição só mostra
+    o conteúdo. Projeto publicado vira conteúdo fixo após o evento.
+  - Plano B: turma cuja lista não chegar até 08/10 é cadastrada pelo admin.
+- Consequências: o trabalho manual da equipe cai para importar listas e
+  aprovar. Dependência externa: listas das coordenações até 08/10, no
+  formato da planilha modelo. Verificação de RA precisa de rate limit e
+  resposta genérica (RAs são sequenciais e enumeráveis). Envio do link
+  por e-mail e login de aluno ficam para a próxima edição. Pendente com a
+  coordenação: regra para alunos da Etec menores de idade em página
+  pública (até decidir: equipe só com primeiro nome e sem fotos de
+  pessoas, apenas do projeto). O RA do representante não é dado de
+  visitante — os guardrails 9–11 continuam valendo para visitantes.
