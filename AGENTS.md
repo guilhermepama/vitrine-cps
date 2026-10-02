@@ -26,6 +26,28 @@
 - Trabalhe em branch por tarefa (`feat/<modulo>-<resumo>`), PR para `main`.
   `main` protegida — nada de push direto.
 
+## Git — limites para agentes
+
+Valem para qualquer agente, rodando no seu computador ou num servidor.
+A `main` é protegida pelo GitHub; **as branches dos colegas não** — por
+isso estas regras.
+
+- **Só a sua branch.** O agente trabalha na branch da tarefa do seu
+  responsável. Nunca faz commit, push, rebase ou reset em branch de outra
+  pessoa.
+- **Nada de force-push em branch alheia** (`--force`, `--force-with-lease`).
+- **Nunca apaga branch remota nem tag** (`git push --delete`, `git push :branch`).
+  A branch é removida pelo GitHub no merge do PR.
+- **Agente não faz merge nem aprova PR**, e não altera `.github/` (CI,
+  rulesets, CODEOWNERS) nem configurações do repositório — isso é do
+  coordenador.
+- **Todo push tem nome.** O agente usa a credencial da conta GitHub do seu
+  responsável (chave SSH ou token cadastrados na conta da pessoa). Nada de
+  deploy key ou conta compartilhada — quem commitou responde pelo código
+  (guardrail 19).
+- **Comando destrutivo → pare e pergunte ao humano**: `reset --hard`,
+  `clean -fd`, `push --delete`, `filter-repo`, reescrita de histórico.
+
 ## Procedimentos padrão (skills)
 
 Os três procedimentos recorrentes do time estão em `.claude/skills/`:
