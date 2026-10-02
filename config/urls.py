@@ -15,4 +15,5 @@ urlpatterns = [
     # Frentes com páginas públicas. As rotas de cada uma moram no app.
     path("", include("vitrine.urls")),
     path("", include("votacao.urls")),
+    path("resultados/", include("resultados.urls")),
 ]

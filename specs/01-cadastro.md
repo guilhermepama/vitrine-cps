@@ -1,7 +1,7 @@
 # Spec — Cadastro (edições, cursos, turmas, projetos) e admin
 
 - **Responsável**: Guilherme (@guilhermepama)
-- **Status**: pronta para implementar
+- **Status**: em implementação — models entregues (PR #17); importação neste PR (2/3); admin no 3/3
 - **Depende de**: ADR-002 (stack), ADR-006 (R2), ADR-007 (pesos), ADR-009
   (cadastro pelo grupo), spec 00 (esqueleto)
 - **Absorve a spec 05**: o admin do cadastro está aqui; estações e
@@ -121,9 +121,20 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   não mudam — publicar, devolver para ajustes ou trocar de turma é
   recusado com `ValidationError`. **Não há retirada de projeto no sistema**
   nesta edição: uma desclassificação excepcional é anotada pela
-  coordenação no resultado impresso e assinado. `QuerySet.update()` passa
-  por cima das travas, então mudanças de status e turma só pelos métodos
-  do model.
+  coordenação no resultado impresso e assinado.
+- **Slug**: além de não aparecer no formulário, o `save()` recusa slug
+  diferente do gravado (`ValidationError`) — `editable=False` sozinho só
+  esconde do formulário (revisão do Renan no #17).
+
+### Regra para quem usa estes models (specs 02, 03, 04 e 06)
+As travas vivem no `save()`/`clean()` dos models. `QuerySet.update()` e
+`bulk_update()` **passam por cima delas**. Por isso, nos campos travados —
+`Edicao`: pesos, `votacao_aberta_em`, `votacao_encerrada_em`; `Turma`:
+`edicao`, `curso`; `Projeto`: `slug`, `status`, `turma` — escrita **só por
+`save()` na instância ou pelos métodos do model** (`publicar()`,
+`devolver_para_ajustes()`), nunca por `update()`. O `/revisar-pr` confere
+isso. Uma trava no próprio banco (trigger) seria mais forte, mas é
+desproporcional para esta edição (revisão do Renan no #17).
 
 ### Equipe (integrantes)
 - Lista estruturada: nome de exibição e papel opcional ("Front-end",
@@ -350,6 +361,8 @@ nesta edição):
 - [ ] Com a votação aberta: publicar, devolver para ajustes e trocar a turma do projeto → `ValidationError`, nada muda no banco
 - [ ] Trocar a turma do projeto para turma de outra edição → `ValidationError`, mesmo antes de abrir a votação
 - [ ] `status` não é editável no formulário do admin
+- [ ] Slug alterado direto no model (`p.slug = "outro"; p.save()`) → `ValidationError`, slug do banco inalterado
+- [ ] `votacao_foi_aberta()`: nulo → falso; passado e instante exato → verdadeiro; futuro → falso
 - [ ] Publicar enquanto outra transação abre a votação → espera e é recusado (teste de concorrência)
 - [ ] Foto de celular no formato MPO → aceita e gravada como `.jpg`
 - [ ] Dois projetos da mesma edição com o mesmo RA → `ValidationError` no `full_clean()`, sem o RA na mensagem

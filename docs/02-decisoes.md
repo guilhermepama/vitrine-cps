@@ -82,6 +82,25 @@ Formato:
   com token ou voto.
 - Consequências: não é possível auditar "quem votou em quem" — por design.
   Métricas cruzadas (ex: taxa de conversão cadastro→voto) só em agregado.
+- Complemento (2026-10-02, PRs #14 e #18): sem coluna de vínculo, ainda dá
+  para cruzar visitante e token **pelo horário** — o cadastro é gravado
+  segundos depois da emissão do token. Por isso:
+  - `visitantes.consentimento_em` é gravado **truncado para a hora**
+    (minutos e segundos zerados). O G10 pede data e hora do aceite, não
+    segundos. O CSV de visitantes sai só com a data (spec 04).
+  - `visitantes.id` é UUID (sem sequência que revele a ordem de cadastro)
+    e as rotas do visitante não escrevem linha de log por request (spec 03,
+    "Correlação visitante × token").
+  - O visitante recebe `edicao_id` direto da edição em votação, nunca do
+    token (G6).
+  - Recomendado na aprovação do #18, para a implementação da spec 03: a
+    chave do rate limit por IP vai para o cache como hash com segredo, não
+    o IP em claro (a tabela do cache entra no `pg_dump`).
+  - **Limite aceito**: numa hora com poucos cadastros (início e fim do
+    evento) o grupo de visitantes é pequeno e a inferência fica mais
+    fácil; quem tem o banco inteiro vê a ordem física das linhas. O
+    controle que resta é o acesso restrito ao banco e aos dumps (ADR-006).
+    O sistema não promete anonimato absoluto contra quem tem o banco.
 
 ## ADR-004 — CI e proteção da `main`
 - Status: aceita (regra de aprovação ajustada pela ADR-005)
