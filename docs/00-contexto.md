@@ -12,7 +12,7 @@ Plataforma web para a mostra semestral de projetos da FATEC Olímpia e da Etec (
 
 ## Atores
 - **Administrador**: cadastra edições (semestres), turmas/categorias e abre/encerra a votação.
-- **Aluno (grupo)**: cadastra o projeto do seu grupo dentro de uma turma — título, descrição, informações do projeto, links externos (repositório, vídeo, redes) e imagens.
+- **Aluno (grupo)**: o representante, listado pela coordenação do curso, reivindica o projeto com o RA e o preenche pelo link de edição — título, descrição, informações do projeto, links externos (repositório, vídeo, redes) e imagens. Publicação só após aprovação (ADR-009).
 - **Banca (jurados)**: avaliam os projetos com nota 0–10 por critério, em ficha impressa digitada no admin nesta edição (ADR-008). Peso maior que o do público (ADR-007).
 - **Público**: acessa as páginas de vitrine pela internet; no dia do evento, vota presencialmente.
 
