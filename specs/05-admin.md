@@ -1,23 +1,13 @@
 # Spec — Administração
 
-> Stub — completar usando `specs/_template.md` antes de implementar.
-> Ver `specs/03-credenciamento-votacao.md` como exemplo do nível de detalhe esperado.
+- **Status**: absorvida (2026-10-02) — não implementar por esta spec.
 
-- **Responsável**: Guilherme (@guilhermepama)
-- **Status**: rascunho
-- **Depende de**: ADR-002 (stack)
+O admin desta edição é o do Django (ADR-002), e cada parte ficou na spec
+dona do model:
 
-## Objetivo
-Autenticação de admin; gestão de edições, turmas e estações; abrir/encerrar votação.
+- Edições, cursos, turmas, projetos, moderação e links de edição →
+  `specs/01-cadastro.md`.
+- Estações e abrir/encerrar votação → `specs/03-credenciamento-votacao.md`.
+- Jurados, critérios e digitação das notas → `specs/06-avaliacao-banca.md`.
 
-## Escopo
-(a detalhar)
-
-## Fora de escopo
-(a detalhar)
-
-## Guardrails aplicáveis
-(listar números de docs/01-guardrails.md)
-
-## Critérios de aceite
-- [ ] (a detalhar)
+Painel administrativo próprio fica para a próxima edição.

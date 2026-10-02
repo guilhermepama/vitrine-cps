@@ -15,7 +15,8 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
 - **PR pequeno**: até ~300 linhas alteradas, sem contar migrations e
   testes. Maior que isso, fatie (ex: models → admin → telas).
 - PR aprovado pelo coordenador antes do merge (guardrail 18). PRs do
-  coordenador são revisados pelo Renan (revisão cruzada combinada).
+  próprio coordenador entram com o CI verde (bypass, ADR-005) e análise
+  do `/revisar-pr`; revisão por pares ainda a definir.
 - Status da tarefa vai na **descrição do PR**. `docs/03-estado.md` é
   atualizado só pelo coordenador.
 - Branch desatualizada com a `main` ("out-of-date") é normal depois de
@@ -25,7 +26,7 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
 
 | Frente | Specs | App | Responsável | GitHub | Entrega |
 |---|---|---|---|---|---|
-| Fundação: models, admin, importação da lista, moderação, esqueleto, infra, guia do representante | 01, 05 | `cadastro/` | Guilherme | @guilhermepama | 05–10/10 |
+| Fundação: models, admin, importação da lista, moderação, esqueleto, infra, guia do representante | 00, 01 (absorve a 05) | `cadastro/` | Guilherme | @guilhermepama | 05–10/10 |
 | Área do grupo (RA + link de edição) e vitrine pública | 02 | `vitrine/` | Cleiton | @gustimmolp | 10/10 e 12/10 |
 | Credenciamento + votação | 03 | `votacao/` | Renan | @ReCroffi | 20/10 |
 | Banca — sistema (ficha para imprimir, digitação, conferência) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
