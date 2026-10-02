@@ -12,27 +12,34 @@ from cadastro.seguranca import hash_ra, hash_token, normalizar_ra, ra_confere, t
 from cadastro.tests import fabricas
 
 
-def test_ra_normalizado_ignora_pontuacao_e_espacos():
-    assert hash_ra("123.456 789") == hash_ra("123456789")
-    assert hash_ra(" 123-456-789 ") == hash_ra("123456789")
+def test_ra_normalizado_ignora_separadores():
+    esperado = hash_ra("123456789")
+    assert hash_ra("123.456 789") == esperado
+    assert hash_ra(" 123-456-789 ") == esperado
+    assert hash_ra("123/456/789") == esperado
 
 
 def test_ra_preserva_zeros_a_esquerda():
-    assert normalizar_ra("00123") == "00123"
-    assert hash_ra("00123") != hash_ra("123")
+    assert normalizar_ra("0012345") == "0012345"
+    assert hash_ra("0012345") != hash_ra("12345")
 
 
-@pytest.mark.parametrize("ra", ["", "   ", "abc", "..."])
-def test_ra_sem_digito_e_recusado(ra):
+@pytest.mark.parametrize("ra", ["", "   ", "abc", "...", "12a45678", "1234", "1" * 21, "123456789X", "１２３４５"])
+def test_ra_invalido_e_recusado(ra):
     with pytest.raises(ValueError):
         hash_ra(ra)
-    assert ra_confere(ra, hash_ra("123")) is False
+    assert ra_confere(ra, hash_ra("123456")) is False
+
+
+@pytest.mark.parametrize("ra", ["12345", "1" * 20])
+def test_ra_nos_limites_de_tamanho(ra):
+    assert normalizar_ra(ra) == ra
 
 
 def test_hash_do_ra_depende_do_segredo(settings):
-    original = hash_ra("123")
+    original = hash_ra("123456")
     settings.RA_HMAC_SECRET = "outro-segredo-outro-segredo-1234"
-    assert hash_ra("123") != original
+    assert hash_ra("123456") != original
 
 
 def test_hash_do_ra_nao_contem_o_ra():

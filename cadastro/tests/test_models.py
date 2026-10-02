@@ -151,8 +151,11 @@ def test_republicar_nao_muda_publicado_em(settings, tmp_path):
     primeira = p.publicado_em
     p.motivo_ajustes = "Trocar a capa"
     p.devolver_para_ajustes()
+    p.status = Projeto.Status.EM_REVISAO  # o grupo salvou de novo (spec 02)
+    p.save()
     p.publicar()
     p.refresh_from_db()
+    assert p.status == Projeto.Status.PUBLICADO
     assert p.publicado_em == primeira
 
 
@@ -315,3 +318,73 @@ def test_status_nao_aparece_no_formulario():
     campos = modelform_factory(Projeto, exclude=[]).base_fields
     for nome in ["status", "slug", "ra_hmac", "token_edicao_hash"]:
         assert nome not in campos
+
+
+# --- Estado de origem das ações e prazo (parecer do Renan no PR #16) -----------
+
+
+@pytest.mark.parametrize("origem", ["pre_cadastrado", "ajustes"])
+def test_publicar_so_a_partir_de_em_revisao(settings, tmp_path, origem):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    Projeto.objects.filter(pk=p.pk).update(status=origem)
+    p.refresh_from_db()
+    assert p.publicar() != []
+    p.refresh_from_db()
+    assert p.status == origem
+
+
+@pytest.mark.parametrize("origem", ["pre_cadastrado", "ajustes"])
+def test_devolver_so_a_partir_de_em_revisao_ou_publicado(origem):
+    p = fabricas.projeto(status=origem, motivo_ajustes="Motivo")
+    assert p.devolver_para_ajustes() is False
+    p.refresh_from_db()
+    assert p.status == origem
+
+
+def test_devolver_projeto_publicado(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    p.publicar()
+    p.motivo_ajustes = "Retire as fotos em que aparecem pessoas"
+    assert p.devolver_para_ajustes() is True
+
+
+@pytest.mark.parametrize("campo", ["resumo", "descricao"])
+def test_pendencia_de_cada_campo_de_texto(settings, tmp_path, campo):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    setattr(p, campo, "   ")
+    assert p.pendencias_para_publicar() == [{"resumo": "resumo", "descricao": "descrição"}[campo]]
+
+
+def test_pendencia_sem_integrante(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    p.integrantes.all().delete()
+    assert p.pendencias_para_publicar() == ["integrantes"]
+
+
+def test_pre_cadastro_nasce_so_com_turma_titulo_e_representante():
+    p = fabricas.projeto()
+    p.full_clean()
+    assert p.status == Projeto.Status.PRE_CADASTRADO
+
+
+def test_prazo_de_edicao_antes_no_limite_e_depois():
+    agora = timezone.now()
+    e = fabricas.edicao(prazo_edicao=agora + timedelta(minutes=1))
+    assert e.edicao_aberta() is True
+    e.prazo_edicao = agora - timedelta(minutes=1)
+    assert e.edicao_aberta() is False
+
+
+def test_prazo_de_edicao_exatamente_no_limite(monkeypatch):
+    agora = timezone.now()
+    e = fabricas.edicao(prazo_edicao=agora)
+    monkeypatch.setattr(timezone, "now", lambda: agora)
+    assert e.edicao_aberta() is True
+
+
+def test_edicao_nasce_sem_banca_conferida():
+    assert fabricas.edicao().banca_conferida_em is None

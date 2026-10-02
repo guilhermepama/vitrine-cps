@@ -257,6 +257,8 @@ class Projeto(models.Model):
         """Publica se estiver completo. Devolve a lista de pendências (vazia = publicado).
 
         Com a votação da edição aberta, levanta ValidationError (trava)."""
+        if self.status != self.Status.EM_REVISAO:
+            return ["status (só se publica um projeto em revisão)"]
         faltando = self.pendencias_para_publicar()
         if faltando:
             return faltando
@@ -267,9 +269,11 @@ class Projeto(models.Model):
         return []
 
     def devolver_para_ajustes(self):
-        """Volta ao grupo. Exige motivo preenchido; devolve True se devolveu.
+        """Volta ao grupo. Só de em_revisao ou publicado, com motivo; devolve True se devolveu.
 
         Com a votação da edição aberta, levanta ValidationError (trava)."""
+        if self.status not in (self.Status.EM_REVISAO, self.Status.PUBLICADO):
+            return False
         if not self.motivo_ajustes.strip():
             return False
         self.status = self.Status.AJUSTES

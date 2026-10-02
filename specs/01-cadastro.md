@@ -74,7 +74,7 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   unidade (`fatec` | `etec`).
 - Turma pertence a uma edição e a um curso: `numero_periodo` (1–12) +
   `tipo_periodo` (`semestre` | `ano` | `modulo`) + `turno` opcional.
-  Rótulo gerado: "DSM — 3º semestre", "Administração — 2º ano (tarde)".
+  Rótulo gerado com a **sigla** do curso: "DSM — 3º semestre", "ADM — 2º ano (tarde)".
 - Não pode haver duas turmas iguais na mesma edição (constraint).
 - Turma é a **categoria** da cédula (spec 03) e do resultado (spec 04).
 - Turma ou curso com projeto não pode ser apagado (`PROTECT`).
@@ -98,6 +98,12 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   Projeto `publicado` **não é editável pelo grupo**. Para corrigir algo
   publicado, o admin devolve para ajustes (a página sai do ar até nova
   aprovação) ou edita ele mesmo no admin.
+- **Pré-cadastro** nasce só com turma, título e representante (RA);
+  resumo, descrição, capa, links e integrantes podem ficar vazios até o
+  grupo preencher. Os requisitos de publicação valem só na ação Publicar.
+- **Estado de origem das ações**: Publicar só a partir de `em_revisao`;
+  Devolver para ajustes só a partir de `em_revisao` ou `publicado`. Projeto
+  em outro estado fica como está e aparece na mensagem da ação em lote.
 - **Publicar** exige: capa, resumo, descrição e ao menos 1 integrante.
   Projetos selecionados que não cumprem ficam como estão, e o admin vê
   uma mensagem com quantos foram publicados e quais ficaram de fora e por
@@ -126,7 +132,13 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   (ADR-009, até a coordenação da Etec decidir): projeto de curso da
   **Etec** aceita só o primeiro nome (uma palavra); Fatec aceita nome
   completo. Validação no `clean()` do model, para valer no admin e no
-  formulário da spec 02.
+  formulário da spec 02. **A spec 02 precisa acompanhar** (hoje diz
+  "primeiro nome" para todos).
+- **Fotos de pessoas na Etec** (regra provisória, ADR-009): conferência
+  **humana** na moderação — não há detecção automática. Antes de publicar
+  projeto da Etec, o admin confere capa e galeria; com foto de pessoa,
+  devolve para ajustes com o motivo padrão "Retire as fotos em que
+  aparecem pessoas (regra da Etec para menores de idade)".
 
 ### Imagens (G14)
 - Uma **capa** (obrigatória para publicar; é a imagem da prévia no
@@ -142,9 +154,12 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   local (desenvolvimento).
 
 ### RA e link de edição (ADR-009)
-- `hash_ra(ra)`: normaliza (só dígitos; espaços e pontuação removidos;
-  zeros à esquerda mantidos) e devolve HMAC-SHA256 em hex com
-  `RA_HMAC_SECRET`. RA vazio ou sem dígito → `ValueError`.
+- `hash_ra(ra)`: normaliza e devolve HMAC-SHA256 em hex com
+  `RA_HMAC_SECRET`. Normalização: remove espaço, ponto, hífen e barra;
+  o que sobra precisa ser **só dígitos, de 5 a 20** (zeros à esquerda
+  mantidos). Qualquer outro caractere (letra, por exemplo) → `ValueError`
+  — não é descartado em silêncio. Se um formato real de RA tiver letra,
+  a importação acusa e a regra é revista.
 - `RA_HMAC_SECRET` é variável de ambiente obrigatória, **separada** do
   `QR_HMAC_SECRET`. Sem ela, a aplicação não sobe.
 - O RA em claro **nunca** é gravado, logado nem exibido — nem no admin,
@@ -157,6 +172,11 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   o link anterior deixa de valer na hora; o admin vê o link novo **uma
   vez**, na mensagem de confirmação, para repassar ao grupo.
 - **Revogar link**: apaga o hash; nenhum link vale até regerar.
+- **Projeto criado à mão no admin** (plano B, turma sem lista): o
+  formulário tem um campo "RA do representante" **só de escrita** — vazio
+  ao abrir, nunca reexibido; ao salvar, grava só o `ra_hmac`. Obrigatório
+  na criação; na edição, vazio mantém o atual. Vale a mesma regra de RA
+  único por edição.
 
 ### Importação da lista
 - `python manage.py importar_lista <edicao_id> <arquivo.csv>`:
@@ -181,11 +201,22 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   anterior ou de outra linha do arquivo) → erro de linha, sem mostrar o
   RA (revisão do Renan no PR #16).
 - Erros por linha: curso inexistente, turma inexistente, turma ambígua,
-  título vazio ou com mais de 120 caracteres, representante vazio, RA sem
-  dígitos, RA de outro projeto da edição, projeto repetido no arquivo.
+  período escrito em "Turma" diferente de "Período da turma" (ex: "2º
+  ano" com Semestre), título vazio ou com mais de 120 caracteres,
+  representante vazio ou com mais de 120 caracteres, RA inválido (regra
+  de `hash_ra`), RA de outro projeto da edição, projeto repetido no
+  arquivo.
+- **Erros de arquivo** (o comando para antes de ler linhas, com mensagem
+  e código de saída ≠ 0): edição inexistente; arquivo ausente ou
+  ilegível; arquivo que não é UTF-8; cabeçalho sem alguma das colunas
+  obrigatórias ou com coluna repetida.
 - **Tudo ou nada**: se houver qualquer erro, nada é gravado (transação
   atômica), mesmo com `--aplicar`.
-- **Idempotente**: chave = (turma, título normalizado). Projeto que já
+- **Idempotente**: chave = (turma, título normalizado). Título
+  normalizado = espaços das pontas removidos, espaços internos repetidos
+  viram um, sem acento, em minúsculas (`"  Agenda  Escolar "` ≡
+  `"agenda escolar"` ≡ `"Agênda Escolar"`). A comparação com os projetos
+  existentes da turma usa a mesma normalização. Projeto que já
   existe e ainda não foi reivindicado tem representante e RA atualizados;
   já reivindicado → linha "ignorada (já reivindicado)", nada muda.
 - Relatório na saída: uma linha por linha do CSV com número da linha,
@@ -205,7 +236,7 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 | peso_publico | decimal(3,2) | padrão 0,30; **check: cada peso ≥ 0 e `peso_banca + peso_publico = 1`** (logo, cada um ≤ 1) |
 | votacao_aberta_em | datetime, null | preenchido pela spec 03; depois disso, não muda |
 | votacao_encerrada_em | datetime, null | **check: só com `votacao_aberta_em` e ≥ ela** |
-| banca_conferida_em | datetime, null | |
+| banca_conferida_em | datetime, null | preenchido pelo coordenador no admin; nasce vazio. Corrigir nota depois disso **apaga** a conferência (spec 06) |
 | criado_em | datetime auto | |
 
 Métodos: `Edicao.objects.ativa()` (a edição ativa ou `None`),
@@ -293,9 +324,12 @@ nesta edição):
 - [ ] Slug gerado na criação; títulos iguais geram `titulo`, `titulo-2`; mudar o título não muda o slug
 - [ ] Integrante de projeto Etec com nome de duas palavras → `ValidationError`; Fatec aceita
 - [ ] Rótulo da turma: `DSM — 3º semestre`, `ADM — 2º ano (tarde)`
+- [ ] `edicao_aberta()`: antes do prazo → verdadeiro; exatamente no prazo → verdadeiro; depois → falso
+- [ ] Edição nasce com `banca_conferida_em` vazio
 
 **Segurança**
-- [ ] `hash_ra("123.456 789")` = `hash_ra("123456789")`; zeros à esquerda preservados; RA sem dígito → `ValueError`
+- [ ] `hash_ra("123.456 789")` = `hash_ra("123-456/789")` = `hash_ra("123456789")`; zeros à esquerda preservados
+- [ ] RA com letra, com menos de 5 ou mais de 20 dígitos, ou vazio → `ValueError`
 - [ ] Sem `RA_HMAC_SECRET`, a aplicação não sobe
 - [ ] Token de edição: hash gravado ≠ token; regerar invalida o hash anterior; revogar deixa nulo
 - [ ] Nenhuma tela do admin mostra `ra_hmac` nem `token_edicao_hash` (teste do formulário)
@@ -310,17 +344,23 @@ nesta edição):
 **Moderação**
 - [ ] Publicar em lote: projeto completo vira `publicado` com `publicado_em`; projeto sem capa fica em `em_revisao` e aparece na mensagem
 - [ ] Devolver sem `motivo_ajustes` → não muda; com motivo → `ajustes`
+- [ ] Publicar a partir de `pre_cadastrado` ou `ajustes` → não muda; devolver a partir de `pre_cadastrado` ou `ajustes` → não muda
+- [ ] Pendências de publicação: sem resumo, sem descrição e sem integrante são reportados cada um
 - [ ] Republicar não altera `publicado_em`
 - [ ] Com a votação aberta: publicar, devolver para ajustes e trocar a turma do projeto → `ValidationError`, nada muda no banco
 - [ ] Trocar a turma do projeto para turma de outra edição → `ValidationError`, mesmo antes de abrir a votação
 - [ ] `status` não é editável no formulário do admin
+- [ ] Projeto criado no admin com RA → grava só `ra_hmac`; o campo de RA volta vazio ao reabrir
+- [ ] 11º integrante → recusado pelo formset do admin (o formulário do grupo é testado na spec 02)
 - [ ] Usuário anônimo no admin → login (G15)
 
 **Importação**
 - [ ] CSV com `;` e com `,`, com e sem BOM → mesmo resultado
 - [ ] Sem `--aplicar` → nada gravado e relatório completo
 - [ ] Uma linha com erro → nada gravado, mesmo com `--aplicar`; relatório aponta a linha e o motivo
-- [ ] Rodar duas vezes o mesmo CSV → nenhum projeto duplicado
+- [ ] Rodar duas vezes o mesmo CSV → nenhum projeto duplicado; reimportar com o título variando em espaços, maiúsculas e acentos → mesmo projeto
+- [ ] Arquivo ausente, não UTF-8, sem coluna obrigatória ou com coluna repetida, e edição inexistente → mensagem e saída ≠ 0, nada gravado
+- [ ] "2º ano" com período "Semestre" → erro de linha; representante com 121 caracteres → erro de linha
 - [ ] Projeto já reivindicado → "ignorado", RA não muda
 - [ ] Linha "EXEMPLO" ignorada; turma inexistente → erro
 - [ ] Duas turmas que só diferem no turno: linha sem turno → erro "turma ambígua", nada gravado; linha com turno → casa a turma certa
@@ -338,3 +378,9 @@ Não bloqueiam a implementação:
   `Edicao.votacao_aberta_em` / `votacao_encerrada_em`; spec 04 acompanha
   (onde diz "sem `config_votacao`", vale "`votacao_aberta_em` vazio").
 - Planilha modelo: incluir a coluna "Turno" na próxima edição.
+- Spec 02 (Cleiton): nome completo para Fatec, só primeiro nome para
+  Etec; projeto `publicado` não editável pelo grupo — testado lá.
+- Spec 06: corrigir nota depois da conferência apaga
+  `banca_conferida_em`; quem digita não confere.
+- Divulgação dos pesos antes do evento (ADR-007): é da coordenação
+  (comunicação), não do sistema.

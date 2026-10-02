@@ -6,17 +6,25 @@ RA_HMAC_SECRET. O token de edição é aleatório; só o SHA-256 vai para o banc
 
 import hashlib
 import hmac
+import re
 import secrets
 
 from django.conf import settings
 
 
+_SEPARADORES = str.maketrans("", "", " .-/")
+
+
 def normalizar_ra(ra):
-    """Mantém só os dígitos (zeros à esquerda preservados)."""
-    digitos = "".join(c for c in str(ra) if c.isdigit())
-    if not digitos:
-        raise ValueError("RA sem dígitos.")
-    return digitos
+    """Remove espaço, ponto, hífen e barra; o resto tem de ser 5 a 20 dígitos.
+
+    Qualquer outro caractere é recusado, não descartado: um RA "limpo" em
+    silêncio geraria um hash que não confere com o do representante.
+    """
+    texto = str(ra).strip().translate(_SEPARADORES)
+    if not re.fullmatch(r"[0-9]{5,20}", texto):
+        raise ValueError("RA inválido.")
+    return texto
 
 
 def hash_ra(ra):
