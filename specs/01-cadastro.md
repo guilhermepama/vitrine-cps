@@ -49,10 +49,21 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 - O ensaio geral (22/10) é uma **edição própria** ("Ensaio 2026/2"), com
   turmas, projetos e estações próprios. Nada do ensaio entra na edição do
   evento.
-- `peso_banca + peso_publico = 1,00` (constraint no banco). Padrão
-  0,70 / 0,30 (ADR-007). Quando a votação da edição já foi aberta (spec 03:
-  `config_votacao.aberta_em` preenchido), os pesos ficam **somente
-  leitura** no admin.
+- **Pesos** (ADR-007): cada um entre 0 e 1 e `peso_banca + peso_publico
+  = 1,00` (constraints no banco — `1,70 / −0,70` é recusado). Padrão
+  0,70 / 0,30. `peso_banca > peso_publico` é **validação** (`clean()`),
+  não constraint: a regra é da ADR-007 desta edição, e uma edição futura
+  pode mudá-la por ADR sem migration.
+- **Abertura da votação fica na própria edição**: `votacao_aberta_em` e
+  `votacao_encerrada_em`. A spec 03 só preenche esses campos (a tabela
+  `config_votacao` deixa de existir). Encerramento exige abertura e não
+  pode ser anterior a ela (constraint). Depois de preenchido,
+  `votacao_aberta_em` **não muda nem é apagado**.
+- **Travas depois de abrir a votação** (revisão do Renan no PR #16): a
+  partir de `votacao_aberta_em`, ficam fixos — **no model, não só no
+  admin** — os pesos da edição e o status e a turma de todos os projetos
+  dela (ver "Projeto"). Sem snapshot (PR #14), qualquer mudança aí
+  alteraria o resultado em silêncio.
 - `prazo_edicao`: depois dele, o link de edição do grupo só mostra o
   conteúdo (a tela é da spec 02; a regra é `Edicao.edicao_aberta()`).
 - `banca_conferida_em`: preenchido pelo coordenador após a conferência das
@@ -67,6 +78,8 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 - Não pode haver duas turmas iguais na mesma edição (constraint).
 - Turma é a **categoria** da cédula (spec 03) e do resultado (spec 04).
 - Turma ou curso com projeto não pode ser apagado (`PROTECT`).
+- Turma com projeto **não muda de edição nem de curso** (validação no
+  model) — os projetos e os votos iriam junto para outra categoria.
 
 ### Projeto
 - **Slug** gerado uma única vez, na criação, a partir do título
@@ -93,6 +106,18 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   escreve no projeto antes de rodar a ação); sem motivo, o projeto fica
   como está e aparece na mensagem.
 - `publicado_em` é gravado na primeira publicação e não muda depois.
+- `status` é **somente leitura no admin**: muda só pelas ações (Publicar,
+  Devolver para ajustes) e pelo fluxo do grupo (spec 02), que aplicam os
+  requisitos e as travas.
+- **Mudar de turma**: só para outra turma da **mesma edição**, e só antes
+  de abrir a votação.
+- **Depois de abrir a votação da edição**, o status e a turma do projeto
+  não mudam — publicar, devolver para ajustes ou trocar de turma é
+  recusado com `ValidationError`. **Não há retirada de projeto no sistema**
+  nesta edição: uma desclassificação excepcional é anotada pela
+  coordenação no resultado impresso e assinado. `QuerySet.update()` passa
+  por cima das travas, então mudanças de status e turma só pelos métodos
+  do model.
 
 ### Equipe (integrantes)
 - Lista estruturada: nome de exibição e papel opcional ("Front-end",
@@ -146,9 +171,18 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   `DSM`). Turma: número extraído de "3º semestre" / "2º ano" + período
   (Semestre/Ano/Módulo). A turma **precisa existir** na edição — o admin
   cria as turmas antes; o comando não cria turma.
-- Erros por linha: curso inexistente, turma inexistente, título vazio ou
-  com mais de 120 caracteres, representante vazio, RA sem dígitos, RA
-  repetido no arquivo, projeto repetido no arquivo.
+- **Turno**: coluna "Turno" opcional (a planilha desta edição foi sem
+  ela). Com turno, casa exatamente. Sem turno, casa com a única turma
+  daquele curso e período; se houver mais de uma (ex: manhã e tarde), a
+  linha é erro "turma ambígua — informe o turno" (revisão do Renan no
+  PR #16).
+- **RA único por edição**: um RA representa no máximo um projeto na
+  edição. RA que já representa outro projeto da edição (de importação
+  anterior ou de outra linha do arquivo) → erro de linha, sem mostrar o
+  RA (revisão do Renan no PR #16).
+- Erros por linha: curso inexistente, turma inexistente, turma ambígua,
+  título vazio ou com mais de 120 caracteres, representante vazio, RA sem
+  dígitos, RA de outro projeto da edição, projeto repetido no arquivo.
 - **Tudo ou nada**: se houver qualquer erro, nada é gravado (transação
   atômica), mesmo com `--aplicar`.
 - **Idempotente**: chave = (turma, título normalizado). Projeto que já
@@ -168,12 +202,15 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 | ativa | bool | **unique quando `ativa = true`** (constraint parcial) |
 | prazo_edicao | datetime | |
 | peso_banca | decimal(3,2) | padrão 0,70 |
-| peso_publico | decimal(3,2) | padrão 0,30; **check `peso_banca + peso_publico = 1`** |
+| peso_publico | decimal(3,2) | padrão 0,30; **check: cada peso ≥ 0 e `peso_banca + peso_publico = 1`** (logo, cada um ≤ 1) |
+| votacao_aberta_em | datetime, null | preenchido pela spec 03; depois disso, não muda |
+| votacao_encerrada_em | datetime, null | **check: só com `votacao_aberta_em` e ≥ ela** |
 | banca_conferida_em | datetime, null | |
 | criado_em | datetime auto | |
 
 Métodos: `Edicao.objects.ativa()` (a edição ativa ou `None`),
-`edicao_aberta()` (agora ≤ `prazo_edicao`).
+`edicao_aberta()` (agora ≤ `prazo_edicao`), `votacao_foi_aberta()`
+(`votacao_aberta_em` preenchido e ≤ agora).
 
 ### `Curso`
 sigla (char 10, único), nome (char 120), unidade (`fatec` | `etec`), ativo (bool).
@@ -224,10 +261,10 @@ nesta edição):
 
 | Tela | O que tem |
 |---|---|
-| Edições | lista com ativa e data do evento; pesos somente leitura após abrir a votação |
+| Edições | lista com ativa e data do evento; pesos somente leitura após abrir a votação; `votacao_aberta_em`/`votacao_encerrada_em` somente leitura (quem preenche é a spec 03) |
 | Cursos | sigla, nome, unidade |
 | Turmas | filtro por edição e curso; rótulo |
-| Projetos | colunas: título, turma, status, reivindicado (sim/não), atualizado em. Filtros: status, edição, curso. Busca: título, representante. Inlines: integrantes, imagens. Campos `slug`, `publicado_em`, `reivindicado_em` só leitura; `ra_hmac` e `token_edicao_hash` **fora** do formulário. Ações: Publicar, Devolver para ajustes, Regerar link de edição, Revogar link de edição |
+| Projetos | colunas: título, turma, status, reivindicado (sim/não), atualizado em. Filtros: status, edição, curso. Busca: título, representante. Inlines: integrantes, imagens. Campos `status`, `slug`, `publicado_em`, `reivindicado_em` só leitura; `ra_hmac` e `token_edicao_hash` **fora** do formulário. Ações: Publicar, Devolver para ajustes, Regerar link de edição, Revogar link de edição |
 
 ## Guardrails aplicáveis
 3, 11, 12, 13, 14, 15, 16, 17.
@@ -245,7 +282,12 @@ nesta edição):
 
 **Modelo**
 - [ ] Ativar uma segunda edição com outra já ativa → erro de integridade no banco
-- [ ] Pesos que não somam 1 → erro de integridade no banco
+- [ ] Pesos que não somam 1 → erro de integridade no banco; `1,70 / −0,70` (soma 1, fora de 0–1) → erro de integridade
+- [ ] `peso_banca ≤ peso_publico` → `ValidationError` no `full_clean()`
+- [ ] Pesos editáveis antes de abrir a votação; depois de abrir (ou de encerrar), salvar pesos novos → `ValidationError` e o banco mantém os anteriores
+- [ ] `votacao_encerrada_em` sem `votacao_aberta_em`, ou antes dela → erro de integridade
+- [ ] `votacao_aberta_em` preenchido não pode ser alterado nem apagado → `ValidationError`
+- [ ] Turma com projeto: mudar edição ou curso → `ValidationError`
 - [ ] Duas turmas iguais na mesma edição → erro de integridade
 - [ ] Apagar turma ou curso com projeto → bloqueado (`ProtectedError`)
 - [ ] Slug gerado na criação; títulos iguais geram `titulo`, `titulo-2`; mudar o título não muda o slug
@@ -269,6 +311,9 @@ nesta edição):
 - [ ] Publicar em lote: projeto completo vira `publicado` com `publicado_em`; projeto sem capa fica em `em_revisao` e aparece na mensagem
 - [ ] Devolver sem `motivo_ajustes` → não muda; com motivo → `ajustes`
 - [ ] Republicar não altera `publicado_em`
+- [ ] Com a votação aberta: publicar, devolver para ajustes e trocar a turma do projeto → `ValidationError`, nada muda no banco
+- [ ] Trocar a turma do projeto para turma de outra edição → `ValidationError`, mesmo antes de abrir a votação
+- [ ] `status` não é editável no formulário do admin
 - [ ] Usuário anônimo no admin → login (G15)
 
 **Importação**
@@ -278,6 +323,8 @@ nesta edição):
 - [ ] Rodar duas vezes o mesmo CSV → nenhum projeto duplicado
 - [ ] Projeto já reivindicado → "ignorado", RA não muda
 - [ ] Linha "EXEMPLO" ignorada; turma inexistente → erro
+- [ ] Duas turmas que só diferem no turno: linha sem turno → erro "turma ambígua", nada gravado; linha com turno → casa a turma certa
+- [ ] RA que já representa outro projeto da edição (importação anterior) → erro de linha; o mesmo RA em outra edição é aceito
 - [ ] O RA não aparece na saída do comando em nenhum caso (teste captura a saída)
 - [ ] Testes do caminho crítico passando
 
@@ -287,3 +334,7 @@ Não bloqueiam a implementação:
   "módulo" ou "semestre"; regra para menores (hoje: só primeiro nome,
   sem foto de pessoas).
 - Prazo de edição desta edição: proposta 20/10, 23h59 (antes do pré-ensaio).
+- Spec 03 (Renan): trocar `config_votacao` pelos campos
+  `Edicao.votacao_aberta_em` / `votacao_encerrada_em`; spec 04 acompanha
+  (onde diz "sem `config_votacao`", vale "`votacao_aberta_em` vazio").
+- Planilha modelo: incluir a coluna "Turno" na próxima edição.
