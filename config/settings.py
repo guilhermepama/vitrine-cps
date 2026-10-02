@@ -42,6 +42,10 @@ def env_lista(nome):
 # --- Núcleo ------------------------------------------------------------------
 
 SECRET_KEY = env("DJANGO_SECRET_KEY", obrigatoria=True)
+
+# HMAC do RA do representante (ADR-009). Separado do segredo do QR: um
+# vazamento não compromete o outro.
+RA_HMAC_SECRET = env("RA_HMAC_SECRET", obrigatoria=True)
 DEBUG = env_bool("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS")
@@ -142,8 +146,8 @@ USE_I18N = True
 USE_TZ = True
 
 # --- Arquivos estáticos (whitenoise) e mídia ---------------------------------
-# Imagens dos projetos vão para o Cloudflare R2 (ADR-006) — configurado no PR
-# dos models do cadastro. Até lá, mídia fica no disco local.
+# Imagens dos projetos: Cloudflare R2 quando R2_BUCKET está definido
+# (ADR-006); sem ele, disco local (desenvolvimento).
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
@@ -154,6 +158,24 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+
+if env("R2_BUCKET"):
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": env("R2_BUCKET"),
+            "endpoint_url": f"https://{env('R2_ACCOUNT_ID', obrigatoria=True)}.r2.cloudflarestorage.com",
+            "access_key": env("R2_ACCESS_KEY_ID", obrigatoria=True),
+            "secret_key": env("R2_SECRET_ACCESS_KEY", obrigatoria=True),
+            "region_name": "auto",
+            "signature_version": "s3v4",
+            # URL pública pelo domínio próprio, sem assinatura: a prévia do
+            # WhatsApp precisa de um link que não expira (ADR-006).
+            "custom_domain": env("R2_PUBLIC_DOMAIN", obrigatoria=True),
+            "querystring_auth": False,
+            "file_overwrite": False,
+        },
+    }
 
 # --- Segurança em produção ---------------------------------------------------
 
