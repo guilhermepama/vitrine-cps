@@ -3,7 +3,7 @@
 > Stub — completar usando `specs/_template.md` antes de implementar.
 > Ver `specs/03-credenciamento-votacao.md` como exemplo do nível de detalhe esperado.
 
-- **Responsável**: (a definir em TAREFAS.md)
+- **Responsável**: Guilherme (@guilhermepama)
 - **Status**: rascunho
 - **Depende de**: ADR-002 (stack)
 
