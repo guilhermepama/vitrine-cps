@@ -57,9 +57,11 @@ vence — e o conflito deve ser reportado ao coordenador.
 
 18. Nenhum merge em `main` sem PR aprovado pelo coordenador (humano — a IA
     gera, humano revisa). PRs do próprio coordenador são aprovados pelo
-    Renan Croffi antes do merge (ADR-010) — por necessidade, entram sem
-    essa aprovação, com o motivo no PR —, e nunca sem PR e sem os checks
-    do CI verdes (ADR-005).
+    Renan Croffi antes do merge (ADR-010). Exceção só nos casos da
+    ADR-010 (sem resposta no prazo ou correção urgente; nunca em PR que
+    muda guardrails, ADRs ou o processo de aprovação), com o marcador
+    `Merge sem aprovação (ADR-010): …` no PR e revisão do Renan em até
+    48h. Nunca sem PR e sem os checks do CI verdes (ADR-005).
 19. Código gerado por IA é responsabilidade de quem commitou. "A IA que
     fez" não existe como justificativa.
 20. Mudança nestes guardrails: só o coordenador, via PR neste arquivo, com
