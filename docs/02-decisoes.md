@@ -277,7 +277,8 @@ Formato:
   visitante — os guardrails 9–11 continuam valendo para visitantes.
 
 ## ADR-010 — Aprovação em pares nos PRs do coordenador
-- Status: aceita
+- Status: aceita (redação ajustada depois do PR #28, com as recomendações
+  do Renan)
 - Data: 2026-10-03
 - Contexto: pela ADR-005, os PRs do coordenador entravam pelo bypass sem
   segundo olhar humano — só CI e `/revisar-pr`. Esses PRs tocam as partes
@@ -289,13 +290,18 @@ Formato:
     checks verdes, o coordenador faz o merge pelo bypass.
   - **Ordem do fluxo (vale para todo PR):** CI verde → parecer do
     `/revisar-pr` no PR → atualizar com a `main`, se preciso → aprovação
-    humana → squash. Atualizar antes de aprovar: o ruleset descarta a
-    aprovação a cada push.
+    humana → squash. O parecer é postado pelo coordenador — nos PRs dos
+    alunos e nos próprios, neste caso antes de pedir a aprovação do Renan.
+    Atualizar antes de pedir aprovação: nos PRs dos alunos, o ruleset
+    descarta a aprovação a cada push.
   - **O que o GitHub não impõe e vale por combinado:**
     - "Request changes" do Renan = não fazer merge, salvo pela exceção.
     - Conversa aberta pelo Renan só ele resolve.
-    - Nova aprovação: "Update branch" sem conflito não pede; conflito ou
-      mudança de conteúdo pede.
+    - Nova aprovação do Renan nos PRs do coordenador: "Update branch" sem
+      conflito não pede; conflito ou mudança de conteúdo pede. Em qualquer
+      caso, o CI tem de estar verde no último commit antes do merge. (Nos
+      PRs dos alunos não há essa folga: o ruleset descarta a aprovação a
+      cada push.)
     - Aprovação do Renan diz o que ele conferiu; quando não conseguir ler,
       ele deixa Comment, não Approve.
   - **Exceção — merge sem a aprovação.** Quem decide é o coordenador,
@@ -311,9 +317,9 @@ Formato:
     O Renan revisa em até 48h depois do merge e sempre antes do próximo
     marco. Violação de guardrail encontrada → revert ou correção antes do
     próximo merge do coordenador, e a correção passa pelo Renan.
-  - **PRs dos alunos não mudam** (ADR-005): continuam exigindo a
-    aprovação do coordenador. O Renan aprova os PRs do coordenador, não
-    os dos colegas.
+  - **A regra de aprovação dos alunos não muda** (ADR-005): os PRs deles
+    continuam exigindo a aprovação do coordenador. O Renan aprova os PRs
+    do coordenador, não os dos colegas.
 - Consequências: o GitHub **não obriga** a aprovação do Renan — o
   `CODEOWNERS` continua `* @guilhermepama` e a aprovação dele não conta
   como de code owner; a regra vale por combinado e pelo histórico dos PRs
