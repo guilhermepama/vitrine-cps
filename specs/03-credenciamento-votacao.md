@@ -443,8 +443,13 @@ evento. Também sem variáveis locais dos quadros, sem o objeto `request`,
 sem IP, sem cookie, sem query string (`w`, `sig`), sem corpo, sem
 user-agent, sem id de request/sessão, sem token, sem nome ou email.
 Implementação: filtro `votacao/logs.py` aplicado aos loggers
-`django.request`, `django.security` e `votacao`; ligá-lo em `LOGGING`
-(`settings.py`) é do coordenador, quando o PR de código entrar.
+`django.request`, `django.security`, `django.security.csrf` (pelo nome) e
+`votacao`, e também ao handler `console`; ligá-lo em `LOGGING`
+(`settings.py`) é do coordenador, quando o PR de código entrar. Filtro de
+logger não pega o que propaga dos filhos, daí o `csrf` pelo nome; os
+`django.security.<Classe>` do `SuspiciousOperation` não dá para listar, e
+o handler os cobre. Fica também no logger porque `assertLogs` troca os
+handlers e o filtro só no handler sumiria nos testes.
 **Primeiro corte** se o prazo de 20/10 apertar: o filtro P2 (o horário
 truncado e o UUID já cobrem o caminho principal) — decisão do
 coordenador no PR #18.
