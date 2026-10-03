@@ -46,6 +46,17 @@ SECRET_KEY = env("DJANGO_SECRET_KEY", obrigatoria=True)
 # HMAC do RA do representante (ADR-009). Separado do segredo do QR: um
 # vazamento não compromete o outro.
 RA_HMAC_SECRET = env("RA_HMAC_SECRET", obrigatoria=True)
+
+# Votação (spec 03). Três segredos distintos: QR assina as janelas das
+# estações; IP vira HMAC na chave do rate limit (o IP em claro nunca vai
+# para o cache, que entra no pg_dump). Um vazamento não compromete o outro.
+QR_HMAC_SECRET = env("QR_HMAC_SECRET", obrigatoria=True)
+IP_HMAC_SECRET = env("IP_HMAC_SECRET", obrigatoria=True)
+# Cabeçalho com o IP real do cliente atrás do proxy (ADR-006), ex.:
+# "X-Forwarded-For". Vazio = REMOTE_ADDR (desenvolvimento e CI). Só preencher
+# com um cabeçalho que o proxy da hospedagem reescreve — senão o cliente
+# manda um IP falso e fura o rate limit. Lido em cadastro.seguranca.ip_do_cliente.
+IP_HEADER = env("DJANGO_IP_HEADER", "")
 DEBUG = env_bool("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS")

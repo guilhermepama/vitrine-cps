@@ -53,16 +53,17 @@ def test_ra_confere():
     assert ra_confere("123457", hash_ra("123456")) is False
 
 
-def test_aplicacao_nao_sobe_sem_segredo_do_ra(tmp_path):
+@pytest.mark.parametrize("segredo", ["RA_HMAC_SECRET", "QR_HMAC_SECRET", "IP_HMAC_SECRET"])
+def test_aplicacao_nao_sobe_sem_segredo(segredo):
     # Variável vazia (e não ausente): o .env local não a preenche, porque
     # o carregador nunca sobrescreve o que já existe no ambiente.
-    ambiente = dict(os.environ, DJANGO_SETTINGS_MODULE="config.settings", RA_HMAC_SECRET="")
+    ambiente = dict(os.environ, DJANGO_SETTINGS_MODULE="config.settings", **{segredo: ""})
     resultado = subprocess.run(
         [sys.executable, "-c", "import django; django.setup()"],
         env=ambiente, cwd=settings.BASE_DIR, capture_output=True, text=True,
     )
     assert resultado.returncode != 0
-    assert "RA_HMAC_SECRET" in resultado.stderr
+    assert segredo in resultado.stderr
 
 
 @pytest.mark.django_db
