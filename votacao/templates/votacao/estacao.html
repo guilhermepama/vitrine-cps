@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Reserva sem JS: recarrega a página inteira a cada rotação. #}
+  <noscript><meta http-equiv="refresh" content="{{ rotacao }}"></noscript>
+  <title>Estação {{ estacao.nome }} — Vitrine CPS</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #fff; color: #111; font-family: system-ui, sans-serif; }
+    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; text-align: center; }
+    h1 { margin: 0; font-size: 4vh; }
+    p { margin: 0; font-size: 3vh; }
+    #qr svg { width: min(90vw, 75vh); height: auto; display: block; }
+    #qr:empty::after { content: "QR indisponível — recarregando…"; font-size: 3vh; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Votação — {{ estacao.nome }}</h1>
+    <div id="qr" data-renovar="{% url 'votacao:estacao_qr' estacao.pk %}" data-intervalo="{{ rotacao }}">{{ qr_svg }}</div>
+    <p>Aponte a câmera do celular para o QR para votar.</p>
+  </main>
+  <script>
+    (function () {
+      var qr = document.getElementById("qr");
+      var intervalo = Number(qr.dataset.intervalo) * 1000;
+      function renovar() {
+        // redirect manual: se a sessão caiu, o login não entra no lugar do QR.
+        fetch(qr.dataset.renovar, { credentials: "same-origin", cache: "no-store", redirect: "manual" })
+          .then(function (resposta) {
+            if (!resposta.ok) { throw new Error("renovação recusada"); }
+            return resposta.text();
+          })
+          .then(function (svg) { qr.innerHTML = svg; })
+          .catch(function () {
+            // Nunca deixar um QR velho na tela: apaga e recarrega (login ou 404).
+            qr.innerHTML = "";
+            setTimeout(function () { window.location.reload(); }, 3000);
+          });
+      }
+      setInterval(renovar, intervalo);
+    })();
+  </script>
+</body>
+</html>
