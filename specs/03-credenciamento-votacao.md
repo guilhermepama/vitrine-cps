@@ -3,10 +3,12 @@
 > Spec de referência: usa o template completo para servir de padrão às demais.
 
 - **Responsável**: Renan (@ReCroffi)
-- **Status**: pronta para implementar — revisão do coordenador no PR #18
-  aplicada (ADR-002 aceita: Python + Django)
+- **Status**: pronta para implementar — revisões do coordenador nos PRs
+  #18 e #20 aplicadas (ADR-002 aceita: Python + Django)
 - **Depende de**: ADR-001, ADR-003, ADR-006 (logs da hospedagem e
-  cabeçalho do IP real, até 08/10), spec 01 (na `main`, PRs #16 e #17:
+  cabeçalho do IP real em `DJANGO_IP_HEADER`, até 08/10),
+  `cadastro/seguranca.py` (na `main`, PR #25: `ip_do_cliente` e
+  `chave_ip`), spec 01 (na `main`, PRs #16 e #17:
   `Edicao` com `votacao_aberta_em` e `votacao_encerrada_em`,
   `Turma.edicao`, `Projeto.turma`, `Projeto.status`)
 - **Usada por**: spec 04 (lê `Estacao.edicao_id`, `Visitante.edicao_id`,
@@ -20,14 +22,15 @@ máximo 1 voto por projeto por token.
 ## Escopo
 - Página `/estacao/<id>` (tela cheia): exibe QR apontando para
   `/entrar?w=<estacao>:<timestamp>&sig=<HMAC>`, regenerado a cada 45s.
-  **Proposta** (aguarda decisão do coordenador): só para usuário staff
-  logado — ver "Acesso à página da estação".
+  Só para usuário staff logado com a permissão `votacao.operar_estacao`
+  — ver "Acesso à página da estação".
 - Redirects de `/votar` sem token válido para `/como-votar/`, a página
   de explicação do voto presencial definida na spec 02 (PR #23, app
   `vitrine`) — esta spec não define essa página (guardrail 8).
 - Rota `GET /entrar`: valida assinatura e expiração da janela; emite token
   UUID; grava cookie httpOnly e devolve página que salva em localStorage e
-  redireciona ao formulário de visitante (`GET /visitantes`).
+  redireciona ao formulário de visitante (`GET /visitantes`), que manda
+  direto à cédula quem já tem cadastro válido.
 - Rate limit da emissão em duas camadas — por janela de estação e por IP
   (guardrail 7, ADR-001; ver "Rate limit da emissão").
 - Formulário de visitante: nome + email obrigatórios, telefone opcional,
@@ -71,9 +74,12 @@ máximo 1 voto por projeto por token.
   `.env.example` e configuração de log da hospedagem: são do
   coordenador; esta spec entrega o filtro e diz o que precisa ser ligado.
 - Escolha do servidor e do cabeçalho que traz o IP real atrás do proxy
-  (ADR-006, coordenador, até 08/10).
+  (ADR-006, coordenador, até 08/10) — o valor de `DJANGO_IP_HEADER`,
+  lido por `cadastro/seguranca.py`.
 - Permissões de admin além do superusuário (mesma regra da spec 01 nesta
-  edição).
+  edição). A única permissão própria desta spec é
+  `votacao.operar_estacao`, que não dá acesso a nenhum model no admin
+  (ver "Acesso à página da estação").
 
 ## Comportamento esperado
 
@@ -136,28 +142,41 @@ máximo 1 voto por projeto por token.
 - `Voto.token`, `Voto.projeto`, `Estacao.edicao` e `Visitante.edicao`
   também são `PROTECT`: nada do ensaio ou do evento é apagado em cascata.
 
-### Acesso à página da estação (PROPOSTA)
-> **Proposta — aguarda decisão do coordenador.** Enquanto não for
-> decidida, a F3 (página da estação) não abre PR.
-
-- **Problema**: hoje `/estacao/<id>` é pública. Qualquer pessoa, de casa,
-  abre `/estacao/1` e lê QRs válidos o tempo todo. A exigência de
-  presença física (ADR-001: estações supervisionadas) cai, e o único
-  freio passa a ser o rate limit — 20 tokens por janela de 45s, cerca de
-  1.600 tokens por hora por estação.
-- **Proposta**: a página exige usuário **logado, ativo e com
-  `is_staff`**. O notebook/tablet da estação fica logado com uma conta de
-  staff (sem permissões no admin — não é preciso nenhuma); o staff fica
-  ao lado da tela. Não muda permissões de admin (ver "Fora de escopo").
+### Acesso à página da estação
+- **Problema**: sem login, qualquer pessoa, de casa, abre `/estacao/1` e
+  lê QRs válidos o tempo todo. A exigência de presença física (ADR-001:
+  estações supervisionadas) cai, e o único freio passa a ser o rate
+  limit — 20 tokens por janela de 45s, cerca de 1.600 tokens por hora por
+  estação.
+- **Regra**: a página exige usuário **logado, ativo, com `is_staff` e com
+  a permissão `votacao.operar_estacao`** (decisão do coordenador no PR
+  #20).
+  - `votacao.operar_estacao` é permissão própria, declarada em
+    `Estacao.Meta.permissions` (migration do app `votacao`), com o nome
+    "Pode operar a página da estação". É dada a um grupo "estação",
+    criado pelo superusuário no admin; a conta do notebook/tablet da
+    estação entra nesse grupo e em nenhum outro. A permissão não dá
+    acesso a nenhum model no admin.
+  - **Por que a permissão, e não só `is_staff`**: a equipe de digitação
+    da banca (grupo `digitacao-banca`, spec 06) também é staff. Só com
+    `is_staff`, qualquer conta da digitação abriria a estação e geraria
+    QRs.
+  - **Por que `is_staff` continua**: o login usado é o do admin
+    (`admin:login`), que recusa usuário não staff. Sem `is_staff`, a conta
+    da estação não consegue logar.
+  - Superusuário tem todas as permissões e passa pela regra.
+  - O staff fica ao lado da tela. Não muda permissões de admin (ver "Fora
+    de escopo").
 - **Ordem**: a autenticação é conferida **antes** de buscar a estação,
   para não revelar quais ids existem.
   - Anônimo → redirect (302) para o login do admin (`admin:login`) com
     `next=/estacao/<id>`; nenhum QR, `w` ou `sig` no corpo. Usa o login
     do admin para não depender de `LOGIN_URL` no `settings.py`.
-  - Logado sem `is_staff` → **404**, corpo igual ao da estação
-    inexistente.
-  - Staff → as regras de sempre: estação inexistente ou inativa → 404;
-    senão, a tela com o QR.
+  - Logado sem `is_staff`, ou staff sem `votacao.operar_estacao` →
+    **404**, corpo igual ao da estação inexistente. Os dois casos têm a
+    mesma resposta.
+  - Staff com a permissão → as regras de sempre: estação inexistente ou
+    inativa → 404; senão, a tela com o QR.
 - A renovação automática do QR (qualquer requisição da estação que
   devolva QR, `w` ou `sig`) segue a mesma regra; se a sessão do staff
   cair, a tela deixa de mostrar QR em vez de exibir um QR velho.
@@ -165,8 +184,8 @@ máximo 1 voto por projeto por token.
   cache do navegador nem de proxy).
 - A sessão do Django só existe no aparelho da estação (login do staff).
   As rotas do visitante continuam sem sessão (ver "Liberação da cédula").
-- Limite aceito: quem tiver a senha de staff abre a estação de qualquer
-  lugar; a conta da estação é tratada como credencial do evento (senha
+- Limite aceito: quem tiver a senha da conta da estação abre a estação de
+  qualquer lugar; essa conta é tratada como credencial do evento (senha
   forte, troca depois do evento).
 
 ### Formulário de visitante
@@ -177,6 +196,11 @@ máximo 1 voto por projeto por token.
   votação → página genérica "QR expirado — escaneie novamente na estação"
   (400), a mesma do `POST /visitantes`, para ninguém preencher um
   formulário que será recusado. Não grava nada (nem sessão, nem cache).
+- `GET /visitantes` com **cookie de cadastro válido** (ver "Liberação da
+  cédula") → redirect (302) para a cédula (`/votar`), sem mostrar o
+  formulário. Evita cadastro duplicado de quem volta ao formulário (botão
+  voltar, link salvo) — decisão do coordenador no PR #20. O único cookie
+  lido é o de cadastro.
 - `/como-votar/` é da spec 02 (PR #23, app `vitrine`): esta spec só
   redireciona para lá a partir de `GET /votar`.
 
@@ -220,25 +244,37 @@ WhatsApp). Decisão do coordenador no PR #18.
 - **Por IP, generoso**: no máximo **300 emissões por 10 min por IP**. No
   evento quase todos saem pelo mesmo IP do Wi-Fi da Fatec; o limite só
   barra script.
-- **IP real**: atrás do proxy da hospedagem, `REMOTE_ADDR` é o IP do
-  proxy. O IP vem do cabeçalho definido pela ADR-006 (o coordenador
-  informa até 08/10); o nome do cabeçalho fica numa constante única do
-  app `votacao`, trocada quando a ADR-006 sair.
+- **IP real**: o IP do cliente vem **só** de
+  `ip_do_cliente(request)`, de `cadastro/seguranca.py` (PR #25,
+  compartilhado com a spec 02). Atrás do proxy da hospedagem,
+  `REMOTE_ADDR` é o IP do proxy; o cabeçalho com o IP real é a variável
+  de ambiente `DJANGO_IP_HEADER` (`settings.IP_HEADER`), de
+  responsabilidade do coordenador (ADR-006, até 08/10). Vazia
+  (desenvolvimento, CI), a função usa `REMOTE_ADDR`; em lista
+  (`X-Forwarded-For`), vale o último item. **O código do app `votacao`
+  nunca lê `REMOTE_ADDR`, `X-Forwarded-For` nem outro cabeçalho de IP
+  direto** — trocar o cabeçalho é mudar a variável, não o código.
 - **A chave do IP no cache é o HMAC-SHA256 do IP, nunca o IP em claro**,
   com expiração (10 min); o IP não vai para log nem para tabela de model
   (coerente com P2). Motivo: a tabela do `DatabaseCache` entra no
   `pg_dump` com o horário de expiração, que dá o horário da emissão; com
   o IP em claro, o dump ligaria IP e horário. Recomendação do coordenador
   no PR #18.
-  - Segredo próprio em variável de ambiente, nome **proposto**
-    `IP_HMAC_SECRET` (no padrão do `RA_HMAC_SECRET` da spec 01);
-    **não reutiliza** o `QR_HMAC_SECRET` nem o `RA_HMAC_SECRET`.
-    Obrigatória: sem ela, a aplicação não sobe.
-  - Chave: prefixo do contador + HMAC-SHA256 em hex do IP (texto como
-    vem do cabeçalho da ADR-006, sem espaços nas pontas). O IP em claro
-    só existe em memória durante a requisição.
-  - Ler o segredo no `settings.py` e declará-lo no `.env.example` é do
-    coordenador (ver "Fora de escopo").
+  - Segredo próprio em variável de ambiente, `IP_HMAC_SECRET` (no padrão
+    do `RA_HMAC_SECRET` da spec 01); **não reutiliza** o
+    `QR_HMAC_SECRET` nem o `RA_HMAC_SECRET`. Obrigatória: sem ela, a
+    aplicação não sobe.
+  - Chave: `"rl:entrar:ip:" + chave_ip(ip_do_cliente(request))`.
+    `chave_ip(texto)`, de `cadastro/seguranca.py`, devolve o
+    HMAC-SHA256 em hex com `IP_HMAC_SECRET` do IP normalizado: IPv4 como
+    está; IPv6 agrupado pelo prefixo /64 (um aparelho troca de endereço
+    dentro do seu /64 e furaria o limite); IP ausente ou inválido → chave
+    fixa, que divide um único contador (o limite fica mais apertado,
+    nunca mais frouxo). O app `votacao` não calcula HMAC de IP por conta
+    própria. O IP em claro só existe em memória durante a requisição.
+  - Ler o segredo e o cabeçalho no `settings.py` e declará-los no
+    `.env.example` é do coordenador (já na `main`, PRs #24 e #25; ver
+    "Fora de escopo").
 - **Contadores no `DatabaseCache`** já configurado no esqueleto
   (`CACHES["default"]`, compartilhado entre os workers). Chave da janela
   expira com a tolerância do QR (150s). Limite aceito: o `incr` do
@@ -308,7 +344,8 @@ WhatsApp). Decisão do coordenador no PR #18.
   o formulário de visitante.
 - `POST /votos` sem cadastro válido → rejeição genérica (ver "Voto").
 - Re-scan na mesma edição com cadastro válido → vai direto à cédula, sem
-  novo registro em `visitantes`.
+  novo registro em `visitantes`. O mesmo vale para `GET /visitantes` com
+  cadastro válido (ver "Formulário de visitante").
 - Troca ensaio → evento: o cookie de cadastro do ensaio não vale no
   evento; o visitante preenche o formulário de novo e ganha um registro
   com `edicao_id` do evento (é visitante das duas edições).
@@ -364,8 +401,8 @@ depois de remover espaços nas pontas.
 
 | Endpoint | Entrada | Regra | Falha → resposta |
 |---|---|---|---|
-| `GET /estacao/<id>` | `id` (rota) | conversor `<int:id>` | não casa → 404 (rota inexistente); estação inexistente ou inativa → 404. **Proposta**: antes disso, anônimo → login do admin; logado sem `is_staff` → 404 |
-| `GET /visitantes` | — | sem entrada; query string ignorada | — |
+| `GET /estacao/<id>` | `id` (rota) | conversor `<int:id>` | não casa → 404 (rota inexistente); estação inexistente ou inativa → 404. Antes disso: anônimo → login do admin; logado sem `is_staff` ou sem `votacao.operar_estacao` → 404 |
+| `GET /visitantes` | — | sem entrada; query string ignorada; lê só o cookie de cadastro | cadastro válido → redirect para `/votar` |
 | `GET /entrar` | `w` | exatamente 1 ocorrência; até 32 caracteres; formato `<estacao>:<timestamp>`, `estacao` = inteiro 1–2147483647 sem sinal nem zero à esquerda, `timestamp` = inteiro Unix em segundos, 10 dígitos | página "QR expirado" (400) |
 | `GET /entrar` | `sig` | exatamente 1 ocorrência; 64 caracteres hexadecimais minúsculos (HMAC-SHA256); comparação com `hmac.compare_digest` (G2) | página "QR expirado" (400) |
 | `GET /entrar` | cookie do token | UUID canônico (36 caracteres, com hífens); outro valor = cookie ausente | emite token novo |
@@ -464,8 +501,8 @@ a spec 04 e o G6 citam:
 ## Endpoints / telas
 | Método | Rota | Entrada | Saída | Erros |
 |---|---|---|---|---|
-| GET | `/estacao/<int:id>` | sessão de staff (**proposta**) | HTML com QR autoatualizável, `Cache-Control: no-store` | 404 estação inexistente/inativa ou id não inteiro; **proposta**: 302 para `admin:login` (anônimo), 404 (logado sem `is_staff`) |
-| GET | `/visitantes` | — | formulário de visitante | 400 página "QR expirado" se votação fechada |
+| GET | `/estacao/<int:id>` | sessão de staff com `votacao.operar_estacao` | HTML com QR autoatualizável, `Cache-Control: no-store` | 404 estação inexistente/inativa ou id não inteiro; 302 para `admin:login` (anônimo); 404 (logado sem `is_staff` ou sem `votacao.operar_estacao`) |
+| GET | `/visitantes` | cookie de cadastro | formulário de visitante; redirect p/ cédula com cadastro válido | 400 página "QR expirado" se votação fechada |
 | GET | `/entrar` | `w`, `sig` (query); cookie do token | redirect p/ formulário (ou cédula, com cadastro válido) + cookie do token | 400 página "QR expirado" (entrada malformada, assinatura, expiração, estação inativa ou de outra edição, votação fechada, rate limit estourado) |
 | POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula + cookie de cadastro | 400 formulário com mensagem genérica; 400 página "QR expirado" se votação fechada; 403 CSRF |
 | GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ `/como-votar/` (spec 02) (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
@@ -496,7 +533,8 @@ a spec 04 e o G6 citam:
   cadastro.
 - 11: nenhum dado de visitante em log (P2).
 - 12: matriz de validação acima, antes do banco.
-- 15: abrir/encerrar e estações só para superusuário no admin.
+- 15: abrir/encerrar e estações só para superusuário no admin; página da
+  estação só para staff com `votacao.operar_estacao`.
 
 ## Critérios de aceite
 
@@ -513,11 +551,12 @@ a spec 04 e o G6 citam:
 **Rate limit** (guardrail 7)
 - [ ] 20 tokens na mesma janela da mesma estação passam; o 21º → página "QR expirado"
 - [ ] Com a janela de uma estação esgotada, outra estação na mesma hora emite normalmente
-- [ ] 300 emissões do mesmo IP (cabeçalho da ADR-006) em 10 min passam; a 301ª → página "QR expirado"
+- [ ] 300 emissões do mesmo IP (obtido por `ip_do_cliente`) em 10 min passam; a 301ª → página "QR expirado"
 - [ ] Resposta do limite estourado: status 400 e corpo byte a byte idêntico ao da assinatura inválida; nenhum token criado
 - [ ] Requisições com assinatura inválida não contam no contador da janela (a 21ª válida depois de 50 forjadas ainda é a que estoura)
 - [ ] O IP não aparece em log nem em tabela de model; a chave do IP no cache tem expiração de 10 min (revisão de código + teste lendo a chave)
-- [ ] Nenhuma chave de cache contém o IP em claro: teste emite com o IP fictício `203.0.113.7` e confere que nenhuma linha da tabela do `DatabaseCache` (chave nem valor) contém `203.0.113.7`; a chave do IP contém o HMAC-SHA256 do IP com `IP_HMAC_SECRET`
+- [ ] Nenhuma chave de cache contém o IP em claro: teste emite com o IP fictício `203.0.113.7` e confere que nenhuma linha da tabela do `DatabaseCache` (chave nem valor) contém `203.0.113.7`; a chave do IP é `rl:entrar:ip:` + `chave_ip("203.0.113.7")`
+- [ ] O app `votacao` obtém o IP só por `ip_do_cliente(request)` e monta a chave só com `chave_ip(...)`, de `cadastro/seguranca.py`; nenhuma ocorrência de `REMOTE_ADDR`, `X-Forwarded-For`/`HTTP_X_FORWARDED_FOR` nem `hmac` sobre IP no app (revisão de código + `grep`)
 - [ ] Sem `IP_HMAC_SECRET`, a aplicação não sobe; o segredo não é o mesmo valor do `QR_HMAC_SECRET` nem do `RA_HMAC_SECRET` (revisão de código: o rate limit lê só `IP_HMAC_SECRET`)
 - [ ] Contadores no `DatabaseCache` (`CACHES["default"]`), sem cache por processo
 
@@ -534,17 +573,21 @@ a spec 04 e o G6 citam:
 - [ ] Mudar a edição de estação com token emitido → `ValidationError`, edição inalterada; sem token emitido → permitido
 - [ ] Apagar estação com token emitido → bloqueado (`ProtectedError`)
 
-**Acesso à página da estação** (PROPOSTA — vale se o coordenador aprovar)
+**Acesso à página da estação**
 - [ ] Anônimo em `/estacao/<id>` de estação ativa → 302 para `admin:login` com `next=/estacao/<id>`; o corpo não contém QR, `w` nem `sig`
 - [ ] Anônimo em `/estacao/<id>` de estação inexistente → o mesmo 302 (não revela se a estação existe)
 - [ ] Usuário logado sem `is_staff` → 404, corpo igual ao da estação inexistente
+- [ ] Staff sem `votacao.operar_estacao` (ex: grupo `digitacao-banca`) → 404, corpo igual ao da estação inexistente e ao do logado sem `is_staff`
+- [ ] Usuário com `votacao.operar_estacao` mas sem `is_staff` não loga pelo `admin:login`; com sessão antiga → 404
 - [ ] Usuário staff com `is_active = False` não loga; com sessão antiga, recebe o mesmo tratamento do anônimo
-- [ ] Staff ativo → 200 com o QR; estação inexistente ou inativa → 404
-- [ ] A renovação do QR exige a mesma autenticação (anônimo não obtém `w`/`sig` por ela)
+- [ ] Staff ativo do grupo "estação" → 200 com o QR; estação inexistente ou inativa → 404
+- [ ] A permissão `votacao.operar_estacao` existe (migration do app `votacao`) e não dá acesso a nenhum model no admin
+- [ ] A renovação do QR exige a mesma autenticação e permissão (anônimo ou staff sem a permissão não obtém `w`/`sig` por ela)
 - [ ] Resposta da estação com `Cache-Control: no-store`
 
 **Formulário de visitante**
-- [ ] `GET /visitantes` com votação aberta → 200 com o formulário e o texto do consentimento, com ou sem cookie do token
+- [ ] `GET /visitantes` com votação aberta e sem cadastro válido → 200 com o formulário e o texto do consentimento, com ou sem cookie do token
+- [ ] `GET /visitantes` com cookie de cadastro válido → 302 para `/votar`, sem formulário e nenhum registro novo em `visitantes`; cookie de cadastro adulterado ou do ensaio, na votação do evento → 200 com o formulário
 - [ ] `GET /visitantes` sem edição em votação → página "QR expirado", 400
 - [ ] `GET /visitantes` não lê o cookie do token nem a estação (revisão de código) e não cria registro em sessão nem cache
 - [ ] `GET /votar` sem token, com token malformado, inexistente ou de outra edição → redirect para `/como-votar/`
@@ -614,13 +657,13 @@ a spec 04 e o G6 citam:
 ## Decisões do PR #18
 Respostas do coordenador à revisão da spec 03 (decisão do coordenador no
 PR #18). Restam só dependências do coordenador, que não impedem
-começar: cabeçalho do IP real e logs da hospedagem (ADR-006, até
-08/10), texto LGPD final (até 20/10) e o segredo `IP_HMAC_SECRET`
-(nome proposto) no `settings.py` e no `.env.example`, quando o PR de
-código entrar.
+começar: cabeçalho do IP real em `DJANGO_IP_HEADER` e logs da
+hospedagem (ADR-006, até 08/10) e texto LGPD final (até 20/10). O
+segredo `IP_HMAC_SECRET` já está no `settings.py` e no `.env.example`
+(PR #24).
 
-1. **Proposta B1 / P1** (id de visitante UUID) — aceito.
-2. **Proposta B1 / P2** (sem log nas rotas do visitante) — aceito, com
+1. **B1 / P1** (id de visitante UUID) — aceito.
+2. **B1 / P2** (sem log nas rotas do visitante) — aceito, com
    ajuste: no 5xx, registra tipo da exceção, rota e pilha de chamadas
    (arquivo e linha), sem a mensagem da exceção. É o primeiro corte se o
    prazo de 20/10 apertar.
@@ -642,8 +685,8 @@ código entrar.
    45s por estação; 300 emissões por 10 min por IP; IP do cabeçalho da
    ADR-006 (coordenador informa até 08/10), só como chave de cache com
    expiração, com o HMAC do IP e nunca o IP em claro (recomendação do
-   coordenador no PR #18; segredo `IP_HMAC_SECRET`, nome proposto); estouro = página "QR expirado" 400 idêntica; contadores no
-   `DatabaseCache`.
+   coordenador no PR #18; segredo `IP_HMAC_SECRET`); estouro = página
+   "QR expirado" 400 idêntica; contadores no `DatabaseCache`.
 10. **Trava por voto** — mantida; medir no pré-ensaio de 21/10. Plano B,
     não implementar agora: o voto deixa de travar a `Edicao` e a spec 04
     conta só votos com `criado_em` antes de `votacao_encerrada_em`.
@@ -651,3 +694,16 @@ código entrar.
 Regra transversal do coordenador (PR #17): campos travados da `Edicao`
 só mudam via `save()` ou métodos do model, nunca `QuerySet.update()` —
 aplicada em "Abrir e encerrar".
+
+## Decisões do PR #20
+Parecer do coordenador sobre o acesso à estação e o IP (decisão do
+coordenador no PR #20).
+
+1. **Página da estação** — exige `is_staff` e a permissão
+   `votacao.operar_estacao`, dada ao grupo "estação"; logado sem a
+   permissão → 404, como sem staff. Ver "Acesso à página da estação".
+2. **IP do cliente** — só por `ip_do_cliente(request)` e
+   `chave_ip(texto)` de `cadastro/seguranca.py` (PR #25); o cabeçalho é
+   `DJANGO_IP_HEADER`, do coordenador. Ver "Rate limit da emissão".
+3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
+   Ver "Formulário de visitante".
