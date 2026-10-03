@@ -15,8 +15,8 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
 - **PR pequeno**: até ~300 linhas alteradas, sem contar migrations e
   testes. Maior que isso, fatie (ex: models → admin → telas).
 - PR aprovado pelo coordenador antes do merge (guardrail 18). PRs do
-  próprio coordenador entram com o CI verde (bypass, ADR-005) e análise
-  do `/revisar-pr`; revisão por pares ainda a definir.
+  próprio coordenador entram com o CI verde e a aprovação do Renan
+  (ADR-010); por necessidade, sem ela, com o motivo registrado no PR.
 - Status da tarefa vai na **descrição do PR**. `docs/03-estado.md` é
   atualizado só pelo coordenador.
 - Branch desatualizada com a `main` ("out-of-date") é normal depois de

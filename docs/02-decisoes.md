@@ -125,7 +125,7 @@ Formato:
   Renomear job do CI exige atualizar o ruleset.
 
 ## ADR-005 — Coordenador aprova todos os PRs, inclusive os próprios
-- Status: aceita
+- Status: aceita (PRs do coordenador ajustados pela ADR-010)
 - Data: 2026-10-01
 - Contexto: o coordenador quer ser o ponto único de aprovação. O GitHub
   não deixa o autor aprovar o próprio PR, e a redação original do G18
@@ -275,3 +275,32 @@ Formato:
   pública (até decidir: equipe só com primeiro nome e sem fotos de
   pessoas, apenas do projeto). O RA do representante não é dado de
   visitante — os guardrails 9–11 continuam valendo para visitantes.
+
+## ADR-010 — Aprovação em pares nos PRs do coordenador
+- Status: aceita
+- Data: 2026-10-03
+- Contexto: pela ADR-005, os PRs do coordenador entravam pelo bypass sem
+  segundo olhar humano — só CI e `/revisar-pr`. Esses PRs tocam as partes
+  mais sensíveis (`settings.py`, models do `cadastro`, guardrails,
+  decisões), e a revisão opcional não aconteceu na prática.
+- Decisão:
+  - **PR do coordenador só entra com a aprovação do Renan Croffi
+    (@ReCroffi)**, pedida como revisor no próprio PR. Com a aprovação e os
+    checks verdes, o coordenador faz o merge pelo bypass.
+  - **Exceção — necessidade**: o coordenador pode fazer o merge sem a
+    aprovação quando esperar trava o trabalho do time ou um prazo do
+    evento (ex: Renan sem responder e outros PRs dependendo deste) ou
+    numa correção urgente. Nesse caso, registra o motivo na descrição do
+    PR antes do merge, e o Renan revisa depois do merge; achado vira PR
+    de correção.
+  - **PRs dos alunos não mudam** (ADR-005): continuam exigindo a
+    aprovação do coordenador. O Renan aprova os PRs do coordenador, não
+    os dos colegas.
+- Consequências: o GitHub **não obriga** a aprovação do Renan — o
+  `CODEOWNERS` continua `* @guilhermepama` e a aprovação dele não conta
+  como de code owner; a regra vale por combinado e pelo histórico dos PRs.
+  Tornar o Renan code owner a imporia, mas a aprovação dele passaria a
+  bastar também nos PRs dos alunos, contrariando a ADR-005. Com o ruleset
+  descartando aprovações a cada push, o coordenador que mudar o PR depois
+  da aprovação pede nova aprovação. Mais um passo nos PRs do coordenador
+  perto do evento; a exceção cobre o caso de urgência.
