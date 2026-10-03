@@ -6,10 +6,12 @@ ligar o cadastro ao token pelo horário. Por isso, nessas rotas, só o 5xx
 gera linha — e reescrita, sem a mensagem da exceção (o IntegrityError traz
 os valores da chave) e sem o objeto request (IP, cookies, query string).
 
-Vai como filtro do LOGGER, não do handler: assertLogs troca os handlers do
-logger, então um filtro só no handler sumiria nos testes. Filtro de
-logger só vale para registros criados nele mesmo, não para os propagados
-dos filhos — por isso `django.security.csrf` entra em LOGGING pelo nome.
+Vai nos loggers: assertLogs troca os handlers do logger, então um filtro
+só no handler sumiria nos testes. E também no handler console, que pega os
+`django.security.<Classe>` (um por SuspiciousOperation, não dá para listar).
+Filtro de logger só vale para registros criados nele mesmo, não para os
+propagados dos filhos — por isso `django.security.csrf` entra em LOGGING
+pelo nome.
 """
 
 import logging
