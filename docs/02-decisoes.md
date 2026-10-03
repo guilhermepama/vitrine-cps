@@ -125,7 +125,7 @@ Formato:
   Renomear job do CI exige atualizar o ruleset.
 
 ## ADR-005 — Coordenador aprova todos os PRs, inclusive os próprios
-- Status: aceita
+- Status: aceita (PRs do coordenador ajustados pela ADR-010)
 - Data: 2026-10-01
 - Contexto: o coordenador quer ser o ponto único de aprovação. O GitHub
   não deixa o autor aprovar o próprio PR, e a redação original do G18
@@ -275,3 +275,51 @@ Formato:
   pública (até decidir: equipe só com primeiro nome e sem fotos de
   pessoas, apenas do projeto). O RA do representante não é dado de
   visitante — os guardrails 9–11 continuam valendo para visitantes.
+
+## ADR-010 — Aprovação em pares nos PRs do coordenador
+- Status: aceita
+- Data: 2026-10-03
+- Contexto: pela ADR-005, os PRs do coordenador entravam pelo bypass sem
+  segundo olhar humano — só CI e `/revisar-pr`. Esses PRs tocam as partes
+  mais sensíveis (`settings.py`, models do `cadastro`, guardrails,
+  decisões), e a revisão opcional não aconteceu na prática.
+- Decisão:
+  - **PR do coordenador só entra com a aprovação do Renan Croffi
+    (@ReCroffi)**, pedida como revisor no próprio PR. Com a aprovação e os
+    checks verdes, o coordenador faz o merge pelo bypass.
+  - **Ordem do fluxo (vale para todo PR):** CI verde → parecer do
+    `/revisar-pr` no PR → atualizar com a `main`, se preciso → aprovação
+    humana → squash. Atualizar antes de aprovar: o ruleset descarta a
+    aprovação a cada push.
+  - **O que o GitHub não impõe e vale por combinado:**
+    - "Request changes" do Renan = não fazer merge, salvo pela exceção.
+    - Conversa aberta pelo Renan só ele resolve.
+    - Nova aprovação: "Update branch" sem conflito não pede; conflito ou
+      mudança de conteúdo pede.
+    - Aprovação do Renan diz o que ele conferiu; quando não conseguir ler,
+      ele deixa Comment, não Approve.
+  - **Exceção — merge sem a aprovação.** Quem decide é o coordenador,
+    avisando no PR. Vale só em dois casos:
+    - **sem resposta**: 24h depois do pedido de revisão (12h de 18/10 a
+      29/10) e o PR trava outro trabalho;
+    - **correção urgente**: produção fora do ar, ensaio ou evento travado,
+      ou falha de segurança/LGPD.
+    **Não vale** para PR que muda guardrails, ADRs ou o processo de
+    aprovação — esses sempre esperam o Renan.
+  - **Registro e revisão posterior.** O motivo vai na descrição do PR,
+    antes do merge, com o marcador fixo `Merge sem aprovação (ADR-010): …`.
+    O Renan revisa em até 48h depois do merge e sempre antes do próximo
+    marco. Violação de guardrail encontrada → revert ou correção antes do
+    próximo merge do coordenador, e a correção passa pelo Renan.
+  - **PRs dos alunos não mudam** (ADR-005): continuam exigindo a
+    aprovação do coordenador. O Renan aprova os PRs do coordenador, não
+    os dos colegas.
+- Consequências: o GitHub **não obriga** a aprovação do Renan — o
+  `CODEOWNERS` continua `* @guilhermepama` e a aprovação dele não conta
+  como de code owner; a regra vale por combinado e pelo histórico dos PRs
+  (o marcador deixa as exceções fáceis de achar). Tornar o Renan code
+  owner a imporia, mas a aprovação dele passaria a bastar também nos PRs
+  dos alunos, contrariando a ADR-005. Mais um passo nos PRs do
+  coordenador perto do evento; o prazo menor de 18/10 a 29/10 e a
+  exceção cobrem a urgência. Em aberto: um check no `convencoes-pr` que
+  exija a aprovação ou o marcador.
