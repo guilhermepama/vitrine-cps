@@ -203,13 +203,33 @@ if not DEBUG:
 # Só no console (a plataforma coleta). Sem DEBUG, o Django por padrão manda
 # erros só por e-mail — aqui eles aparecem no log. Nunca logar token, RA ou
 # dado de visitante (guardrails 3 e 11).
+#
+# P2 (spec 03, B1): nas rotas do visitante (/entrar, /visitantes, /votar,
+# /votos) nenhuma linha por request; 5xx sai reescrito, sem a mensagem da
+# exceção. O filtro fica em dois lugares:
+# - no handler `console`: pega os django.security.<Classe> do
+#   SuspiciousOperation, que o Django nomeia pela exceção e não dá para listar;
+# - nos loggers: assertLogs troca os handlers, então só o filtro de logger vale
+#   nos testes. Filtro de logger não pega o que propaga dos filhos — por isso
+#   django.security.csrf entra pelo nome.
+# O registro reescrito já não tem `request` e passa direto na segunda vez.
+# DJANGO_LOG_LEVEL=DEBUG só em máquina local: com DEBUG=True o
+# django.db.backends loga o SQL com os parâmetros (nome e email do visitante),
+# e esse registro não tem `request` — o filtro não o alcança.
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "handlers": {"console": {"class": "logging.StreamHandler"}},
+    "filters": {"rotas_visitante": {"()": "votacao.logs.FiltroRotasVisitante"}},
+    "handlers": {
+        "console": {"class": "logging.StreamHandler", "filters": ["rotas_visitante"]},
+    },
     "root": {"handlers": ["console"], "level": "WARNING"},
     "loggers": {
         "django": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO"), "propagate": False},
+        "django.request": {"filters": ["rotas_visitante"]},
+        "django.security": {"filters": ["rotas_visitante"]},
+        "django.security.csrf": {"filters": ["rotas_visitante"]},
+        "votacao": {"filters": ["rotas_visitante"]},
     },
 }
