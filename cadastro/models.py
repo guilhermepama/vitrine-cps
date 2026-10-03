@@ -75,7 +75,8 @@ class Edicao(models.Model):
             super().save(*args, **kwargs)
 
     def _verificar_travas(self, travar_linha=False):
-        """Depois de aberta a votação, pesos e abertura não mudam (sem snapshot — PR #14).
+        """Depois de aberta a votação, pesos e abertura não mudam (sem snapshot — PR #14);
+        depois de encerrada, o encerramento também não muda nem é apagado (spec 03).
 
         No save(), a linha da edição fica travada (select_for_update) até o fim
         da transação. Quem abre a votação (spec 03) trava a mesma linha.
@@ -83,12 +84,17 @@ class Edicao(models.Model):
         if not self.pk:
             return
         consulta = Edicao.objects.select_for_update() if travar_linha else Edicao.objects
-        antes = consulta.filter(pk=self.pk).values("peso_banca", "peso_publico", "votacao_aberta_em").first()
+        antes = consulta.filter(pk=self.pk).values(
+            "peso_banca", "peso_publico", "votacao_aberta_em", "votacao_encerrada_em"
+        ).first()
         if not antes or antes["votacao_aberta_em"] is None:
             return
         erros = {}
         if self.votacao_aberta_em != antes["votacao_aberta_em"]:
             erros["votacao_aberta_em"] = "A abertura da votação não pode ser alterada nem apagada."
+        encerrada = antes["votacao_encerrada_em"]
+        if encerrada is not None and self.votacao_encerrada_em != encerrada:
+            erros["votacao_encerrada_em"] = "O encerramento da votação não pode ser alterado nem apagado."
         pesos = (Decimal(str(self.peso_banca)), Decimal(str(self.peso_publico)))
         if pesos != (antes["peso_banca"], antes["peso_publico"]):
             erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
