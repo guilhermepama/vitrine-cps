@@ -81,8 +81,9 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Quando o RA não existe, já foi reivindicado, é de outra edição ou o
   projeto não está `pre_cadastrado`, o sistema responde **a mesma página,
   com o mesmo status e o mesmo texto**: "Não encontramos um projeto
-  disponível para este RA. Se acha que é um erro, procure a coordenação."
-  Nunca diz qual regra barrou.
+  disponível para este RA. Confira se digitou o RA igual ao da sua
+  matrícula. Se acha que é um erro, procure a coordenação." Nunca diz qual
+  regra barrou.
 - Quando o RA recarrega a página de resposta do POST (reenvio), cai na
   resposta genérica, porque o projeto já foi reivindicado. A página avisa
   que link perdido só o admin regera.
@@ -94,10 +95,14 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 #### Rate limit (guardrail 7, por analogia)
 - Conta **só falhas** (resposta genérica), no cache do Django (cache em
   banco, compartilhado entre workers — `settings.py`):
-  - por IP: **10 falhas em 10 min**;
-  - global: **200 falhas por hora** (proteção contra varredura distribuída).
-- Sucesso não consome limite — o Wi-Fi da faculdade sai por um único IP e
-  uma turma inteira reivindica ao mesmo tempo.
+  - por IP, **generoso**: **50 falhas em 10 min**;
+  - global: **200 falhas por hora** (proteção contra varredura distribuída,
+    não depende de IP).
+- Sucesso não consome limite. O Wi-Fi da faculdade sai por um único IP e
+  uma turma inteira reivindica ao mesmo tempo, então o limite por IP só
+  barra script — a mesma lógica da spec 03. Identificar o aparelho pelo
+  MAC não é possível: ele não chega ao servidor (o roteador o substitui) e
+  os celulares usam MAC aleatório.
 - Estourou o limite → 429 até a janela passar; o contador não é zerado por
   um acerto.
 - O IP só existe como chave do cache, **com expiração** e transformado em
@@ -236,7 +241,8 @@ Reler antes de implementar: 8 (nenhum caminho de voto na vitrine), 12
 - [ ] RA inexistente, RA já reivindicado e RA de outra edição → respostas **idênticas** (status e corpo)
 - [ ] Recarregar o POST após o sucesso → resposta genérica, não um segundo link
 - [ ] 2 POSTs simultâneos com o mesmo RA → um link emitido, um genérico
-- [ ] 11ª falha do mesmo IP em 10 min → 429; sucesso não conta
+- [ ] 50 falhas do mesmo IP em 10 min passam; a 51ª → 429; sucesso não conta
+- [ ] 200 falhas somadas de IPs diferentes em 1 hora passam; a 201ª → 429 para qualquer IP
 - [ ] RA vazio, com letra ou fora de 5–20 dígitos → erro de formulário, sem consulta de RA; `123.456-7` e `1234567` reivindicam o mesmo projeto
 - [ ] A chave do IP no cache expira em 10 min e não contém o IP em claro; o IP não aparece em log nem em tabela de model
 - [ ] O RA em claro não aparece no log, na resposta de erro nem no banco (teste captura log e resposta)
@@ -286,7 +292,9 @@ Dúvidas para o coordenador, **antes** de implementar:
    visitante: pode incluir `/grupo/editar/`? Se não, aceitamos o risco
    (o admin revoga o link) ou trocamos o token por sessão no primeiro
    acesso — mais código, só vale a pena se o servidor logar URLs.
-3. **Números do rate limit** (10 falhas/10 min por IP, 200/hora global).
+3. **Números do rate limit** (50 falhas/10 min por IP, 200/hora global).
+   O limite por IP é generoso porque a turma toda sai pelo mesmo IP do
+   Wi-Fi da faculdade (ajustado a partir de uma proposta inicial de 10).
    Risco aceito: quem acertar um RA por tentativa consome a reivindicação
    do colega — o admin regera o link, e nada fica público sem aprovação.
    O limite global pode, em ataque, travar reivindicações legítimas por
