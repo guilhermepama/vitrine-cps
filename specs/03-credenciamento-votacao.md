@@ -202,8 +202,8 @@ máximo 1 voto por projeto por token.
   formulário. Evita cadastro duplicado de quem volta ao formulário (botão
   voltar, link salvo) — decisão do coordenador no PR #20. O único cookie
   lido é o de cadastro.
-- `/como-votar/` é da spec 02 (PR #23, app `vitrine`): esta spec só
-  redireciona para lá a partir de `GET /votar`.
+- `/como-votar/` (`vitrine:como_votar`) é da spec 02 (PR #23, app
+  `vitrine`): esta spec só redireciona para lá a partir de `GET /votar`.
 
 ### Emissão de token
 - **Rotação e tolerância**: a estação gera QR novo a cada 45s; `/entrar`
@@ -445,15 +445,12 @@ sem IP, sem cookie, sem query string (`w`, `sig`), sem corpo, sem
 user-agent, sem id de request/sessão, sem token, sem nome ou email.
 Implementação: filtro `votacao/logs.py` aplicado aos loggers
 `django.request`, `django.security`, `django.security.csrf` (pelo nome) e
-`votacao`, e também ao handler `console`; ligá-lo em `LOGGING`
-(`settings.py`) é do coordenador, quando o PR de código entrar. Filtro de
+`votacao`, e também ao handler `console`. Implementado no PR #26 e
+ligado em `LOGGING` (`settings.py`) pelo coordenador no PR #27. Filtro de
 logger não pega o que propaga dos filhos, daí o `csrf` pelo nome; os
 `django.security.<Classe>` do `SuspiciousOperation` não dá para listar, e
 o handler os cobre. Fica também no logger porque `assertLogs` troca os
 handlers e o filtro só no handler sumiria nos testes.
-**Primeiro corte** se o prazo de 20/10 apertar: o filtro P2 (o horário
-truncado e o UUID já cobrem o caminho principal) — decisão do
-coordenador no PR #18.
 
 **Dependência do coordenador — logs da hospedagem (ADR-006).** Critério
 na escolha do servidor (até 08/10): plataforma que não permite tirar o
@@ -663,12 +660,11 @@ segredo `IP_HMAC_SECRET` já está no `settings.py` e no `.env.example`
 1. **B1 / P1** (id de visitante UUID) — aceito.
 2. **B1 / P2** (sem log nas rotas do visitante) — aceito, com
    ajuste: no 5xx, registra tipo da exceção, rota e pilha de chamadas
-   (arquivo e linha), sem a mensagem da exceção. É o primeiro corte se o
-   prazo de 20/10 apertar.
+   (arquivo e linha), sem a mensagem da exceção. Implementado em
+   `votacao/logs.py` (PR #26).
 3. **Logs da hospedagem e `LOGGING`** — do coordenador. Entra como
    critério na escolha do servidor (ADR-006, até 08/10); `gunicorn` sem
-   log de acesso; o filtro P2 é ligado em `LOGGING` quando o PR de código
-   desta spec entrar.
+   log de acesso; o filtro P2 foi ligado em `LOGGING` no PR #27.
 4. **Uma edição em votação por vez** — confirmado. Ensaio (22/10) e
    evento (29/10) não se sobrepõem.
 5. **ADR-003** (horário truncado) — do coordenador, no PR da importação
