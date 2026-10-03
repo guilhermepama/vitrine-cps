@@ -52,6 +52,11 @@ RA_HMAC_SECRET = env("RA_HMAC_SECRET", obrigatoria=True)
 # para o cache, que entra no pg_dump). Um vazamento não compromete o outro.
 QR_HMAC_SECRET = env("QR_HMAC_SECRET", obrigatoria=True)
 IP_HMAC_SECRET = env("IP_HMAC_SECRET", obrigatoria=True)
+# Cabeçalho com o IP real do cliente atrás do proxy (ADR-006), ex.:
+# "X-Forwarded-For". Vazio = REMOTE_ADDR (desenvolvimento e CI). Só preencher
+# com um cabeçalho que o proxy da hospedagem reescreve — senão o cliente
+# manda um IP falso e fura o rate limit. Lido em cadastro.seguranca.ip_do_cliente.
+IP_HEADER = env("DJANGO_IP_HEADER", "")
 DEBUG = env_bool("DJANGO_DEBUG")
 
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS")
