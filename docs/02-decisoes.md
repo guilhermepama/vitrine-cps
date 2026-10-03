@@ -180,7 +180,7 @@ Formato:
   coordenação.
 
 ## ADR-006 — Hospedagem (banco, servidor, imagens)
-- Status: aceita parcialmente — banco e imagens decididos; servidor até 2026-10-08
+- Status: aceita — banco e imagens em 2026-10-01; servidor em 2026-10-03
 - Data: 2026-10-01
 - Contexto: requisitos da ADR-002 — HTTPS, Postgres gerenciado com backup,
   sem hibernação longa no dia do evento. Time de alunos não deve
@@ -192,7 +192,38 @@ Formato:
   - **Backup manual obrigatório**: `pg_dump` na véspera do evento, ao
     encerrar a votação e após publicar o resultado. O plano gratuito só
     permite voltar ~6 h no tempo — insuficiente como único backup.
-  - **Servidor do Django**: a decidir (não pode hibernar por minutos).
+  - **Servidor do Django: VPS do coordenador (Hostinger, no Brasil),
+    com Coolify.** Não hiberna (ADR-002) e fica na mesma região do Neon
+    (São Paulo): a transação do voto faz várias consultas com a `Edicao`
+    travada e não pode pagar latência entre continentes.
+    - **Proxy**: o Traefik do Coolify termina o HTTPS (Let's Encrypt) e
+      preenche `X-Forwarded-Proto` (`SECURE_PROXY_SSL_HEADER`). Aceita
+      corpo de **pelo menos 4 MB por requisição** — uma imagem de até
+      3 MB mais o formulário (spec 02); o Traefik não limita o corpo por
+      padrão.
+    - **Sem log de acesso**: gunicorn sem `--access-logfile` e access log
+      do Traefik desligado (o padrão). Atende o P2 da spec 03 (rotas do
+      visitante) e a spec 02 (`/grupo/editar/<token>/`, com o token na
+      URL). Do container só sai o log da aplicação, que passa pelo filtro
+      `votacao/logs.py`.
+    - **IP real: `DJANGO_IP_HEADER=X-Real-Ip`.** O Traefik descarta esse
+      cabeçalho quando vem do cliente e o preenche com o IP de quem abriu
+      a conexão. Para isso valer, o domínio do app fica **só no DNS da
+      Cloudflare, sem o proxy** ("nuvem cinza"): com o proxy, o IP visto
+      seria o da Cloudflare e o rate limit por IP viraria um contador
+      único para todo mundo. **Teste obrigatório ao publicar**: requisição
+      com `X-Real-Ip` e `X-Forwarded-For` falsos → `ip_do_cliente` não
+      devolve o valor falso.
+    - **Deploy**: o Coolify publica a `main` pelo app do GitHub (só
+      leitura). `collectstatic` no build; início com
+      `python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3`
+      (G16). Um container só: com mais de um, o `migrate` do início
+      disputaria.
+    - **O banco continua no Neon** — o Coolify não cria Postgres no VPS.
+    - Variáveis de ambiente só no painel do Coolify, nunca no repositório
+      (G3).
+    - Limite de memória no container, para os outros serviços do VPS não
+      disputarem recursos com a votação na noite do evento.
   - **Imagens dos projetos: Cloudflare R2** (armazenamento compatível com
     S3, sem cobrança de tráfego de saída, 10 GB grátis). Integração via
     `django-storages[s3]` (inclui `boto3`). Plataformas de deploy apagam
@@ -218,6 +249,15 @@ Formato:
   - Pendente: o projeto está na conta pessoal do coordenador. Para o
     sistema sobreviver às turmas, transferir para uma organização do Neon
     com mais de um administrador.
+  - **Servidor**: plataformas gratuitas de deploy descartadas — hibernam
+    ou exigem plano pago para não hibernar. O VPS é **compartilhado** com
+    outros serviços do coordenador: se um deles for comprometido, os
+    segredos deste também ficam expostos. Aceito nesta edição, com SSH só
+    por chave e o painel do Coolify só com o coordenador. O time não
+    administra o servidor; deploy só pela `main`, via PR aprovado. Mesma
+    pendência do Neon: servidor na conta pessoal do coordenador — para as
+    próximas edições, levar para uma infraestrutura com mais de um
+    administrador.
 
 ## ADR-008 — Banca em ficha impressa nesta edição
 - Status: aceita

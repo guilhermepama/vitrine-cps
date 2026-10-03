@@ -72,7 +72,8 @@ em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
       (ADR-004, ADR-005 — coordenador aprova todos os PRs)
 - [x] Referência dos cursos para a modelagem (`docs/referencias/cursos.md`)
 - [x] Stack decidida (ADR-002)
-- [x] Banco: Neon; imagens: Cloudflare R2 (ADR-006); servidor pendente
+- [x] Banco: Neon; imagens: Cloudflare R2; servidor: VPS com Coolify
+      (ADR-006) — falta publicar
 - [x] Esqueleto Django na `main` com CI verde (spec 00, PR #15)
 - [x] Planilha modelo enviada às coordenações (02/10, sem coluna de turno)
 - [x] Spec 01 completa, absorvendo a 05 (PR #16); models do cadastro com
@@ -135,3 +136,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-02 Guilherme: specs 01 (#16), 03 (#18) e 04 (#14) na main; models do cadastro com travas após abrir a votação (#17).
 - 2026-10-02 Guilherme: abertura/encerramento da votação viraram campos da Edicao (sem config_votacao); ensaio de 22/10 é edição separada.
 - 2026-10-02 Guilherme: ADR-003 complementada — consentimento truncado para a hora, id UUID, sem log nas rotas do visitante.
+- 2026-10-03 Guilherme: servidor no VPS do coordenador com Coolify, no Brasil como o Neon; IP real por `X-Real-Ip` (ADR-006).
