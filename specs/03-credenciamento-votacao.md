@@ -24,9 +24,10 @@ máximo 1 voto por projeto por token.
   `/entrar?w=<estacao>:<timestamp>&sig=<HMAC>`, regenerado a cada 45s.
   Só para usuário staff logado com a permissão `votacao.operar_estacao`
   — ver "Acesso à página da estação".
-- Redirects de `/votar` sem token válido para `/como-votar/`, a página
-  de explicação do voto presencial definida na spec 02 (PR #23, app
-  `vitrine`) — esta spec não define essa página (guardrail 8).
+- Redirects de `/votar` sem token válido para `/como-votar/`
+  (`vitrine:como_votar`, spec 02), a página de explicação do voto
+  presencial definida na spec 02 (PR #23, app `vitrine`) — esta spec não
+  define essa página (guardrail 8).
 - Rota `GET /entrar`: valida assinatura e expiração da janela; emite token
   UUID; grava cookie httpOnly e devolve página que salva em localStorage e
   redireciona ao formulário de visitante (`GET /visitantes`), que manda
@@ -361,8 +362,8 @@ WhatsApp). Decisão do coordenador no PR #18.
   edição não aparecem.
 - Projetos já votados por aquele token aparecem marcados e desabilitados.
 - Quando não há token, o token é malformado, não existe ou é de outra
-  edição (via estação), o sistema redireciona para `/como-votar/` (spec 02),
-  sem dizer qual foi o caso.
+  edição (via estação), o sistema redireciona para `/como-votar/`
+  (`vitrine:como_votar`, spec 02), sem dizer qual foi o caso.
 
 ### Voto
 - Quando o visitante vota num projeto `publicado` da edição em votação,
@@ -411,7 +412,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-`, `+`; depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
 | `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
-| `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` |
+| `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
 | `POST /votos` | cookie do token | UUID canônico; outro valor = token inexistente | 409 rejeição genérica |
 | todas | cookie de cadastro | assinatura válida; `edicao_id` = edição em votação | sem cadastro (ver "Liberação da cédula") |
@@ -510,7 +511,7 @@ a spec 04 e o G6 citam:
 | GET | `/visitantes` | cookie de cadastro | formulário de visitante; redirect p/ cédula com cadastro válido | 400 página "QR expirado" se votação fechada |
 | GET | `/entrar` | `w`, `sig` (query); cookie do token | redirect p/ formulário (ou cédula, com cadastro válido) + cookie do token | 400 página "QR expirado" (entrada malformada, assinatura, expiração, estação inativa ou de outra edição, votação fechada, rate limit estourado) |
 | POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula + cookie de cadastro | 400 formulário com mensagem genérica; 400 página "QR expirado" se votação fechada; 403 CSRF |
-| GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ `/como-votar/` (spec 02) (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
+| GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ `/como-votar/` (`vitrine:como_votar`, spec 02) (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
 | POST | `/votos` | `projeto_id`; cookies | 201 `registrado` | 400 `invalido` (`projeto_id` malformado); 409 rejeição genérica (todas as demais); 403 CSRF |
 | admin | Votação por edição | ações Abrir / Encerrar | mensagem de sucesso | mensagens de recusa acima; 403 não superusuário |
 | admin | Estações | nome, edição, ativa | — | `ValidationError` ao mudar edição com tokens; apagar com tokens bloqueado |
@@ -531,8 +532,9 @@ a spec 04 e o G6 citam:
 - 7: rate limit em `/entrar` em duas camadas — 20 tokens por janela de
   45s por estação e 300 emissões por 10 min por IP; estouro = página "QR
   expirado" idêntica; IP só como HMAC na chave de cache, com expiração.
-- 8: `GET /votar` sem token válido redireciona para `/como-votar/` (spec
-  02), nunca mostra a cédula; a página e o botão da vitrine são da spec 02.
+- 8: `GET /votar` sem token válido redireciona para `/como-votar/`
+  (`vitrine:como_votar`, spec 02), nunca mostra a cédula; a página e o
+  botão da vitrine são da spec 02.
 - 9: `edicao_id` não é dado pessoal; nenhum campo pessoal novo.
 - 10: o aceite continua registrado com data e hora (hora cheia), junto ao
   cadastro.
@@ -595,7 +597,7 @@ a spec 04 e o G6 citam:
 - [ ] `GET /visitantes` com cookie de cadastro válido → 302 para `/votar`, sem formulário e nenhum registro novo em `visitantes`; cookie de cadastro adulterado ou do ensaio, na votação do evento → 200 com o formulário
 - [ ] `GET /visitantes` sem edição em votação → página "QR expirado", 400
 - [ ] `GET /visitantes` não lê o cookie do token nem a estação (revisão de código) e não cria registro em sessão nem cache
-- [ ] `GET /votar` sem token, com token malformado, inexistente ou de outra edição → redirect para `/como-votar/`
+- [ ] `GET /votar` sem token, com token malformado, inexistente ou de outra edição → redirect para `/como-votar/` (`vitrine:como_votar`, spec 02)
 
 **Visitante**
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
@@ -632,15 +634,6 @@ a spec 04 e o G6 citam:
 - [ ] Encerrar o ensaio e abrir o evento não altera nem apaga tokens, votos ou visitantes do ensaio
 
 - [ ] Testes do caminho crítico passando (emissão, rate limit, unicidade, rejeições, liberação da cédula, isolamento)
-
-## Sugestões ao coordenador (fora deste arquivo)
-- **`QR_ROTATION_SECONDS` sem uso**: o `.env.example` declara
-  `QR_ROTATION_SECONDS=45`, mas esta spec fixa a rotação em 45s — a
-  tolerância (−90s/+5s), a janela do rate limit (20 por janela de 45s) e
-  a expiração da chave da janela (150s) dependem desse valor. O app usa
-  constante própria e **não lê** a variável. Sugestão: tirar a variável
-  do `.env.example` ou marcá-la como ignorada (o `.env.example` é do
-  coordenador; esta spec não o altera).
 
 ## Decisões do coordenador incorporadas
 - Cédula e voto só com projetos `publicado` — mesmo filtro do ranking da
