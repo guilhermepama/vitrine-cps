@@ -172,7 +172,23 @@ def filtro_nos_loggers():
         logging.getLogger(nome).removeFilter(filtro)
 
 
-def test_sem_filtro_o_4xx_sai_no_log():
+@pytest.fixture
+def sem_filtros_reais():
+    # Tira dos loggers os filtros que o LOGGING do settings pendurou, para o
+    # controle não depender do settings; restaura no fim.
+    salvos = {}
+    for nome in LOGGERS_FILTRADOS:
+        logger = logging.getLogger(nome)
+        salvos[nome] = list(logger.filters)
+        logger.filters.clear()
+    try:
+        yield
+    finally:
+        for nome, filtros in salvos.items():
+            logging.getLogger(nome).filters[:] = filtros
+
+
+def test_sem_filtro_o_4xx_sai_no_log(sem_filtros_reais):
     # Controle: sem isto, os testes de "nenhum registro" poderiam passar à toa.
     with _tc.assertLogs("django", level="DEBUG"):
         log_response("Bad Request: %s", "/entrar", response=HttpResponse(status=400), request=_request("/entrar"))
