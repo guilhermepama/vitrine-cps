@@ -6,8 +6,8 @@ ligar o cadastro ao token pelo horário. Por isso, nessas rotas, só o 5xx
 gera linha — e reescrita, sem a mensagem da exceção (o IntegrityError traz
 os valores da chave) e sem o objeto request (IP, cookies, query string).
 
-Vai como filtro do LOGGER, não do handler: assertLogs troca os handlers e
-um filtro de handler sumiria nos testes (armadilha A3 do plano). Filtro de
+Vai como filtro do LOGGER, não do handler: assertLogs troca os handlers do
+logger, então um filtro só no handler sumiria nos testes. Filtro de
 logger só vale para registros criados nele mesmo, não para os propagados
 dos filhos — por isso `django.security.csrf` entra em LOGGING pelo nome.
 """
@@ -19,7 +19,10 @@ ROTAS_VISITANTE = frozenset({"/entrar", "/visitantes", "/votar", "/votos"})
 
 
 def _rota_visitante(record):
-    caminho = getattr(getattr(record, "request", None), "path", None)
+    # path_info, não path: path leva o prefixo do script (SCRIPT_NAME) e, com
+    # o app servido num subcaminho (/vitrine/entrar), nenhuma rota casaria e
+    # tudo passaria sem erro. path_info é o que o roteador do Django usa.
+    caminho = getattr(getattr(record, "request", None), "path_info", None)
     if not isinstance(caminho, str):
         return None
     rota = caminho.rstrip("/")

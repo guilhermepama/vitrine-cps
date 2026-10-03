@@ -33,28 +33,29 @@ VAZAMENTOS = [
 ]
 
 # Idêntico ao trecho de LOGGING proposto na descrição do PR: filtro no
-# LOGGER (armadilha A3 — assertLogs troca os handlers).
+# LOGGER — assertLogs troca os handlers do logger, então um filtro só no
+# handler sumiria nos testes.
 LOGGERS_FILTRADOS = ["django.request", "django.security", "django.security.csrf", "votacao"]
 
 _tc = unittest.TestCase()
 
 
-def _request(rota, metodo="get"):
-    fabrica = RequestFactory(REMOTE_ADDR="203.0.113.7")
+def _request(rota, metodo="get", **extra):
+    fabrica = RequestFactory(REMOTE_ADDR="203.0.113.7", **extra)
     fabrica.cookies["token"] = "3f2b8c1e-0000-4000-8000-00000000c0de"
     if metodo == "post":
         return fabrica.post(rota, {"nome": "Joao Fulano", "email": "joao@exemplo.com"})
     return fabrica.get(rota, {"w": "1:1790000000", "sig": "ab" * 32})
 
 
-def _registro(rota, status, nome="django.request", exc_info=None, metodo="get"):
+def _registro(rota, status, nome="django.request", exc_info=None, metodo="get", **extra):
     return logging.makeLogRecord({
         "name": nome,
         "levelno": logging.ERROR if status >= 500 else logging.WARNING,
         "msg": "%s: %s",
         "args": (MARCADOR, rota),
         "exc_info": exc_info,
-        "request": _request(rota, metodo),
+        "request": _request(rota, metodo, **extra),
         "status_code": status,
     })
 
@@ -120,6 +121,36 @@ def test_outras_rotas_passam_intactas(rota):
     assert record.__dict__ == antes
 
 
+# App servido num subcaminho: request.path é /vitrine/entrar, mas o filtro
+# olha path_info (/entrar), o mesmo que o roteador usa.
+PREFIXO = {"SCRIPT_NAME": "/vitrine"}
+
+
+@pytest.mark.parametrize("rota", ["/entrar", "/votos/"])
+def test_com_prefixo_de_script_4xx_e_descartado(rota):
+    record = _registro(rota, 400, **PREFIXO)
+    assert record.request.path == f"/vitrine{rota}"
+    assert FiltroRotasVisitante().filter(record) is False
+
+
+def test_com_prefixo_de_script_5xx_reescrito_com_rota_sem_prefixo():
+    record = _registro("/visitantes", 500, exc_info=_exc_info(), metodo="post", **PREFIXO)
+
+    assert FiltroRotasVisitante().filter(record) is True
+    assert record.getMessage().startswith("ValueError em /visitantes\n  ")
+    assert not hasattr(record, "request")
+    _sem_vazamento(logging.Formatter().format(record))
+
+
+@pytest.mark.parametrize("rota", ["/", "/como-votar", "/vitrine/entrar"])
+def test_com_prefixo_de_script_outras_rotas_passam_intactas(rota):
+    record = _registro(rota, 500, exc_info=_exc_info(), **PREFIXO)
+    antes = dict(record.__dict__)
+
+    assert FiltroRotasVisitante().filter(record) is True
+    assert record.__dict__ == antes
+
+
 @pytest.mark.parametrize("nome", ["votacao", "django.request", "django.security.csrf"])
 def test_registro_sem_request_passa_intacto(nome):
     record = logging.makeLogRecord({"name": nome, "msg": "estação %s inativa", "args": (3,)})
@@ -129,7 +160,7 @@ def test_registro_sem_request_passa_intacto(nome):
     assert record.__dict__ == antes
 
 
-# --- Filtro pendurado no logger, como em LOGGING (armadilha A3) -----------------
+# --- Filtro pendurado no logger, como em LOGGING ------------------------------
 
 @pytest.fixture
 def filtro_nos_loggers():
@@ -180,6 +211,14 @@ def test_no_logger_5xx_sai_reescrito(filtro_nos_loggers, rota, metodo):
     assert not hasattr(record, "request")
     assert record.exc_info is None
     _sem_vazamento("\n".join(capturado.output))
+
+
+def test_no_logger_com_force_script_name_4xx_nao_sai(filtro_nos_loggers, settings):
+    settings.FORCE_SCRIPT_NAME = "/vitrine"
+    request = _request("/entrar")
+    assert request.path == "/vitrine/entrar"
+    with _tc.assertNoLogs("django", level="DEBUG"):
+        log_response("Bad Request: %s", request.path, response=HttpResponse(status=400), request=request)
 
 
 def test_no_logger_votacao_sem_request_passa(filtro_nos_loggers):
