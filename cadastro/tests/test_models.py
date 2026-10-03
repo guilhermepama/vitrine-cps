@@ -230,6 +230,27 @@ def test_abertura_da_votacao_nao_muda_nem_e_apagada():
     assert e.votacao_aberta_em == original
 
 
+def test_encerramento_da_votacao_nao_muda_nem_e_apagado():
+    e = _abrir_votacao(fabricas.edicao())
+    Edicao.objects.filter(pk=e.pk).update(votacao_encerrada_em=timezone.now())
+    e.refresh_from_db()
+    original = e.votacao_encerrada_em
+    for valor in (None, original + timedelta(hours=1)):
+        e.votacao_encerrada_em = valor
+        with pytest.raises(ValidationError):
+            e.save()
+        e.refresh_from_db()
+        assert e.votacao_encerrada_em == original
+
+
+def test_encerrar_pela_primeira_vez_e_permitido():
+    e = _abrir_votacao(fabricas.edicao())
+    e.votacao_encerrada_em = timezone.now()
+    e.save(update_fields=["votacao_encerrada_em"])
+    e.refresh_from_db()
+    assert e.votacao_encerrada_em is not None
+
+
 def test_outros_campos_da_edicao_continuam_editaveis_apos_abrir():
     e = _abrir_votacao(fabricas.edicao())
     e.banca_conferida_em = timezone.now()

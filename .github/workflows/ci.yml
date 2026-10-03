@@ -72,6 +72,7 @@ jobs:
       QR_HMAC_SECRET: testetestetestetestetestetestete
       DJANGO_SECRET_KEY: testetestetestetestetestetestete
       RA_HMAC_SECRET: testetestetestetestetestetestete
+      IP_HMAC_SECRET: testetestetestetestetestetestete
     steps:
       - uses: actions/checkout@v7
 
