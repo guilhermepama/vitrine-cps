@@ -7,8 +7,6 @@ página "QR expirado" (400, corpo idêntico ao do /visitantes) e nenhuma cria
 token. Nenhum `logger` aqui (P2).
 """
 
-import re
-
 from django.db import transaction
 from django.shortcuts import render
 from django.urls import reverse
@@ -16,29 +14,13 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from votacao.assinatura import ler_janela
+from votacao.cookie_token import gravar_cookie, token_do_cookie
 from votacao.liberacao import cadastro_valido
 from votacao.limite import liberar
 from votacao.models import Estacao, Token
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
 from votacao.views_visitante import ROTA_CEDULA
-
-COOKIE_TOKEN = "token"
-VALIDADE_COOKIE = 24 * 60 * 60  # 1 dia, como o cookie de cadastro
-# UUID canônico: 36 caracteres, minúsculo, com hífens. Outro valor = sem cookie.
-_UUID = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
-
-
-def _token_do_cookie(request, edicao):
-    """Token do cookie, se existe e é de estação da edição em votação; senão None.
-
-    Cookie do ensaio, inexistente ou malformado é ignorado, sem apagar nem
-    alterar o token antigo.
-    """
-    valor = request.COOKIES.get(COOKIE_TOKEN, "")
-    if not _UUID.fullmatch(valor):
-        return None
-    return Token.objects.filter(pk=valor, estacao__edicao=edicao).first()
 
 
 # never_cache por fora: o token não fica em cache de navegador nem de proxy.
@@ -61,15 +43,8 @@ def entrar(request):
         estacao = Estacao.objects.filter(pk=estacao_id, ativa=True, edicao=edicao).first()
         if estacao is None:
             return qr_expirado()
-        token = _token_do_cookie(request, edicao) or Token.objects.create(estacao=estacao)
+        token = token_do_cookie(request, edicao) or Token.objects.create(estacao=estacao)
     destino = ROTA_CEDULA if cadastro_valido(request, edicao) else reverse("votacao:visitantes")
     resposta = render(request, "votacao/entrar.html", {"token": str(token.pk), "destino": destino})
-    resposta.set_cookie(
-        COOKIE_TOKEN,
-        str(token.pk),
-        max_age=VALIDADE_COOKIE,
-        secure=True,
-        httponly=True,
-        samesite="Lax",
-    )
+    gravar_cookie(resposta, token)
     return resposta
