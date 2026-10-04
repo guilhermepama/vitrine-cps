@@ -54,8 +54,9 @@ def _svg_da_estacao(request, estacao):
     return svg_do_qr(url)
 
 
-@require_GET
+# never_cache por fora: até o 405 do require_GET sai com no-store.
 @never_cache
+@require_GET
 def estacao(request, estacao_id):
     estacao_ = _estacao_autorizada(request, estacao_id)
     if estacao_ is None:
@@ -69,8 +70,9 @@ def estacao(request, estacao_id):
     return render(request, "votacao/estacao.html", contexto)
 
 
-@require_GET
+# never_cache por fora: até o 405 do require_GET sai com no-store.
 @never_cache
+@require_GET
 def estacao_qr(request, estacao_id):
     """Só o SVG do QR novo, para o fetch da página trocar a imagem sem recarregar."""
     estacao_ = _estacao_autorizada(request, estacao_id)

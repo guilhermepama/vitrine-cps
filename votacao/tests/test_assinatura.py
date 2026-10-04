@@ -74,6 +74,31 @@ def test_espacos_nas_pontas_sao_removidos():
     assert ler_janela(_query(w=f" {valida['w']} ", sig=f"{valida['sig']} ")) == (7, AGORA)
 
 
+# Só o espaço ASCII sai das pontas (spec: "depois de remover espaços nas
+# pontas"); qualquer outro branco Unicode fica e a matriz recusa.
+BRANCOS_NAO_ASCII = {"\\x1f": "\x1f", "NBSP": "\xa0", "tab": "\t", "quebra de linha": "\n"}
+
+
+@pytest.mark.parametrize("nome", BRANCOS_NAO_ASCII)
+@pytest.mark.parametrize("ponta", ["inicio", "fim"])
+@pytest.mark.parametrize("campo", ["w", "sig"])
+def test_outros_brancos_nas_pontas_recusados(nome, ponta, campo):
+    params = _valida()
+    branco = BRANCOS_NAO_ASCII[nome]
+    params[campo] = branco + params[campo] if ponta == "inicio" else params[campo] + branco
+    assert ler_janela(_query(**params)) is None
+
+
+def test_mais_cru_na_query_vira_espaco_e_e_aceito():
+    # Na query string, "+" cru significa espaço (o QueryDict decodifica assim),
+    # então `w=+7:<ts>` chega como " 7:<ts>" e, pela letra da spec, o espaço
+    # ASCII da ponta é removido: a janela é aceita, já na forma canônica
+    # (7, ts). Só o sinal de verdade (%2B) chega como "+" e é recusado.
+    valida = _valida()
+    assert ler_janela(QueryDict(f"w=+{valida['w']}&sig={valida['sig']}")) == (7, AGORA)
+    assert ler_janela(QueryDict(f"w=%2B{valida['w']}&sig={valida['sig']}")) is None
+
+
 def test_ler_janela_compara_em_tempo_constante():
     with mock.patch("votacao.assinatura.hmac.compare_digest", wraps=hmac.compare_digest) as comparar:
         assert ler_janela(_query(**_valida())) == (7, AGORA)

@@ -166,7 +166,7 @@ def test_staff_sem_permissao_recebe_404_igual_ao_da_inexistente(digitacao, estac
     resposta = digitacao.get(rota(estacao.pk))
     assert resposta.status_code == 404
     assert _sem_qr(resposta)
-    sem_staff = User.objects.create_user("aluno", "aluno@example.com", SENHA)
+    sem_staff = User.objects.create_user("sem_staff", "sem_staff@example.com", SENHA)
     digitacao.force_login(sem_staff)
     assert digitacao.get(rota(estacao.pk)).content == resposta.content
     assert resposta.content == _corpo_404(digitacao)
@@ -200,6 +200,19 @@ def test_operador_ve_o_qr_da_janela_assinada(operador, estacao):
     assert estacao.nome in resposta.text
 
 
+@pytest.mark.parametrize("rota", [_pagina, _renovacao])
+def test_qr_sai_com_https_atras_do_proxy(operador, estacao, rota, settings):
+    # Valor do config/settings.py com DEBUG desligado (produção e CI); fixado
+    # aqui para o teste não depender do DJANGO_DEBUG do .env local.
+    settings.SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+    # O proxy repassa o Host do visitante (sem porta); sem ele, o cliente de
+    # teste montaria o host com SERVER_PORT=80 ("testserver:80").
+    resposta = operador.get(rota(estacao.pk), HTTP_HOST="testserver", HTTP_X_FORWARDED_PROTO="https")
+    assert resposta.status_code == 200
+    url = f"https://testserver/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
+    assert svg_do_qr(url) in resposta.content.decode()
+
+
 def test_operador_loga_pelo_login_do_admin(client, estacao, grupo_estacao):
     _usuario("estacao1", grupo_estacao, is_staff=True)
     client.post(reverse("admin:login"), {"username": "estacao1", "password": SENHA})
@@ -216,6 +229,7 @@ def test_pagina_renova_por_fetch_e_tem_meta_refresh_de_reserva(operador, estacao
     assert f'data-renovar="{_renovacao(estacao.pk)}"' in corpo
     assert 'data-intervalo="45"' in corpo
     assert "fetch(" in corpo
+    assert "visibilitychange" in corpo
     assert '<meta http-equiv="refresh" content="45">' in corpo
 
 
@@ -246,8 +260,11 @@ def test_id_fora_da_faixa_404(operador):
     assert operador.get("/estacao/99999999999999999999").status_code == 404
 
 
-def test_post_nao_permitido(operador, estacao):
-    assert operador.post(_pagina(estacao.pk)).status_code == 405
+@pytest.mark.parametrize("rota", [_pagina, _renovacao])
+def test_post_nao_permitido_e_sem_cache(operador, estacao, rota):
+    resposta = operador.post(rota(estacao.pk))
+    assert resposta.status_code == 405
+    assert "no-store" in resposta["Cache-Control"]
 
 
 # --- Renovação do QR ------------------------------------------------------------

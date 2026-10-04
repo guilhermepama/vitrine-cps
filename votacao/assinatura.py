@@ -42,8 +42,10 @@ def nova_janela(estacao_id):
 
 
 def _unico(query, nome):
+    # Só o espaço ASCII, como diz a spec: strip() sem argumento tiraria também
+    # tab, quebra de linha, NBSP e separadores de controle.
     valores = query.getlist(nome)
-    return valores[0].strip() if len(valores) == 1 else None
+    return valores[0].strip(" ") if len(valores) == 1 else None
 
 
 def ler_janela(query):
