@@ -16,6 +16,7 @@ from django.views.decorators.http import require_http_methods
 
 from votacao.forms import VisitanteForm
 from votacao.liberacao import cadastro_valido, gravar_cookie
+from votacao.limite import liberar_cadastro
 from votacao.models import Visitante, truncar_para_hora
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
@@ -51,6 +52,12 @@ def _cadastrar(request):
     # Validação antes de qualquer consulta (guardrail 12).
     form = VisitanteForm(request.POST)
     if not form.is_valid():
+        return _formulario(request, form, status=400, mensagem=MENSAGEM_INVALIDO)
+    # Rate limit por IP (decisão 4 do PR #33): depois da validação, porque o
+    # contador mora no banco (DatabaseCache, G12); antes da trava da Edicao,
+    # para a enxurrada não disputar a trava com /entrar e /votos. Estouro =
+    # a mesma resposta do formulário inválido, nada gravado.
+    if not liberar_cadastro(request):
         return _formulario(request, form, status=400, mensagem=MENSAGEM_INVALIDO)
     dados = form.cleaned_data
     with transaction.atomic():

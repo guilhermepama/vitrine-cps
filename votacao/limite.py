@@ -1,4 +1,5 @@
-"""Rate limit da emissão em `/entrar` (spec 03, "Rate limit da emissão"; G7).
+"""Rate limit da emissão em `/entrar` (spec 03, "Rate limit da emissão"; G7)
+e do cadastro em `POST /visitantes` (decisão 4 do PR #33).
 
 Duas camadas, no `caches["default"]` (DatabaseCache, compartilhado entre os
 workers):
@@ -12,6 +13,10 @@ A2). Com o prazo no valor, cada `set` regrava o tempo que falta, e o contador
 do IP do Wi-Fi do evento zera 10 min depois da primeira emissão, não depois
 da última. Quem chama trava a linha da `Edicao` antes (`/entrar`): é essa
 trava que impede duas emissões simultâneas de lerem a mesma contagem.
+
+O cadastro tem contador próprio por IP, com o mesmo teto, conferido antes da
+trava (pedido do coordenador): sob rajada simultânea pode passar um pouco do
+teto, porque duas requisições podem ler a mesma contagem.
 """
 
 from django.core.cache import caches
@@ -31,6 +36,10 @@ def chave_estacao(estacao_id, ts):
 
 def chave_do_ip(request):
     return "rl:entrar:ip:" + chave_ip(ip_do_cliente(request))
+
+
+def chave_do_ip_cadastro(request):
+    return "rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))
 
 
 def _ler(cache, chave, momento):
@@ -54,12 +63,23 @@ def liberar(request, estacao_id, ts):
     Recusada não conta: o QR repassado esgota a estação, mas não come o
     limite do IP do Wi-Fi que todos os visitantes dividem.
     """
+    return _liberar(
+        [
+            (chave_estacao(estacao_id, ts), LIMITE_ESTACAO, EXPIRA_ESTACAO),
+            (chave_do_ip(request), LIMITE_IP, EXPIRA_IP),
+        ]
+    )
+
+
+def liberar_cadastro(request):
+    """True se o IP ainda cabe no limite do cadastro, e então conta o envio."""
+    return _liberar([(chave_do_ip_cadastro(request), LIMITE_IP, EXPIRA_IP)])
+
+
+def _liberar(camadas):
+    """`camadas` = [(chave, limite, validade)]. Recusa sem contar se alguma está no limite."""
     cache = caches["default"]
     momento = assinatura.agora()
-    camadas = [
-        (chave_estacao(estacao_id, ts), LIMITE_ESTACAO, EXPIRA_ESTACAO),
-        (chave_do_ip(request), LIMITE_IP, EXPIRA_IP),
-    ]
     lidos = [_ler(cache, chave, momento) for chave, _, _ in camadas]
     if any(valor is not None and valor[0] >= limite for valor, (_, limite, _) in zip(lidos, camadas)):
         return False
