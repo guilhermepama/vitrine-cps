@@ -325,6 +325,20 @@ WhatsApp). Decisão do coordenador no PR #18.
 - Quando o formulário chega sem edição em votação, o sistema não grava e
   responde com a página genérica "QR expirado — escaneie novamente na
   estação" (400).
+- Quando o formulário válido chega com **cookie de cadastro válido** da
+  edição em votação (aba antiga, reenvio), o sistema redireciona (302) à
+  cédula **sem gravar** novo registro nem regravar o cookie — a mesma
+  regra do `GET`. A conferência vem **depois** da validação do formulário
+  e **dentro** da transação, com a `Edicao` travada (decisão do
+  coordenador no PR #33). O toque duplo no botão não é coberto (os dois
+  envios saem antes do cookie chegar); só o cliente evitaria.
+- **Rate limit** (decisão do coordenador no PR #33; fatia F5b, depois da
+  F4): no máximo **300 envios por 10 min por IP**, o mesmo limite do
+  `/entrar`, com o contador na chave de `chave_ip(ip_do_cliente(request))`
+  no `DatabaseCache`, conferido **antes** da trava da `Edicao`. Estouro →
+  400 com o formulário e a mesma mensagem genérica, nada gravado. Motivo:
+  sem limite, um script enche `visitantes` de contatos falsos (ADR-003) e
+  cada envio disputa a trava da `Edicao` com `/entrar` e `/votos`.
 
 ### Liberação da cédula (sem vínculo visitante × token)
 - Cadastro concluído grava um **cookie de cadastro**: valor =
@@ -407,10 +421,11 @@ depois de remover espaços nas pontas.
 | `GET /entrar` | `w` | exatamente 1 ocorrência; até 32 caracteres; formato `<estacao>:<timestamp>`, `estacao` = inteiro 1–2147483647 sem sinal nem zero à esquerda, `timestamp` = inteiro Unix em segundos, 10 dígitos | página "QR expirado" (400) |
 | `GET /entrar` | `sig` | exatamente 1 ocorrência; 64 caracteres hexadecimais minúsculos (HMAC-SHA256); comparação com `hmac.compare_digest` (G2) | página "QR expirado" (400) |
 | `GET /entrar` | cookie do token | UUID canônico (36 caracteres, com hífens); outro valor = cookie ausente | emite token novo |
-| `POST /visitantes` | `nome` | obrigatório; 2–120 caracteres; sem caractere de controle | 400, formulário com mensagem genérica |
+| `POST /visitantes` | `nome` | obrigatório; 2–120 caracteres; sem caractere das categorias Unicode `Cc` (controle), `Cf` (formatação invisível, ex: U+200B, U+202E, U+FEFF), `Zl` e `Zp` (separadores de linha e parágrafo); ao menos um caractere que não seja espaço no sentido Unicode (NBSP, U+3000 e os demais `Zs` contam como espaço) | 400, formulário com mensagem genérica |
 | `POST /visitantes` | `email` | obrigatório; até 254 caracteres; `EmailValidator` do Django | 400, idem |
-| `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-`, `+`; depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
+| `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-` e um `+` opcional no começo (`^\+?[0-9 ()-]*$`); depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
 | `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
+| `POST /visitantes` | IP do cliente | no máximo 300 envios por 10 min por IP (`chave_ip(ip_do_cliente(request))`), antes da trava da `Edicao` — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
@@ -598,8 +613,11 @@ a spec 04 e o G6 citam:
 
 **Visitante**
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
+- [ ] `nome` com U+200B, U+202E, U+FEFF ou U+2028, ou só com 2×NBSP ou 2×U+3000 → 400; NBSP entre letras e acentos → aceito
+- [ ] `POST /visitantes` válido com cookie de cadastro válido da edição em votação → 302 para `/votar`, nenhum registro novo, o mesmo cookie (não regravado); conferido dentro da transação com a `Edicao` travada; formulário inválido com cadastro válido → 400 com o formulário
+- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao`; a chave no cache é a de `chave_ip`, sem o IP em claro
 - [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
-- [ ] `telefone` com 9 dígitos, 14 dígitos, letras ou 21 caracteres → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
+- [ ] `telefone` com 9 dígitos, 14 dígitos, letras, 21 caracteres ou `+` fora do começo (`1+7 99999-9999`) → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
 - [ ] Consentimento ausente ou desmarcado → 400, nada gravado, sem cookie de cadastro, `/votar` não libera a cédula
 - [ ] `visitantes` não tem nenhuma coluna ligando ao token, voto ou estação (revisão de schema)
 - [ ] Visitante cadastrado recebe `edicao_id` da edição em votação; teste com cookie de token de **outra** edição presente no request mostra que o `edicao_id` gravado continua o da edição em votação
@@ -701,3 +719,23 @@ coordenador no PR #20).
    `DJANGO_IP_HEADER`, do coordenador. Ver "Rate limit da emissão".
 3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
    Ver "Formulário de visitante".
+
+## Decisões do PR #33
+Parecer do coordenador sobre o cadastro do visitante (decisão do
+coordenador no PR #33).
+
+1. **Formulário recusado volta preenchido** — de acordo: volta só o que
+   o próprio visitante digitou, nada gravado, com `no-store` e escape do
+   template; o G11 protege o dado guardado.
+2. **Caracteres invisíveis no nome** — o nome recusa as categorias
+   Unicode `Cc`, `Cf`, `Zl` e `Zp` e exige ao menos um caractere que não
+   seja espaço no sentido Unicode. Ver "Validação de entrada".
+3. **`POST /visitantes` com cadastro já válido** — redirect para a
+   cédula, sem gravar; conferido depois da validação do formulário e
+   dentro da transação, com a `Edicao` travada. Ver "Cadastro do
+   visitante".
+4. **Rate limit no `POST /visitantes`** — 300 por 10 min por IP, como o
+   `/entrar`, com `chave_ip(ip_do_cliente(request))`, antes da trava;
+   estouro → 400 com o formulário e a mensagem genérica, nada gravado.
+   Implementado na fatia F5b, depois da F4, que cria a infraestrutura do
+   rate limit. Ver "Cadastro do visitante".
