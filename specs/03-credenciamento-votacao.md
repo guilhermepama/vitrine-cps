@@ -338,12 +338,17 @@ WhatsApp). Decisão do coordenador no PR #18.
   coordenador no PR #33). O toque duplo no botão não é coberto (os dois
   envios saem antes do cookie chegar); só o cliente evitaria.
 - **Rate limit** (decisão do coordenador no PR #33; fatia F5b, depois da
-  F4): no máximo **300 envios por 10 min por IP**, o mesmo limite do
-  `/entrar`, com o contador na chave de `chave_ip(ip_do_cliente(request))`
-  no `DatabaseCache`, conferido **antes** da trava da `Edicao`. Estouro →
-  400 com o formulário e a mesma mensagem genérica, nada gravado. Motivo:
-  sem limite, um script enche `visitantes` de contatos falsos (ADR-003) e
-  cada envio disputa a trava da `Edicao` com `/entrar` e `/votos`.
+  F4): no máximo **300 envios por 10 min por IP**, o mesmo teto do
+  `/entrar`, com **contador próprio** (chave
+  `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))`, separada da do
+  `/entrar`, para o visitante do Wi-Fi não gastar duas vagas) no
+  `DatabaseCache`, conferido **depois** da validação do formulário (o
+  contador mora no banco — G12) e **antes** da trava da `Edicao`. Recusa
+  não conta. Estouro → 400 com o formulário e a mesma mensagem genérica,
+  nada gravado. Motivo: sem limite, um script enche `visitantes` de
+  contatos falsos (ADR-003) e cada envio disputa a trava da `Edicao` com
+  `/entrar` e `/votos`. Limite aceito: fora da trava, envios simultâneos
+  podem ler a mesma contagem e passar um pouco do teto.
 
 ### Liberação da cédula (sem vínculo visitante × token)
 - Cadastro concluído grava um **cookie de cadastro**: valor =
@@ -356,7 +361,8 @@ WhatsApp). Decisão do coordenador no PR #18.
   nada que ligue o cadastro ao token: **não usar a sessão do Django**
   (tabela de sessão), cache, nem qualquer tabela para esse estado. (Os
   únicos registros no cache são os contadores do rate limit de
-  `/entrar`, que não carregam token nem visitante.)
+  `/entrar` e de `POST /visitantes`, que não carregam token nem
+  visitante.)
 - Cookie de cadastro **válido** = assinatura correta e `edicao_id` igual
   ao da edição em votação. Qualquer outro caso (ausente, adulterado, de
   outra edição) = sem cadastro.
@@ -636,7 +642,7 @@ a spec 04 e o G6 citam:
 - [ ] Cadastro válido → `/votar` mostra a cédula; o cookie de cadastro de dois visitantes da mesma edição tem o mesmo valor
 - [ ] Cookie de cadastro adulterado ou do ensaio, na votação do evento → sem cadastro (redirect para o formulário)
 - [ ] Re-scan na mesma edição com cadastro válido → cédula direto, nenhum novo registro em `visitantes`
-- [ ] Nenhum registro é criado na tabela de sessão do Django nem no cache durante `POST /visitantes` → `GET /votar` → `POST /votos` (teste conta as linhas antes e depois; em `/entrar`, só as chaves do rate limit)
+- [ ] Nenhum registro é criado na tabela de sessão do Django nem no cache durante `POST /visitantes` → `GET /votar` → `POST /votos` (teste conta as linhas antes e depois; em `/entrar` e em `POST /visitantes`, só as chaves do rate limit)
 
 **Cédula e voto**
 - [ ] Cédula lista só projetos `publicado` da edição em votação: projeto em `em_revisao` da mesma turma e projeto `publicado` de outra edição não aparecem
