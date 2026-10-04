@@ -12,7 +12,8 @@ Critérios de aceite fechados aqui:
   não altera tokens, votos nem visitantes do ensaio.
 - B1/P2: com o LOGGING real do settings (filtro no logger, PR #27), o
   fluxo inteiro — com sucesso e com rejeições 400, 409 e 403 de CSRF — não
-  gera nenhum registro de log.
+  gera nenhum registro de log; exceção forçada em GET /entrar e POST
+  /visitantes vira um registro só, sem a mensagem nem dados do visitante.
 """
 
 import json
@@ -150,3 +151,37 @@ def test_ensaio_e_evento_de_ponta_a_ponta_sem_misturar_nada(operador):
     assert list(Voto.objects.filter(token=token_ensaio).values_list("projeto", flat=True)) == [projeto_ensaio.pk]
     assert list(Voto.objects.filter(token=token_evento).values_list("projeto", flat=True)) == [projeto_evento.pk]
     assert sorted(Visitante.objects.values_list("edicao__nome", flat=True)) == ["2026/2", "Ensaio 2026/2"]
+
+
+# --- 5xx pelas views reais, com o LOGGING real ------------------------------------
+
+MARCADOR = "MARCADOR-SECRETO"
+IP_FICTICIO = "203.0.113.7"
+
+
+@pytest.mark.parametrize("rota", ["entrar", "visitantes"])
+def test_excecao_na_view_vira_um_registro_sem_mensagem_nem_dados(rota):
+    """Exceção forçada em GET /entrar e POST /visitantes: um registro de erro
+    com tipo, rota e pilha; sem a mensagem, IP, token, cookie, w, sig, nome
+    ou email (B1)."""
+    call_command("createcachetable", verbosity=0)
+    assert abrir_votacao(cadastro.edicao(nome="2026/2").pk) is None
+    token = "3f2b8c1e-0000-4000-8000-00000000c0de"
+    celular = Client(raise_request_exception=False, REMOTE_ADDR=IP_FICTICIO)
+    celular.cookies["token"] = token
+    alvo = {"entrar": "votacao.views_entrar.ler_janela", "visitantes": "votacao.views_visitante.VisitanteForm"}[rota]
+    with mock.patch(alvo, side_effect=ValueError(MARCADOR)), _tc.assertLogs("django", level="DEBUG") as capturado:
+        if rota == "entrar":
+            resposta = celular.get(reverse("votacao:entrar"), {"w": "1:1790000000", "sig": "ab" * 32})
+        else:
+            dados = {"nome": "Joao Fulano", "email": "joao@exemplo.com", "consentimento": "on"}
+            resposta = celular.post(reverse("votacao:visitantes"), dados)
+    assert resposta.status_code == 500
+    [registro] = capturado.records
+    texto = "\n".join(capturado.output)
+    assert registro.name == "django.request"
+    assert registro.getMessage().startswith(f"ValueError em {reverse('votacao:' + rota)}\n")
+    assert ".py" in texto  # pilha com arquivo e linha
+    assert not hasattr(registro, "request")
+    for valor in (MARCADOR, IP_FICTICIO, token, "1:1790000000", "ab" * 32, "Joao Fulano", "joao@exemplo.com"):
+        assert valor not in texto
