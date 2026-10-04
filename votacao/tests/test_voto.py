@@ -53,6 +53,7 @@ def _rejeitado(resposta, votos=0):
     assert resposta.status_code == 409
     assert resposta.content == REJEITADO
     assert resposta["Content-Type"] == "application/json; charset=utf-8"
+    assert not resposta.cookies  # nenhuma diferença de cookie entre os casos
     assert Voto.objects.count() == votos
 
 
