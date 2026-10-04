@@ -7,7 +7,9 @@ por nível de concorrência, com a contagem de 201/409/5xx.
 
 Roda no shell da plataforma: assina o QR com o segredo do ambiente onde
 roda, lido só do `settings` — nunca por argumento, nunca impresso (G3).
-Só roda com a edição em votação chamada "pré-ensaio": cria tokens,
+Só roda com a edição em votação cujo nome começa por "Pré-ensaio" —
+conferida no início e antes de cada rodada — e com o host do `--url` em
+`ALLOWED_HOSTS` (o banco conferido é o do mesmo ambiente). Cria tokens,
 cadastros e votos de mentira nessa edição.
 
 Respeita o rate limit (G7): cada estação ativa emite no máximo 20 tokens por
@@ -23,9 +25,12 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
+from http.client import HTTPException
 from http.cookies import SimpleCookie
 
+from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
+from django.http.request import validate_host
 from django.urls import reverse
 
 from votacao import assinatura, limite
@@ -70,9 +75,11 @@ class Visitante:
                     self.cookies[nome] = morsel.value
             return resposta.status, resposta.read().decode("utf-8", "replace")
 
-    def preparar(self, estacao_id):
-        """`/entrar` → `/visitantes` → `/votar`. Devolve os ids da cédula."""
-        ts = assinatura.agora()
+    def preparar(self, estacao_id, ts):
+        """`/entrar` → `/visitantes` → `/votar`. Devolve os ids da cédula.
+
+        O `ts` é o do distribuidor: o servidor conta no mesmo bloco de 45 s.
+        """
         query = urllib.parse.urlencode({"w": f"{estacao_id}:{ts}", "sig": assinatura.assinar(estacao_id, ts)})
         self._esperar(200, reverse("votacao:entrar") + "?" + query)
         formulario = self._esperar(200, reverse("votacao:visitantes"))
@@ -98,13 +105,13 @@ class Visitante:
             status, _ = self.pedir(
                 reverse("votacao:votos"), {"projeto_id": projeto_id}, [("X-CSRFToken", self.cookies["csrftoken"])]
             )
-        except OSError:
+        except (OSError, HTTPException):  # timeout, conexão caída, resposta truncada
             status = 0
         return status, time.perf_counter() - inicio
 
 
 class Distribuidor:
-    """Escolhe a estação de cada emissão sem passar de 20 por bloco de 45 s."""
+    """Escolhe a estação e o `ts` de cada emissão sem passar de 20 por bloco de 45 s."""
 
     def __init__(self, estacoes):
         self.estacoes, self.usadas, self.trava = estacoes, {}, threading.Lock()
@@ -112,16 +119,18 @@ class Distribuidor:
     def proxima(self):
         while True:
             with self.trava:
-                bloco = assinatura.agora() // assinatura.ROTACAO_QR
+                ts = assinatura.agora()
+                bloco = ts // assinatura.ROTACAO_QR
                 for estacao_id in self.estacoes:
                     if self.usadas.get((estacao_id, bloco), 0) < limite.LIMITE_ESTACAO:
                         self.usadas[(estacao_id, bloco)] = self.usadas.get((estacao_id, bloco), 0) + 1
-                        return estacao_id
+                        return estacao_id, ts
             time.sleep(assinatura.ROTACAO_QR - assinatura.agora() % assinatura.ROTACAO_QR + 1)
 
 
 def resumo(nivel, resultados):
-    tempos = sorted(segundos * 1000 for status, segundos in resultados if status)
+    # Sem resposta (status 0) conta com o tempo que esperou: o timeout pesa no p95 e no máx.
+    tempos = sorted(segundos * 1000 for _, segundos in resultados)
     contagem = {rotulo: 0 for rotulo in ("201", "409", "5xx", "outros")}
     for status, _ in resultados:
         rotulo = str(status) if status in (201, 409) else "5xx" if status >= 500 else "outros"
@@ -135,6 +144,14 @@ def resumo(nivel, resultados):
     )
 
 
+def _pre_ensaio():
+    """Edição em votação, se o nome começa por "Pré-ensaio"; senão CommandError."""
+    edicao = edicao_em_votacao()
+    if edicao is None or not edicao.nome.casefold().startswith(NOME_EXIGIDO):
+        raise CommandError(f'Só roda com a votação aberta numa edição cujo nome começa por "{NOME_EXIGIDO}".')
+    return edicao
+
+
 class Command(BaseCommand):
     help = 'Mede a latência do POST /votos sob concorrência (só na edição "pré-ensaio").'
 
@@ -144,9 +161,10 @@ class Command(BaseCommand):
         parser.add_argument("--votos", type=int, default=10, help="Votos por visitante.")
 
     def handle(self, *args, url, niveis, votos, **options):
-        edicao = edicao_em_votacao()
-        if edicao is None or NOME_EXIGIDO not in edicao.nome.casefold():
-            raise CommandError(f'Só roda com a votação aberta numa edição com "{NOME_EXIGIDO}" no nome.')
+        host = urllib.parse.urlsplit(url).hostname or ""
+        if not validate_host(host, settings.ALLOWED_HOSTS):
+            raise CommandError("O host do --url não está em ALLOWED_HOSTS: rode no shell do próprio ambiente.")
+        edicao = _pre_ensaio()
         try:
             niveis = [int(n) for n in niveis.split(",")]
         except ValueError:
@@ -162,6 +180,8 @@ class Command(BaseCommand):
         self.stdout.write(f"Edição {edicao.nome}: {len(estacoes)} estação(ões), {emissoes} emissão(ões) no total.")
         distribuidor = Distribuidor(estacoes)
         for nivel in niveis:
+            if _pre_ensaio().pk != edicao.pk:
+                raise CommandError("A edição em votação mudou no meio da medição: parei antes da rodada seguinte.")
             self.stdout.write(resumo(nivel, self._rodada(url, nivel, votos, distribuidor)))
 
     def _rodada(self, url, nivel, votos, distribuidor):
@@ -171,7 +191,7 @@ class Command(BaseCommand):
 
         def visitar(visitante):
             try:
-                projetos = visitante.preparar(distribuidor.proxima())
+                projetos = visitante.preparar(*distribuidor.proxima())
                 if len(projetos) < votos:
                     raise RuntimeError(f"A cédula tem {len(projetos)} projeto(s) para {votos} voto(s).")
             except BaseException:

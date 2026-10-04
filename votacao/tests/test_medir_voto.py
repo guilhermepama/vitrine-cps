@@ -5,6 +5,7 @@ externa), num nível de concorrência pequeno. A medição de verdade é no
 pré-ensaio de 21/10, no ambiente publicado.
 """
 
+import http.client
 from datetime import date
 from io import StringIO
 from unittest import mock
@@ -19,7 +20,7 @@ from cadastro.tests import fabricas as cadastro
 from votacao import assinatura
 from votacao.management.commands import medir_voto
 from votacao.models import Token, Visitante, Voto
-from votacao.servicos import abrir_votacao
+from votacao.servicos import abrir_votacao, encerrar_votacao
 from votacao.tests import fabricas
 
 PUBLICADO = Projeto.Status.PUBLICADO
@@ -58,7 +59,9 @@ def test_mede_contra_o_servidor_e_respeita_o_fluxo(live_server):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("nome", ["2026/2", "Ensaio 2026/2", "Pre-ensaio 2026/2"])
+@pytest.mark.parametrize(
+    "nome", ["2026/2", "Ensaio 2026/2", "Pre-ensaio 2026/2", "Mostra 2026/2 (depois do pré-ensaio)"]
+)
 def test_recusa_rodar_fora_do_pre_ensaio(nome):
     _edicao_em_votacao(nome)
     with pytest.raises(CommandError, match="pré-ensaio"):
@@ -77,6 +80,37 @@ def test_nome_em_maiusculas_tambem_vale_e_recusa_sem_estacao():
     _edicao_em_votacao("PRÉ-ENSAIO 2026/2", estacoes=0)
     with pytest.raises(CommandError, match="estação ativa"):
         _medir("--url", "http://127.0.0.1:9")
+
+
+@pytest.mark.django_db
+@pytest.mark.django_db
+def test_recusa_url_de_host_fora_do_allowed_hosts(settings):
+    """O banco conferido tem de ser o do ambiente medido."""
+    settings.ALLOWED_HOSTS = ["vitrine.exemplo"]
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="ALLOWED_HOSTS"):
+        _medir("--url", "https://outro.exemplo")
+    assert Token.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("nome, mensagem", [("2026/2", "pré-ensaio"), ("Pré-ensaio extra", "mudou")])
+def test_para_se_a_edicao_em_votacao_muda_entre_rodadas(nome, mensagem):
+    """Encerrar o pré-ensaio e abrir outra edição no meio: nenhuma rodada nela."""
+    pre_ensaio = _edicao_em_votacao("Pré-ensaio 2026/2")
+    evento = cadastro.edicao(nome=nome, data_evento=date(2026, 10, 29))
+    rodadas = []
+
+    def rodada_e_troca_de_edicao(url, nivel, votos, distribuidor):
+        rodadas.append(nivel)
+        encerrar_votacao(pre_ensaio.pk)
+        assert abrir_votacao(evento.pk) is None
+        return [(201, 0.01)]
+
+    with mock.patch.object(medir_voto.Command, "_rodada", side_effect=rodada_e_troca_de_edicao):
+        with pytest.raises(CommandError, match=mensagem):
+            _medir("--url", "http://127.0.0.1:9", "--niveis", "1,10")
+    assert rodadas == [1]
 
 
 @pytest.mark.django_db
@@ -105,11 +139,15 @@ def test_distribuidor_nao_passa_de_20_por_estacao_e_bloco():
         mock.patch.object(medir_voto.time, "sleep", side_effect=dormir),
     ):
         distribuidor = medir_voto.Distribuidor([7, 8])
-        primeiras = [distribuidor.proxima() for _ in range(40)]
-        assert (primeiras.count(7), primeiras.count(8)) == (20, 20)
         bloco = relogio["agora"] // 45
-        assert distribuidor.proxima() == 7
-        assert relogio["agora"] // 45 == bloco + 1  # esperou o bloco seguinte
+        primeiras = [distribuidor.proxima() for _ in range(40)]
+        estacoes = [estacao for estacao, _ in primeiras]
+        assert (estacoes.count(7), estacoes.count(8)) == (20, 20)
+        # O ts devolvido é o do bloco em que a emissão foi contada.
+        assert {ts // 45 for _, ts in primeiras} == {bloco}
+        estacao, ts = distribuidor.proxima()
+        assert estacao == 7
+        assert ts // 45 == relogio["agora"] // 45 == bloco + 1  # esperou o bloco seguinte
 
 
 def test_resumo_conta_201_409_5xx_e_sem_resposta():
@@ -117,4 +155,21 @@ def test_resumo_conta_201_409_5xx_e_sem_resposta():
     linha = medir_voto.resumo(5, resultados)
     assert "5 votos" in linha
     assert "201 2 409 1 5xx 1 outros 1" in linha
-    assert "p50    25.0 ms" in linha and "máx    40.0 ms" in linha
+    # O timeout (status 0, 30 s) pesa no p95 e no máx.
+    assert "p50    30.0 ms" in linha and "máx 30000.0 ms" in linha
+    assert "p95 24008.0 ms" in linha  # inclusive: 40 + 0,8 × (30000 − 40)
+
+
+def test_resumo_sem_timeout():
+    linha = medir_voto.resumo(2, [(201, 0.010), (201, 0.030), (201, 0.020), (201, 0.040)])
+    assert "p50    25.0 ms" in linha and "p95    38.5 ms" in linha and "máx    40.0 ms" in linha
+
+
+def test_voto_sem_resposta_completa_vira_status_0():
+    """IncompleteRead/BadStatusLine não derrubam a rodada como erro de preparo."""
+    navegador = medir_voto.Visitante("http://127.0.0.1:9")
+    navegador.cookies["csrftoken"] = "x"
+    for erro in (http.client.IncompleteRead(b""), http.client.BadStatusLine(""), TimeoutError()):
+        with mock.patch.object(medir_voto.Visitante, "pedir", side_effect=erro):
+            status, segundos = navegador.votar(1)
+        assert status == 0 and segundos >= 0
