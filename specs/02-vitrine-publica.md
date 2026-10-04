@@ -24,8 +24,9 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Página de edição `/grupo/editar/<token>/` com dois botões: **"Salvar"**
   (guarda o rascunho e **mantém o status**) e **"Enviar para revisão"**
   (só ativo quando não há pendências; muda o status para `em_revisao`).
-  Campos: título, resumo, descrição, componente de origem, links e equipe
-  (integrantes).
+  Campos: resumo, descrição, componente de origem, links e equipe
+  (integrantes). O **título não é editável** pelo grupo: vem da lista das
+  coordenações (ver "Wireframes e decisões").
 - **Imagens enviadas uma a uma**, em requisições próprias: capa e até 6
   imagens extras, com legenda opcional, e remoção individual. Trocar a
   capa ou remover uma extra **apaga o arquivo antigo do storage** depois
@@ -53,6 +54,19 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   projeto** (blocos `titulo`, `meta` e `conteudo`; criado pelo coordenador,
   com as variáveis de CSS e o logo SVG em `static/` do projeto),
   mobile-first.
+- **Avatar do projeto = monograma gerado no template** (sigla do curso ou
+  inicial do título): o model não tem campo de logo, e esta spec não cria.
+- O topo mostra o **nome da edição** do projeto (`Edicao.nome` da turma),
+  não um texto fixo: o link é permanente e os projetos antigos mantêm a
+  edição deles.
+- O **corpo do projeto** (capa, resumo, links, descrição, galeria, equipe)
+  fica num partial `vitrine/_corpo_projeto.html`, sem nenhum link de voto,
+  que a página pública inclui. Outro app pode incluí-lo (ex.: a tela de voto
+  da spec 03, se ela mudar), mas a página pública continua sem caminho de
+  voto (G8).
+- A **capa** aparece recortada em banner (`object-fit: cover`) na página;
+  o `og:image` usa a imagem original. No upload, a tela orienta a proporção
+  ideal (~1,91:1, por exemplo 1200×630 px) para a prévia do WhatsApp.
 
 ## Fora de escopo
 - Models, migrations, admin, importação da lista, moderação, regerar e
@@ -70,7 +84,13 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Busca, filtros, comentários, curtidas, compartilhamento por botões.
 - Fotos de pessoas, redimensionar ou converter imagens (inclusive
   miniatura da capa), editor de texto rico (a descrição é texto simples).
-- Edição do `slug` ou do `representante_nome` pelo grupo.
+- Edição do `slug`, do `titulo` ou do `representante_nome` pelo grupo.
+- Campo novo "o que cada integrante fez" (previsto no wireframe): exige
+  mudança no model `Integrante` da spec 01, que hoje só tem nome, papel e
+  ordem. O campo `papel` ("Função", ex.: Front-end) cobre o essencial nesta
+  edição; vira proposta para a próxima.
+- Redesenhar os wireframes: as diferenças em relação a eles estão em
+  "Wireframes e decisões".
 - Retirar o projeto de `em_revisao` pelo próprio grupo: quem precisa
   corrigir fala com a coordenação, que devolve para ajustes.
 
@@ -82,7 +102,8 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Quando envia o RA, o sistema: (1) valida o formato com
   `cadastro.seguranca.hash_ra`, que recusa (`ValueError`) o que não tiver
   5 a 20 dígitos depois de remover espaço, ponto, hífen e barra — formato
-  inválido vira erro de formulário e **não consulta o banco**; (2) checa o
+  inválido recebe a **mesma resposta genérica** abaixo, conta como falha
+  no rate limit e **não consulta o banco**; (2) checa o
   rate limit; (3) calcula o hash; (4) busca o projeto com esse `ra_hmac`,
   `reivindicado_em` nulo, `status = pre_cadastrado` e
   `turma.edicao.ativa = true`, cuja edição ainda aceita edição
@@ -95,15 +116,20 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   hash e `token_edicao_gerado_em` e devolve o token em claro), e responde
   **na mesma resposta do POST** (sem redirecionar) mostrando o link
   completo, com aviso "guarde este link, ele não será exibido de novo". A
-  resposta leva `Cache-Control: no-store`.
+  resposta leva `Cache-Control: no-store`. A página tem o botão "Copiar"
+  (JavaScript mínimo e opcional: sem JS o link continua selecionável) e o
+  botão "Abrir edição do projeto".
 - Quando dois requests tentam reivindicar o mesmo projeto ao mesmo tempo,
   só um recebe o link; o outro recebe a resposta genérica.
-- Quando o RA não existe, já foi reivindicado, é de outra edição, o
-  projeto não está `pre_cadastrado` **ou o prazo de edição já acabou (ou a
-  votação já abriu)**, o sistema responde **a mesma página, com o mesmo
-  status e o mesmo texto**: "Não encontramos um projeto disponível para este
-  RA. Confira se digitou o RA igual ao da sua matrícula. Se acha que é um
-  erro, procure a coordenação." Nunca diz qual regra barrou.
+- Quando o RA é malformado, não existe, já foi reivindicado, é de outra
+  edição, o projeto não está `pre_cadastrado` **ou o prazo de edição já
+  acabou (ou a votação já abriu)**, o sistema responde **a mesma página,
+  com o mesmo status (400) e o mesmo texto**: "Não foi possível acessar com
+  esse RA. Confira os números e tente de novo. Se o RA estiver certo, o link
+  de edição do grupo pode já ter sido retirado — use o link que foi
+  guardado ou procure a coordenação." Nunca diz qual regra barrou. O
+  campo do RA volta **vazio** (a página de erro não repete o que foi
+  digitado).
 - Quando o RA recarrega a página de resposta do POST (reenvio), cai na
   resposta genérica, porque o projeto já foi reivindicado. A página avisa
   que link perdido só o admin regera.
@@ -225,7 +251,9 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 
 ### Página pública (`/projeto/<slug>/`)
 - Quando o `slug` não existe **ou** o projeto não está `publicado`, o sistema
-  responde o mesmo 404 (não revela projetos em revisão).
+  responde o mesmo 404 (não revela projetos em revisão). A página 404
+  tem o botão "Conhecer a Mostra", que leva a `/como-votar/` (não existe
+  página inicial nesta edição).
 - Quando o projeto está `publicado`, a página mostra: capa, título, curso
   e período (rótulo da turma), componente de origem (se houver), resumo,
   descrição (texto simples, quebras de linha preservadas, **escapado**),
@@ -259,7 +287,7 @@ Lê: `Edicao` (ativa, `data_evento`, `edicao_aberta()`,
 `Integrante`, `ImagemProjeto`.
 
 Escreve, somente nestes campos:
-- `Projeto`: `titulo`, `resumo`, `descricao`, `componente_origem`, `capa`,
+- `Projeto`: `resumo`, `descricao`, `componente_origem`, `capa`,
   `link_repositorio`, `link_demo`, `link_video`, `status` (só
   `pre_cadastrado`/`ajustes` → `em_revisao`, e só em "Enviar para
   revisão"), `reivindicado_em`, `token_edicao_hash`,
@@ -267,7 +295,7 @@ Escreve, somente nestes campos:
 - `Integrante` e `ImagemProjeto`: criar, alterar, remover e reordenar os do
   próprio projeto.
 
-Nunca escreve: `slug`, `ra_hmac`, `representante_nome`, `publicado_em`,
+Nunca escreve: `titulo`, `slug`, `ra_hmac`, `representante_nome`, `publicado_em`,
 `motivo_ajustes`, `turma`. Usa o cache do Django só para os contadores do
 rate limit.
 
@@ -288,7 +316,7 @@ testada sem HTTP.
 | `vitrine:projeto` | GET | `/projeto/<slug>/` | — | HTML da vitrine + Open Graph | 404 (inexistente ou não publicado) |
 | `vitrine:como_votar` | GET | `/como-votar/` | — | HTML estático | — |
 | `vitrine:grupo` | GET | `/grupo/` | — | formulário de RA | — |
-| `vitrine:grupo` | POST | `/grupo/` | `ra` | link de edição (1 vez) ou resposta genérica | 400 formato inválido; 429 rate limit |
+| `vitrine:grupo` | POST | `/grupo/` | `ra` | link de edição (1 vez) | 400 resposta genérica (inclusive RA malformado); 429 rate limit |
 | `vitrine:editar` | GET | `/grupo/editar/<token>/` | — | formulário, ou leitura se não editável | 404 token inválido |
 | `vitrine:editar` | POST | `/grupo/editar/<token>/` | campos + integrantes + `acao` (`salvar` ou `enviar`) | confirmação | 400 validação ou pendências; 403 não editável; 404 token inválido |
 | `vitrine:imagem` | POST | `/grupo/editar/<token>/imagem/` | `arquivo` (1), `tipo`, `legenda?` (multipart) | página de edição atualizada | 400 imagem inválida ou 7ª extra; 403 não editável; 404 token inválido |
@@ -312,20 +340,22 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 
 **Reivindicação**
 - [ ] RA válido de projeto `pre_cadastrado` da edição ativa → mostra o link e grava `reivindicado_em`, hash do token e `token_edicao_gerado_em`; o token em claro não está no banco
-- [ ] RA inexistente, RA já reivindicado, RA de outra edição e RA depois do prazo de edição (ou com a votação aberta) → respostas **idênticas** (status e corpo)
+- [ ] RA malformado, RA inexistente, RA já reivindicado, RA de outra edição e RA depois do prazo de edição (ou com a votação aberta) → respostas **idênticas** (status 400 e corpo); o campo do RA volta vazio, sem repetir o digitado
 - [ ] Recarregar o POST após o sucesso → resposta genérica, não um segundo link
 - [ ] 2 POSTs simultâneos com o mesmo RA → um link emitido, um genérico
 - [ ] 50 falhas do mesmo IP em 10 min passam; a 51ª → 429; sucesso não conta
 - [ ] 1.000 falhas somadas de IPs diferentes em 1 hora passam; a 1.001ª → 429 para qualquer IP
 - [ ] Dois endereços IPv6 do mesmo /64 contam como o mesmo IP
-- [ ] RA vazio, com letra ou fora de 5–20 dígitos → erro de formulário, sem consulta de RA; `123.456-7` e `1234567` reivindicam o mesmo projeto
+- [ ] RA vazio, com letra ou fora de 5–20 dígitos → resposta genérica idêntica, conta como falha no rate limit e **não consulta** o banco; `123.456-7` e `1234567` reivindicam o mesmo projeto
+- [ ] A página do link mostra o link completo uma vez, o botão "Copiar" e o botão "Abrir edição do projeto"
 - [ ] A chave do IP no cache vem de `chave_ip(ip_do_cliente(request))`, expira em 10 min e não contém o IP em claro; o IP não aparece em log nem em tabela de model; o app `vitrine` não lê `REMOTE_ADDR` nem `X-Forwarded-For` (revisão de código)
 - [ ] O RA em claro não aparece no log, na resposta de erro nem no banco (teste captura log e resposta)
 - [ ] Resposta do link tem `Cache-Control: no-store`
 
 **Edição**
 - [ ] Token inexistente, revogado e regerado → mesmo 404; o link antigo para de valer após "regerar"
-- [ ] "Salvar" em `pre_cadastrado` ou `ajustes` grava os dados e **mantém o status**, mesmo incompleto; `slug` inalterado mesmo mudando o título
+- [ ] "Salvar" em `pre_cadastrado` ou `ajustes` grava os dados e **mantém o status**, mesmo incompleto
+- [ ] O formulário do grupo não mostra o título como campo editável; um POST com campo `titulo` não altera `titulo` nem `slug`
 - [ ] "Enviar para revisão" sem pendências → `em_revisao` e dados gravados
 - [ ] "Enviar para revisão" com pendências (ex.: capa ausente, ou resumo apagado no mesmo envio) → 400, **nada gravado**, formulário volta com o digitado e a lista do que falta
 - [ ] Projeto `em_revisao` → `GET` somente leitura, `POST` 403, nada gravado
@@ -356,6 +386,11 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] Slug inexistente e projeto `em_revisao`, `ajustes` ou `pre_cadastrado` → 404 idêntico
 - [ ] HTML contém `og:title`, `og:description`, `og:image` (URL absoluta https), `og:url` e `twitter:card`; os links absolutos usam `settings.URL_PUBLICA`, não o `Host` da requisição
 - [ ] `reverse("vitrine:como_votar")` resolve para `/como-votar/` e a página responde 200
+- [ ] O topo mostra `Edicao.nome` da edição do projeto; um projeto de edição antiga mostra o nome da edição dele
+- [ ] O avatar é um monograma gerado (sigla do curso ou inicial do título), sem campo novo no model
+- [ ] A página 404 tem o botão "Conhecer a Mostra" apontando para `/como-votar/`
+- [ ] O partial `vitrine/_corpo_projeto.html` não contém link nem formulário de voto (o teste de G8 também o cobre)
+- [ ] A capa aparece recortada na página, e o `og:image` aponta para o arquivo original; a tela de upload mostra a proporção ideal (~1,91:1)
 - [ ] O convite mostra a data da `Edicao`, "19h" e o endereço do campus da Fatec Olímpia
 - [ ] Descrição com `<script>` aparece escapada, sem executar
 - [ ] O HTML da vitrine e de `/como-votar/` não contém nenhum link ou formulário para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (teste automático, G8)
@@ -370,7 +405,40 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 1. `vitrine: reivindicação por RA` — serviço, rate limit, `/grupo/` (10/10)
 2. `vitrine: edição pelo link` — formulário, Salvar e Enviar para revisão, equipe (10/10)
 3. `vitrine: imagens do projeto` — upload uma a uma e remoção (10/10)
-4. `vitrine: página pública e Open Graph` — `/projeto/<slug>/`, `/como-votar/` (12/10; depende do `base.html` do projeto)
+4. `vitrine: página pública e Open Graph` — `/projeto/<slug>/`, `/como-votar/`, partial do corpo do projeto e monograma (12/10; depende do `base.html` do projeto)
+
+## Wireframes e decisões
+Referência: wireframes do projeto (artefato "Wireframe — Página de Projeto
+(Vitrine CPS)", https://claude.ai/artifact/QGake9QNCwsKcF5TbsgxYg). Telas
+desta spec: página do projeto (desktop e celular), 404, reivindicação pelo
+RA, RA recusado, link único de edição e edição do projeto. As telas da
+estação, do visitante, da cédula e do admin são das specs 01, 03, 04 e 06.
+
+Onde o wireframe e esta spec divergem, vale a spec. Os wireframes devem ser
+atualizados para refletir o abaixo.
+
+| Wireframe | Decisão desta spec | Situação |
+|---|---|---|
+| Botão único "Salvar e enviar para revisão" | Dois botões: "Salvar" (mantém o status) e "Enviar para revisão" (só sem pendências), conforme o parecer do coordenador | Aplicado |
+| Título "travado (pedido)", com a nota de decidir e registrar | O grupo **não edita o título**; ele vem da lista das coordenações. O slug nunca muda | Aplicado como proposta — confirmar (pergunta 2) |
+| Campo novo "o que o integrante fez" | Fora de escopo: exigiria mudar `Integrante` (spec 01). O campo `papel` ("Função") cobre | Adiado |
+| Capa e galeria com "+ Adicionar imagem" e um único salvar | Cada imagem é um envio próprio; aviso "salve o texto antes de enviar imagens" | Aplicado |
+| Tela de RA recusado repete o RA digitado | Não repete: o campo volta vazio (G11 por analogia) | Aplicado |
+| Mensagem de RA recusado, com a dica do "link retirado" | Adotada, para todos os casos de falha (inclusive RA malformado), com a mesma resposta 400 | Aplicado |
+| Link `/grupo/<token>` | Mantida a rota `/grupo/editar/<token>/` (a ADR-006 já a cita no critério de logs) | Aplicado |
+| Capa em ~3,7:1 | Banner recortado na página; `og:image` com a imagem original; orientação ~1,91:1 no upload | Aplicado |
+| Botão "Conhecer a Mostra" do 404 sem destino | Leva a `/como-votar/` | Aplicado |
+| "Mostra 2026/2" fixo no topo | `Edicao.nome` da edição do projeto | Aplicado |
+| "local · horário · como chegar" | Texto fixo definido pelo coordenador (19h, campus da Fatec Olímpia, endereço) | Aplicado |
+| Tela "Projeto em modo votação" reaproveita o corpo da página | Partial `vitrine/_corpo_projeto.html` reaproveitável, sem link de voto na página pública | Aplicado — combinar com o Renan (pergunta 3) |
+| Voto do público em notas de 1 a 5 por critério | Fora desta spec: muda as specs 03 e 04 e o cálculo 70/30; decisão do coordenador e do Renan. Só afeta aqui o partial acima | Não é desta spec |
+
+**Telas que faltam no wireframe para esta spec** (a desenhar):
+somente leitura (`em_revisao`, `publicado`, prazo encerrado, votação aberta),
+lista "o que falta" com o botão "Enviar para revisão" desabilitado, erro de
+formulário, imagem recusada e 7ª extra, aviso "salve o texto antes de enviar
+imagens", 429 (muitas tentativas), 403 (edição encerrada) e link de edição
+inválido (404).
 
 ## Riscos
 - **Prévia do WhatsApp com capa grande** (apontado pelo coordenador): há
@@ -400,6 +468,17 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
    mínima (só os três blocos) na `main` até 07/10, e a identidade visual
    entra depois, sem mudar o nome nem os blocos? Se preferir, o PR 1 leva
    esse arquivo mínimo e o coordenador o substitui depois.
+
+2. **Título travado para o grupo.** O wireframe traz o título travado, com a
+   nota de que foi um pedido do coordenador e de que a spec permitia editar.
+   Apliquei como proposta: o grupo não edita o título (vem da lista das
+   coordenações; o slug nunca muda). Confirma? Se a decisão for deixar o
+   grupo editar, volta o campo `titulo` ao formulário e o critério de aceite
+   original.
+3. **Partial do corpo do projeto.** Se a spec 03 mudar a tela de voto (notas
+   por critério), o Renan pode incluir `vitrine/_corpo_projeto.html` em vez
+   de duplicar a galeria e a equipe. O Renan e o coordenador concordam com
+   esse reaproveitamento?
 
 ### Respondidas pelo coordenador (PR #23)
 - **Editar em `em_revisao`**: não. "Salvar" mantém o status; "Enviar para
