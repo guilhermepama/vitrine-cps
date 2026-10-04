@@ -53,6 +53,10 @@ def _cadastrar(request):
         edicao = edicao_em_votacao(travar=True)
         if edicao is None:
             return qr_expirado()
+        # Já cadastrado nesta edição (aba antiga, reenvio): cédula, sem novo
+        # registro — a mesma regra do GET (decisão 3 do PR #33).
+        if cadastro_valido(request, edicao):
+            return HttpResponseRedirect(ROTA_CEDULA)
         Visitante.objects.create(
             nome=dados["nome"],
             email=dados["email"],
