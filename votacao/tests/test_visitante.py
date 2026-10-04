@@ -32,6 +32,7 @@ from django.test import Client
 
 from cadastro.tests import fabricas as cadastro
 from votacao import views_visitante
+from votacao.liberacao import cadastro_valido as _cadastro_valido_real
 from votacao.liberacao import COOKIE_CADASTRO, valor_do_cookie
 from votacao.models import Visitante
 from votacao.servicos import abrir_votacao, edicao_em_votacao, encerrar_votacao
@@ -133,6 +134,47 @@ def test_get_com_cadastro_valido_vai_para_a_cedula(client, evento):
     assert Visitante.objects.count() == 0
 
 
+# Decisão 3 do PR #33: POST com cadastro já válido vai para a cédula, sem gravar.
+def test_post_com_cadastro_valido_vai_para_a_cedula_sem_gravar(client, evento):
+    fabricas.visitante(evento)
+    valor = valor_do_cookie(evento)
+    client.cookies[COOKIE_CADASTRO] = valor
+    resposta = _postar(client, nome="Outra Pessoa")
+    assert resposta.status_code == 302
+    assert resposta["Location"] == "/votar"
+    assert Visitante.objects.count() == 1
+    assert COOKIE_CADASTRO not in resposta.cookies  # o cookie não é regravado
+    assert client.cookies[COOKIE_CADASTRO].value == valor
+
+
+def test_post_com_cadastro_valido_e_formulario_invalido_devolve_o_formulario(client, evento):
+    """A validação vem antes: o redirect não pula a matriz (G12)."""
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(evento)
+    _recusado(_postar(client, nome="A"))
+
+
+def test_post_confere_o_cadastro_dentro_da_transacao_com_a_edicao_travada(client, evento):
+    vistos = []
+
+    def espiar(request, edicao):
+        vistos.append(connection.in_atomic_block)
+        return _cadastro_valido_real(request, edicao)
+
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(evento)
+    with (
+        mock.patch.object(views_visitante, "edicao_em_votacao", wraps=edicao_em_votacao) as trava,
+        mock.patch.object(views_visitante, "cadastro_valido", side_effect=espiar),
+    ):
+        assert _postar(client).status_code == 302
+    trava.assert_called_once_with(travar=True)
+    assert vistos == [True]
+
+
+def test_post_com_cadastro_do_ensaio_grava_novo_registro(client, evento):
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(_ensaio())
+    assert _aceito(_postar(client)).edicao == evento
+
+
 def test_get_com_cookie_adulterado_ou_do_ensaio_mostra_formulario(client):
     ensaio = _abrir(_ensaio())
     do_ensaio = valor_do_cookie(ensaio)
@@ -196,6 +238,29 @@ def test_nome_nos_limites_aceito(client, evento, nome):
     assert _aceito(_postar(client, nome=nome)).nome == nome.strip(" ")
 
 
+# Decisão 2 do PR #33: Cc, Cf, Zl e Zp recusados; nome só de espaço Unicode recusado.
+@pytest.mark.parametrize(
+    "nome",
+    [
+        "Ana\u200bSouza",  # espaço de largura zero (Cf)
+        "Ana\u202eSouza",  # inversão de direção do texto (Cf)
+        "\ufeffAna",  # BOM (Cf)
+        "Ana\u2028Souza",  # separador de linha (Zl)
+        "Ana\u2029Souza",  # separador de parágrafo (Zp)
+        "\u00a0\u00a0",  # 2×NBSP (Zs)
+        "\u3000\u3000",  # 2×espaço ideográfico (Zs)
+        "\u2003\u00a0\u3000",
+    ],
+)
+def test_nome_invisivel_ou_so_de_espaco_unicode_400(client, evento, nome):
+    _recusado(_postar(client, nome=nome))
+
+
+@pytest.mark.parametrize("nome", ["José\u00a0Silva", "Ana Souza", "Zoë", "李 小龍"])
+def test_nome_com_espaco_unicode_entre_letras_e_acentos_aceito(client, evento, nome):
+    assert _aceito(_postar(client, nome=nome)).nome == nome
+
+
 def _email(tamanho):
     # 64 + 1 + 63 + 1 + 63 + 1 = 193; o último rótulo completa o tamanho.
     return "a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * (tamanho - 197) + ".com"
@@ -214,7 +279,8 @@ def test_email_com_254_aceito(client, evento):
 
 @pytest.mark.parametrize(
     "telefone",
-    ["179999999", "55179999999999", "(17) 9999A-9999", "(17) 9 9 9 9 9 - 9999", "17.99999.9999", "551799999999999", "+1 (17) 99999-9999", "١٧٩٩٩٩٩٩٩٩٩"],
+    ["179999999", "55179999999999", "(17) 9999A-9999", "(17) 9 9 9 9 9 - 9999", "17.99999.9999", "551799999999999", "+1 (17) 99999-9999", "١٧٩٩٩٩٩٩٩٩٩",
+     "1+7 99999-9999", "(17) 99999-9999+", "++55 17 99999-9999"],
 )
 def test_telefone_invalido_400(client, evento, telefone):
     if telefone == "(17) 9 9 9 9 9 - 9999":
@@ -334,9 +400,10 @@ def test_isolamento_ensaio_e_evento():
     assert edicoes == {"No Ensaio": ensaio.pk, "Ana Souza": ensaio.pk, "No Evento": evento.pk}
 
 
-def test_ids_de_visitante_sao_uuid_v4(client, evento):
-    _postar(client, nome="Primeiro")
-    _postar(client, nome="Segundo")
+def test_ids_de_visitante_sao_uuid_v4(evento):
+    # Dois visitantes, dois navegadores: o mesmo navegador já cadastrado não grava de novo.
+    _postar(Client(), nome="Primeiro")
+    _postar(Client(), nome="Segundo")
     ids = list(Visitante.objects.values_list("id", flat=True))
     assert len(ids) == 2
     assert all(isinstance(i, uuid.UUID) and i.version == 4 for i in ids)
