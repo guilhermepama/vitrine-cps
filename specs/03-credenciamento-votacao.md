@@ -233,10 +233,13 @@ máximo 1 voto por projeto por token.
 Uma das duas camadas da ADR-001 contra o link do QR repassado (ex:
 WhatsApp). Decisão do coordenador no PR #18.
 - **Ordem em `/entrar`**: validação de entrada → assinatura e janela →
-  rate limit → transação com a trava da `Edicao`. Só a requisição com
-  entrada válida, assinatura correta e janela no prazo conta nos
-  contadores (assinatura forjada não esgota a janela de uma estação);
-  conta mesmo quando devolve o mesmo token (re-scan).
+  transação com a trava da `Edicao` → rate limit → estação → token. Só a
+  requisição com entrada válida, assinatura correta, janela no prazo e
+  edição em votação conta nos contadores (assinatura forjada não esgota a
+  janela de uma estação); conta mesmo quando devolve o mesmo token
+  (re-scan). O rate limit fica **dentro** da trava da `Edicao`: fora
+  dela, requisições simultâneas liam a mesma contagem e todas passavam
+  (60 de 60 liberadas num teste com 60 threads, revisão da F4).
 - **Por janela de estação** (a camada que importa): no máximo **20
   tokens por janela de 45s por estação**, isto é, por estação e bloco
   de 45 s do `timestamp` (`estacao_id` e `timestamp // 45`, lidos do `w`
@@ -279,13 +282,14 @@ WhatsApp). Decisão do coordenador no PR #18.
     "Fora de escopo").
 - **Contadores no `DatabaseCache`** já configurado no esqueleto
   (`CACHES["default"]`, compartilhado entre os workers). Chave da janela
-  expira com a tolerância do QR (150s). Limite aceito: o `incr` do
-  `DatabaseCache` não é atômico; sob concorrência o contador pode perder
-  algumas contagens — o limite é barreira contra abuso, não contagem
-  exata.
+  expira com a tolerância do QR (150s). Leitura e gravação do contador
+  não são atômicas no `DatabaseCache`; por isso a contagem acontece com a
+  linha da `Edicao` travada (`select_for_update()` da emissão), que
+  enfileira as emissões da edição: duas requisições simultâneas não leem
+  a mesma contagem e o limite vale também sob rajada.
 - **Estourou** → a mesma página "QR expirado", **400, corpo idêntico** ao
-  da assinatura inválida; nada revela que foi o limite. Não emite token,
-  não trava a `Edicao`.
+  da assinatura inválida; nada revela que foi o limite. Não emite token
+  nem conta nos contadores.
 - Não remover nem afrouxar "para testar" (guardrail 7): testes ajustam o
   contador, não desligam o limite.
 

@@ -15,7 +15,9 @@ Critérios de aceite fechados aqui (citados em cada bloco):
 
 import ast
 import re
+import threading
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date, timedelta
 from pathlib import Path
 from unittest import mock
@@ -297,6 +299,27 @@ def test_limite_estourado_nao_conta(estacao, corpo_qr_expirado):
     caches["default"].set(limite.chave_estacao(estacao.pk, AGORA), (20, AGORA + 150), 150)
     _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado)
     assert caches["default"].get(_chave_ip()) is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rajada_simultanea_no_mesmo_bloco_emite_exatamente_20(estacao):
+    """Requisições simultâneas com a mesma URL de QR: a trava da edição
+    enfileira a contagem e só 20 passam (fora da trava, passavam todas)."""
+    n = 22
+    barreira = threading.Barrier(n)
+
+    def pedir(_):
+        try:
+            barreira.wait(timeout=10)
+            return _entrar(estacao.pk).status_code
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=n) as executor:
+        status = list(executor.map(pedir, range(n)))
+    assert (status.count(200), status.count(400)) == (20, n - 20)
+    assert Token.objects.count() == 20
+    assert caches["default"].get(limite.chave_estacao(estacao.pk, AGORA)) == (20, AGORA + 150)
 
 
 def test_ip_vem_do_cabecalho_configurado(settings, estacao):

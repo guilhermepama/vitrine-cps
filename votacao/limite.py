@@ -10,8 +10,8 @@ O valor guardado é `(contagem, expira_em)`: o `incr` do Django faz `get` +
 `set` com o timeout padrão e empurraria a expiração a cada emissão (armadilha
 A2). Com o prazo no valor, cada `set` regrava o tempo que falta, e o contador
 do IP do Wi-Fi do evento zera 10 min depois da primeira emissão, não depois
-da última. Sem trava: sob concorrência pode perder contagens (limite aceito
-pela spec).
+da última. Quem chama trava a linha da `Edicao` antes (`/entrar`): é essa
+trava que impede duas emissões simultâneas de lerem a mesma contagem.
 """
 
 from django.core.cache import caches
