@@ -180,7 +180,7 @@ Formato:
   coordenação.
 
 ## ADR-006 — Hospedagem (banco, servidor, imagens)
-- Status: aceita parcialmente — banco e imagens decididos; servidor até 2026-10-08
+- Status: aceita — banco e imagens em 2026-10-01; servidor em 2026-10-03
 - Data: 2026-10-01
 - Contexto: requisitos da ADR-002 — HTTPS, Postgres gerenciado com backup,
   sem hibernação longa no dia do evento. Time de alunos não deve
@@ -192,7 +192,69 @@ Formato:
   - **Backup manual obrigatório**: `pg_dump` na véspera do evento, ao
     encerrar a votação e após publicar o resultado. O plano gratuito só
     permite voltar ~6 h no tempo — insuficiente como único backup.
-  - **Servidor do Django**: a decidir (não pode hibernar por minutos).
+  - **Servidor do Django: VPS do coordenador (Hostinger, no Brasil),
+    com Coolify.** Não hiberna (ADR-002) e fica na mesma região do Neon
+    (São Paulo): a transação do voto faz várias consultas com a `Edicao`
+    travada e não pode pagar latência entre continentes.
+    - **Proxy**: o Traefik do Coolify termina o HTTPS (Let's Encrypt) e
+      preenche `X-Forwarded-Proto` (`SECURE_PROXY_SSL_HEADER`). Aceita
+      corpo de **pelo menos 4 MB por requisição** — uma imagem de até
+      3 MB mais o formulário (spec 02); o Traefik não limita o corpo por
+      padrão.
+    - **Sem log de acesso**: gunicorn sem `--access-logfile` e access log
+      do Traefik desligado (o padrão). Atende o P2 da spec 03 (rotas do
+      visitante) e a spec 02 (`/grupo/editar/<token>/`, com o token na
+      URL). Do container só sai o log da aplicação, que passa pelo filtro
+      `votacao/logs.py`.
+    - **IP real: `DJANGO_IP_HEADER=X-Real-Ip`.** O Traefik descarta esse
+      cabeçalho quando vem do cliente e o preenche com o IP de quem abriu
+      a conexão. Para isso valer, o domínio do app fica **só no DNS da
+      Cloudflare, sem o proxy** ("nuvem cinza"): com o proxy, o IP visto
+      seria o da Cloudflare e o rate limit por IP viraria um contador
+      único para todo mundo. **Teste obrigatório ao publicar**: requisição
+      com `X-Real-Ip` e `X-Forwarded-For` falsos → `ip_do_cliente` não
+      devolve o valor falso.
+    - **Rede**: o container não mapeia porta para o host (só a porta
+      interna exposta ao Traefik) e o firewall do VPS libera só 22, 80 e
+      443. Acesso direto ao gunicorn furaria o `X-Real-Ip` e o
+      `X-Forwarded-Proto`.
+    - **Deploy**: o Coolify publica a `main` pelo app do GitHub (só
+      leitura). Início com
+      `python manage.py migrate --noinput && python manage.py createcachetable && python manage.py collectstatic --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3`
+      (G16). O `createcachetable` cria a tabela `cache_django` do
+      rate limit (`DatabaseCache`, sem migration): sem ela, `/entrar` e o
+      cadastro dão 500. É idempotente. O `collectstatic` roda no início,
+      não no build: no build ele exigiria os segredos como variável de
+      build, que ficariam gravados na imagem (G3). Um container só: com
+      mais de um, o `migrate` do início disputaria.
+    - **Variáveis de produção**: `DJANGO_DEBUG=0`;
+      `DJANGO_URL_PUBLICA` com a origem do evento (`https://<domínio>`,
+      PR #32) — base dos links absolutos, como o QR das estações, que
+      assim não depende do `Host` da requisição nem do
+      `X-Forwarded-Proto`; `DJANGO_CSRF_TRUSTED_ORIGINS` com a mesma
+      origem; `DJANGO_ALLOWED_HOSTS` com o domínio e `localhost`, para o
+      healthcheck do Coolify em `/saude/`. O `localhost` não abre brecha:
+      o Traefik só encaminha ao container requisições com o `Host` do
+      domínio, e o container não tem porta mapeada. O healthcheck roda
+      dentro do container e precisa de `curl` ou `wget` na imagem (ou de
+      um comando em Python) — conferir no PR de deploy.
+    - **Congelamento e plano B**: auto-deploy da `main` desligado do
+      congelamento (27/10) até o fim do evento. O app não guarda estado
+      (banco no Neon, imagens no R2): se o VPS cair em 29/10, sobe um
+      segundo destino com as mesmas variáveis e o DNS é trocado (TTL baixo
+      na véspera). A troca é ensaiada no pré-ensaio de 21/10.
+    - **Ficam para o PR de deploy** (até 08/10): versão do Python fixada
+      (3.12); configuração de log do Traefik anexada (sem `--accesslog`,
+      `--log.level` fora de DEBUG), como pede a spec 03; teste de IP real
+      — estourar o rate limit variando `X-Real-Ip` e `X-Forwarded-For`
+      falsos (o bloqueio tem de vir) e, logo depois, de outra rede (4G),
+      não estar bloqueado; o mesmo com IPv6, ou não publicar registro
+      AAAA.
+    - **O banco continua no Neon** — o Coolify não cria Postgres no VPS.
+    - Variáveis de ambiente só no painel do Coolify, nunca no repositório
+      (G3).
+    - Limite de memória no container, para os outros serviços do VPS não
+      disputarem recursos com a votação na noite do evento.
   - **Imagens dos projetos: Cloudflare R2** (armazenamento compatível com
     S3, sem cobrança de tráfego de saída, 10 GB grátis). Integração via
     `django-storages[s3]` (inclui `boto3`). Plataformas de deploy apagam
@@ -218,6 +280,15 @@ Formato:
   - Pendente: o projeto está na conta pessoal do coordenador. Para o
     sistema sobreviver às turmas, transferir para uma organização do Neon
     com mais de um administrador.
+  - **Servidor**: plataformas gratuitas de deploy descartadas — hibernam
+    ou exigem plano pago para não hibernar. O VPS é **compartilhado** com
+    outros serviços do coordenador: se um deles for comprometido, os
+    segredos deste também ficam expostos. Aceito nesta edição, com SSH só
+    por chave e o painel do Coolify só com o coordenador. O time não
+    administra o servidor; deploy só pela `main`, via PR aprovado. Mesma
+    pendência do Neon: servidor na conta pessoal do coordenador — para as
+    próximas edições, levar para uma infraestrutura com mais de um
+    administrador.
 
 ## ADR-008 — Banca em ficha impressa nesta edição
 - Status: aceita
@@ -277,7 +348,8 @@ Formato:
   visitante — os guardrails 9–11 continuam valendo para visitantes.
 
 ## ADR-010 — Aprovação em pares nos PRs do coordenador
-- Status: aceita
+- Status: aceita (redação ajustada depois do PR #28, com as recomendações
+  do Renan)
 - Data: 2026-10-03
 - Contexto: pela ADR-005, os PRs do coordenador entravam pelo bypass sem
   segundo olhar humano — só CI e `/revisar-pr`. Esses PRs tocam as partes
@@ -289,13 +361,18 @@ Formato:
     checks verdes, o coordenador faz o merge pelo bypass.
   - **Ordem do fluxo (vale para todo PR):** CI verde → parecer do
     `/revisar-pr` no PR → atualizar com a `main`, se preciso → aprovação
-    humana → squash. Atualizar antes de aprovar: o ruleset descarta a
-    aprovação a cada push.
+    humana → squash. O parecer é postado pelo coordenador — nos PRs dos
+    alunos e nos próprios, neste caso antes de pedir a aprovação do Renan.
+    Atualizar antes de pedir aprovação: nos PRs dos alunos, o ruleset
+    descarta a aprovação a cada push.
   - **O que o GitHub não impõe e vale por combinado:**
     - "Request changes" do Renan = não fazer merge, salvo pela exceção.
     - Conversa aberta pelo Renan só ele resolve.
-    - Nova aprovação: "Update branch" sem conflito não pede; conflito ou
-      mudança de conteúdo pede.
+    - Nova aprovação do Renan nos PRs do coordenador: "Update branch" sem
+      conflito não pede; conflito ou mudança de conteúdo pede. Em qualquer
+      caso, o CI tem de estar verde no último commit antes do merge. (Nos
+      PRs dos alunos não há essa folga: o ruleset descarta a aprovação a
+      cada push.)
     - Aprovação do Renan diz o que ele conferiu; quando não conseguir ler,
       ele deixa Comment, não Approve.
   - **Exceção — merge sem a aprovação.** Quem decide é o coordenador,
@@ -311,9 +388,9 @@ Formato:
     O Renan revisa em até 48h depois do merge e sempre antes do próximo
     marco. Violação de guardrail encontrada → revert ou correção antes do
     próximo merge do coordenador, e a correção passa pelo Renan.
-  - **PRs dos alunos não mudam** (ADR-005): continuam exigindo a
-    aprovação do coordenador. O Renan aprova os PRs do coordenador, não
-    os dos colegas.
+  - **A regra de aprovação dos alunos não muda** (ADR-005): os PRs deles
+    continuam exigindo a aprovação do coordenador. O Renan aprova os PRs
+    do coordenador, não os dos colegas.
 - Consequências: o GitHub **não obriga** a aprovação do Renan — o
   `CODEOWNERS` continua `* @guilhermepama` e a aprovação dele não conta
   como de code owner; a regra vale por combinado e pelo histórico dos PRs
