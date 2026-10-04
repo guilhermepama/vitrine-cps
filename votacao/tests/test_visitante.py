@@ -196,6 +196,29 @@ def test_nome_nos_limites_aceito(client, evento, nome):
     assert _aceito(_postar(client, nome=nome)).nome == nome.strip(" ")
 
 
+# Decisão 2 do PR #33: Cc, Cf, Zl e Zp recusados; nome só de espaço Unicode recusado.
+@pytest.mark.parametrize(
+    "nome",
+    [
+        "Ana\u200bSouza",  # espaço de largura zero (Cf)
+        "Ana\u202eSouza",  # inversão de direção do texto (Cf)
+        "\ufeffAna",  # BOM (Cf)
+        "Ana\u2028Souza",  # separador de linha (Zl)
+        "Ana\u2029Souza",  # separador de parágrafo (Zp)
+        "\u00a0\u00a0",  # 2×NBSP (Zs)
+        "\u3000\u3000",  # 2×espaço ideográfico (Zs)
+        "\u2003\u00a0\u3000",
+    ],
+)
+def test_nome_invisivel_ou_so_de_espaco_unicode_400(client, evento, nome):
+    _recusado(_postar(client, nome=nome))
+
+
+@pytest.mark.parametrize("nome", ["José\u00a0Silva", "Ana Souza", "Zoë", "李 小龍"])
+def test_nome_com_espaco_unicode_entre_letras_e_acentos_aceito(client, evento, nome):
+    assert _aceito(_postar(client, nome=nome)).nome == nome
+
+
 def _email(tamanho):
     # 64 + 1 + 63 + 1 + 63 + 1 = 193; o último rótulo completa o tamanho.
     return "a" * 64 + "@" + "b" * 63 + "." + "c" * 63 + "." + "d" * (tamanho - 197) + ".com"
@@ -214,7 +237,8 @@ def test_email_com_254_aceito(client, evento):
 
 @pytest.mark.parametrize(
     "telefone",
-    ["179999999", "55179999999999", "(17) 9999A-9999", "(17) 9 9 9 9 9 - 9999", "17.99999.9999", "551799999999999", "+1 (17) 99999-9999", "١٧٩٩٩٩٩٩٩٩٩"],
+    ["179999999", "55179999999999", "(17) 9999A-9999", "(17) 9 9 9 9 9 - 9999", "17.99999.9999", "551799999999999", "+1 (17) 99999-9999", "١٧٩٩٩٩٩٩٩٩٩",
+     "1+7 99999-9999", "(17) 99999-9999+", "++55 17 99999-9999"],
 )
 def test_telefone_invalido_400(client, evento, telefone):
     if telefone == "(17) 9 9 9 9 9 - 9999":

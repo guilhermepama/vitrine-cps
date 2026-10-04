@@ -13,7 +13,11 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.core.validators import EmailValidator
 
-TELEFONE_PERMITIDO = re.compile(r"[0-9 ()+-]*")
+# O "+" só no começo (DDI); o resto, dígitos e a pontuação comum.
+TELEFONE_PERMITIDO = re.compile(r"\+?[0-9 ()-]*")
+# Controle (Cc), formatação invisível (Cf: U+200B, U+202E, U+FEFF...) e
+# separadores de linha e parágrafo (Zl, Zp). Decisão 2 do PR #33.
+CATEGORIAS_RECUSADAS = {"Cc", "Cf", "Zl", "Zp"}
 
 
 class TextoSemEspacoNasPontas(forms.CharField):
@@ -25,9 +29,12 @@ class TextoSemEspacoNasPontas(forms.CharField):
         return super().to_python(value).strip(" ")
 
 
-def _sem_caractere_de_controle(valor):
-    # Categoria Unicode Cc: C0 (\x00–\x1f, inclui \t e \n), DEL e C1.
-    if any(unicodedata.category(c) == "Cc" for c in valor):
+def _nome_visivel(valor):
+    """Sem caractere invisível ou de controle e com ao menos um que não seja
+    espaço no sentido Unicode (NBSP, U+3000 e os demais `Zs` contam como espaço)."""
+    if any(unicodedata.category(c) in CATEGORIAS_RECUSADAS for c in valor):
+        raise ValidationError("inválido")
+    if all(c.isspace() or unicodedata.category(c) == "Zs" for c in valor):
         raise ValidationError("inválido")
 
 
@@ -41,7 +48,7 @@ def _digitos_do_telefone(valor):
 
 
 class VisitanteForm(forms.Form):
-    nome = TextoSemEspacoNasPontas(min_length=2, max_length=120, validators=[_sem_caractere_de_controle])
+    nome = TextoSemEspacoNasPontas(min_length=2, max_length=120, validators=[_nome_visivel])
     email = TextoSemEspacoNasPontas(max_length=254, validators=[EmailValidator()])
     telefone = TextoSemEspacoNasPontas(required=False, max_length=20)
     consentimento = forms.BooleanField(required=True)
