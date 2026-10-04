@@ -27,6 +27,8 @@ class Estacao(models.Model):
         db_table = "estacoes"
         verbose_name = "estação"
         verbose_name_plural = "estações"
+        # Só abre a página da estação (spec 03); não dá acesso a model no admin.
+        permissions = [("operar_estacao", "Pode operar a página da estação")]
 
     def __str__(self):
         return self.nome
