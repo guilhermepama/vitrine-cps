@@ -26,7 +26,13 @@
       var qr = document.getElementById("qr");
       var intervalo = Number(qr.dataset.intervalo) * 1000;
       var RETENTATIVA = 5000;
+      var PRAZO_FETCH = 10000;
+      // O QR vale 90 s a partir do desenho (tolerância do servidor).
+      var VALIDADE = 90000;
       var agendado = null;
+      var emCurso = false;
+      var recarregando = false;
+      var ultimoDesenho = Date.now();
       function agendar(espera) {
         clearTimeout(agendado);
         agendado = setTimeout(renovar, espera);
@@ -36,33 +42,56 @@
         qr.innerHTML = "";
         if (recarregar) {
           // Sessão caiu, permissão retirada ou estação desativada: o reload
-          // leva ao login ou ao 404.
+          // leva ao login ou ao 404. Não renova mais até lá.
+          recarregando = true;
           clearTimeout(agendado);
           setTimeout(function () { window.location.reload(); }, 3000);
         } else {
-          // Rede oscilou ou erro passageiro do servidor: tenta de novo sem
-          // recarregar, para não parar numa página de erro do navegador.
+          // Rede oscilou, fetch passou do prazo ou erro passageiro do
+          // servidor: tenta de novo sem recarregar, para não parar numa
+          // página de erro do navegador.
           agendar(RETENTATIVA);
         }
       }
       function renovar() {
+        // Uma renovação por vez: o visibilitychange não dispara outra em
+        // paralelo, e respostas fora de ordem não trocam o QR.
+        if (emCurso || recarregando) { return; }
+        clearTimeout(agendado);
+        emCurso = true;
+        // Rede travada sem erro (Wi-Fi sem rota): o abort cai no catch.
+        var controle = new AbortController();
+        var prazo = setTimeout(function () { controle.abort(); }, PRAZO_FETCH);
         // redirect manual: se a sessão caiu, o login não entra no lugar do QR.
-        fetch(qr.dataset.renovar, { credentials: "same-origin", cache: "no-store", redirect: "manual" })
+        fetch(qr.dataset.renovar, { credentials: "same-origin", cache: "no-store", redirect: "manual", signal: controle.signal })
           .then(function (resposta) {
             if (resposta.ok) {
               return resposta.text().then(function (svg) {
                 qr.innerHTML = svg;
+                ultimoDesenho = Date.now();
                 agendar(intervalo);
               });
             }
             var s = resposta.status;
             falhou(resposta.type === "opaqueredirect" || (s >= 300 && s < 400) || s === 401 || s === 403 || s === 404);
           })
-          .catch(function () { falhou(false); });
+          .catch(function () { falhou(false); })
+          .then(function () {
+            clearTimeout(prazo);
+            emCurso = false;
+          });
       }
+      // Rede de segurança: sem desenho bem-sucedido há 90 s, o QR já expirou.
+      function vigiar() {
+        if (Date.now() - ultimoDesenho >= VALIDADE) { qr.innerHTML = ""; }
+      }
+      setInterval(vigiar, 1000);
       // Aba oculta atrasa os timers: ao voltar a ficar visível, renova na hora.
       document.addEventListener("visibilitychange", function () {
-        if (document.visibilityState === "visible") { renovar(); }
+        if (document.visibilityState === "visible") {
+          vigiar();
+          renovar();
+        }
       });
       agendar(intervalo);
     })();
