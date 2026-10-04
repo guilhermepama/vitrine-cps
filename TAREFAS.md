@@ -16,12 +16,15 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
   testes. Maior que isso, fatie (ex: models → admin → telas).
 - PR aprovado pelo coordenador antes do merge (guardrail 18). PRs do
   próprio coordenador entram com o CI verde e a aprovação do Renan
-  (ADR-010). Sem ela, só nos casos da ADR-010 (24h sem resposta — 12h de
-  18/10 a 29/10 — ou correção urgente), com
-  `Merge sem aprovação (ADR-010): …` no PR e revisão do Renan em até 48h.
-- **Ordem de todo PR**: CI verde → parecer do `/revisar-pr` → atualizar
-  com a `main`, se preciso → aprovação → squash. Atualize **antes** de
-  pedir aprovação: cada push descarta a aprovação.
+  (ADR-010). Sem ela, só nos casos da ADR-010: 24h sem resposta (12h de
+  18/10 a 29/10) **e** o PR travando outro trabalho, ou correção urgente —
+  nunca em PR que muda guardrails, ADRs ou o processo de aprovação. O
+  motivo vai no PR com `Merge sem aprovação (ADR-010): …`, e o Renan
+  revisa em até 48h. Detalhes na ADR-010.
+- **Ordem de todo PR**: CI verde → parecer do `/revisar-pr` (postado pelo
+  coordenador) → atualizar com a `main`, se preciso → aprovação → squash.
+  Atualize **antes** de pedir aprovação: no seu PR, cada push descarta a
+  aprovação.
 - Status da tarefa vai na **descrição do PR**. `docs/03-estado.md` é
   atualizado só pelo coordenador.
 - Branch desatualizada com a `main` ("out-of-date") é normal depois de
