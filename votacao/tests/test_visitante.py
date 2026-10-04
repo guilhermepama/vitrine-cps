@@ -32,6 +32,7 @@ from django.test import Client
 
 from cadastro.tests import fabricas as cadastro
 from votacao import views_visitante
+from votacao.liberacao import cadastro_valido as _cadastro_valido_real
 from votacao.liberacao import COOKIE_CADASTRO, valor_do_cookie
 from votacao.models import Visitante
 from votacao.servicos import abrir_votacao, edicao_em_votacao, encerrar_votacao
@@ -131,6 +132,47 @@ def test_get_com_cadastro_valido_vai_para_a_cedula(client, evento):
     assert resposta["Location"] == "/votar"
     assert b"<form" not in resposta.content
     assert Visitante.objects.count() == 0
+
+
+# Decisão 3 do PR #33: POST com cadastro já válido vai para a cédula, sem gravar.
+def test_post_com_cadastro_valido_vai_para_a_cedula_sem_gravar(client, evento):
+    fabricas.visitante(evento)
+    valor = valor_do_cookie(evento)
+    client.cookies[COOKIE_CADASTRO] = valor
+    resposta = _postar(client, nome="Outra Pessoa")
+    assert resposta.status_code == 302
+    assert resposta["Location"] == "/votar"
+    assert Visitante.objects.count() == 1
+    assert COOKIE_CADASTRO not in resposta.cookies  # o cookie não é regravado
+    assert client.cookies[COOKIE_CADASTRO].value == valor
+
+
+def test_post_com_cadastro_valido_e_formulario_invalido_devolve_o_formulario(client, evento):
+    """A validação vem antes: o redirect não pula a matriz (G12)."""
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(evento)
+    _recusado(_postar(client, nome="A"))
+
+
+def test_post_confere_o_cadastro_dentro_da_transacao_com_a_edicao_travada(client, evento):
+    vistos = []
+
+    def espiar(request, edicao):
+        vistos.append(connection.in_atomic_block)
+        return _cadastro_valido_real(request, edicao)
+
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(evento)
+    with (
+        mock.patch.object(views_visitante, "edicao_em_votacao", wraps=edicao_em_votacao) as trava,
+        mock.patch.object(views_visitante, "cadastro_valido", side_effect=espiar),
+    ):
+        assert _postar(client).status_code == 302
+    trava.assert_called_once_with(travar=True)
+    assert vistos == [True]
+
+
+def test_post_com_cadastro_do_ensaio_grava_novo_registro(client, evento):
+    client.cookies[COOKIE_CADASTRO] = valor_do_cookie(_ensaio())
+    assert _aceito(_postar(client)).edicao == evento
 
 
 def test_get_com_cookie_adulterado_ou_do_ensaio_mostra_formulario(client):
@@ -358,9 +400,10 @@ def test_isolamento_ensaio_e_evento():
     assert edicoes == {"No Ensaio": ensaio.pk, "Ana Souza": ensaio.pk, "No Evento": evento.pk}
 
 
-def test_ids_de_visitante_sao_uuid_v4(client, evento):
-    _postar(client, nome="Primeiro")
-    _postar(client, nome="Segundo")
+def test_ids_de_visitante_sao_uuid_v4(evento):
+    # Dois visitantes, dois navegadores: o mesmo navegador já cadastrado não grava de novo.
+    _postar(Client(), nome="Primeiro")
+    _postar(Client(), nome="Segundo")
     ids = list(Visitante.objects.values_list("id", flat=True))
     assert len(ids) == 2
     assert all(isinstance(i, uuid.UUID) and i.version == 4 for i in ids)
