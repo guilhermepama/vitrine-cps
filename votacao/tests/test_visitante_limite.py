@@ -10,6 +10,8 @@ Os testes pré-carregam o contador; nunca desligam o limite (G7).
 """
 
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 from unittest import mock
 
@@ -24,7 +26,7 @@ from cadastro.seguranca import chave_ip
 from cadastro.tests import fabricas as cadastro
 from votacao import limite, views_visitante
 from votacao.models import Visitante
-from votacao.servicos import abrir_votacao, edicao_em_votacao
+from votacao.servicos import abrir_votacao, edicao_em_votacao, encerrar_votacao
 
 pytestmark = pytest.mark.django_db
 
@@ -90,6 +92,24 @@ def test_recusa_pelo_limite_nao_trava_a_edicao(evento):
     assert Visitante.objects.count() == 0
 
 
+def test_recusa_dentro_da_trava_quando_o_teto_chega_depois_da_pre_checagem(evento):
+    """Outro envio completou o teto entre a leitura sem trava e a trava: a
+    contagem de dentro recusa, com a mesma resposta, nada gravado."""
+    _pre_carregar(300)
+    with mock.patch.object(views_visitante, "cadastro_no_teto", return_value=False):
+        recusa = _celular().post(ROTA, DADOS)
+    assert recusa.status_code == 400
+    assert MENSAGEM in recusa.content.decode()
+    assert Visitante.objects.count() == 0
+    assert _contador() == (300, AGORA + 600)
+
+
+def test_sem_edicao_em_votacao_nao_gasta_vaga(evento):
+    encerrar_votacao(evento.pk)
+    assert _celular().post(ROTA, DADOS).status_code == 400  # "QR expirado"
+    assert _contador() is None
+
+
 def test_corpo_da_recusa_e_o_do_formulario_invalido(evento):
     """Nada revela que foi o limite: mesmo formulário, mesma mensagem, mesmos
     campos de volta (o consentimento volta desmarcado nos dois)."""
@@ -144,9 +164,32 @@ def test_ip_vem_do_cabecalho_configurado(settings, evento):
 
 
 def test_cadastro_ja_valido_tambem_conta(evento):
-    """O limite vem antes da trava; quem reenvia com cadastro válido gasta uma vaga."""
+    """A contagem vem logo depois da trava, antes de conferir o cadastro:
+    quem reenvia com cadastro válido gasta uma vaga."""
     celular = _celular()
     assert celular.post(ROTA, DADOS).status_code == 302
     assert celular.post(ROTA, DADOS).status_code == 302
     assert Visitante.objects.count() == 1
     assert _contador() == (2, AGORA + 600)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_rajada_simultanea_nunca_passa_do_teto(evento):
+    """Contador em 295 e 12 envios simultâneos do mesmo IP: exatamente 5
+    passam. A contagem que vale é a de dentro da trava da Edicao."""
+    _pre_carregar(295)
+    n = 12
+    barreira = threading.Barrier(n)
+
+    def enviar(_):
+        try:
+            barreira.wait(timeout=10)
+            return _celular().post(ROTA, DADOS).status_code
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=n) as executor:
+        status = list(executor.map(enviar, range(n)))
+    assert (status.count(302), status.count(400)) == (5, n - 5)
+    assert Visitante.objects.count() == 5
+    assert _contador() == (300, AGORA + 600)

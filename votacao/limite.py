@@ -14,9 +14,10 @@ do IP do Wi-Fi do evento zera 10 min depois da primeira emissão, não depois
 da última. Quem chama trava a linha da `Edicao` antes (`/entrar`): é essa
 trava que impede duas emissões simultâneas de lerem a mesma contagem.
 
-O cadastro tem contador próprio por IP, com o mesmo teto, conferido antes da
-trava (pedido do coordenador): sob rajada simultânea pode passar um pouco do
-teto, porque duas requisições podem ler a mesma contagem.
+O cadastro tem contador próprio por IP, com o mesmo teto, em dois passos:
+uma leitura sem trava antes da transação recusa quem já está no teto (a
+enxurrada não encosta na `Edicao`), e a contagem que vale acontece com a
+`Edicao` travada, como no `/entrar` — teto exato também sob rajada.
 """
 
 from django.core.cache import caches
@@ -71,8 +72,17 @@ def liberar(request, estacao_id, ts):
     )
 
 
+def cadastro_no_teto(request):
+    """Só lê, sem contar nem travar: True se o IP já chegou ao teto do cadastro."""
+    valor = _ler(caches["default"], chave_do_ip_cadastro(request), assinatura.agora())
+    return valor is not None and valor[0] >= LIMITE_IP
+
+
 def liberar_cadastro(request):
-    """True se o IP ainda cabe no limite do cadastro, e então conta o envio."""
+    """True se o IP ainda cabe no limite do cadastro, e então conta o envio.
+
+    Chamar com a linha da `Edicao` travada: é o que torna a contagem exata.
+    """
     return _liberar([(chave_do_ip_cadastro(request), LIMITE_IP, EXPIRA_IP)])
 
 

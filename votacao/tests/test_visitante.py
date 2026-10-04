@@ -25,10 +25,10 @@ from unittest import mock
 
 import pytest
 from django.contrib.sessions.models import Session
+from django.core.cache import caches
 from django.core.management import call_command
 from django.core.signing import Signer
 from django.db import connection
-from django.core.cache import caches
 from django.test import Client, RequestFactory
 
 from cadastro.tests import fabricas as cadastro
