@@ -3,7 +3,7 @@
 import uuid
 
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F, Func, Q, Value
 
 from cadastro.models import Edicao, Projeto
@@ -27,6 +27,8 @@ class Estacao(models.Model):
         db_table = "estacoes"
         verbose_name = "estação"
         verbose_name_plural = "estações"
+        # Só abre a página da estação (spec 03); não dá acesso a model no admin.
+        permissions = [("operar_estacao", "Pode operar a página da estação")]
 
     def __str__(self):
         return self.nome
@@ -36,15 +38,26 @@ class Estacao(models.Model):
         self._verificar_travas()
 
     def save(self, *args, **kwargs):
-        self._verificar_travas()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self._verificar_travas(travar_edicao=True)
+            super().save(*args, **kwargs)
 
-    def _verificar_travas(self):
-        """Estação que já emitiu token não muda de edição: os tokens iriam junto."""
+    def _verificar_travas(self, travar_edicao=False):
+        """Estação que já emitiu token não muda de edição: os tokens iriam junto.
+
+        No save(), trava a linha da edição de origem antes de contar os tokens.
+        A emissão trava essa mesma linha antes de ler a estação, então troca de
+        edição e emissão se enfileiram: ou a troca vê o token, ou a emissão vê
+        a estação já em outra edição (corrida A8).
+        """
         if not self.pk:
             return
         antes = Estacao.objects.filter(pk=self.pk).values_list("edicao_id", flat=True).first()
-        if antes is not None and antes != self.edicao_id and self.tokens.exists():
+        if antes is None or antes == self.edicao_id:
+            return
+        if travar_edicao:
+            list(Edicao.objects.select_for_update().filter(pk=antes).values_list("pk", flat=True))
+        if self.tokens.exists():
             raise ValidationError({"edicao": "Estação que já emitiu token não muda de edição."})
 
 
@@ -105,3 +118,12 @@ class Visitante(models.Model):
         if self.consentimento_em is not None:
             self.consentimento_em = truncar_para_hora(self.consentimento_em)
         super().save(*args, **kwargs)
+
+
+class EdicaoVotacao(Edicao):
+    """Proxy sem tabela: só para as ações de abrir/encerrar no admin da votação."""
+
+    class Meta:
+        proxy = True
+        verbose_name = "votação por edição"
+        verbose_name_plural = "votação por edição"
