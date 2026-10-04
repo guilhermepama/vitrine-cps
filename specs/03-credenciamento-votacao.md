@@ -238,8 +238,8 @@ WhatsApp). Decisão do coordenador no PR #18.
   edição em votação conta nos contadores (assinatura forjada não esgota a
   janela de uma estação); conta mesmo quando devolve o mesmo token
   (re-scan). O rate limit fica **dentro** da trava da `Edicao`: fora
-  dela, requisições simultâneas liam a mesma contagem e todas passavam
-  (60 de 60 liberadas num teste com 60 threads, revisão da F4).
+  dela, requisições simultâneas leriam a mesma contagem e todas
+  passariam.
 - **Por janela de estação** (a camada que importa): no máximo **20
   tokens por janela de 45s por estação**, isto é, por estação e bloco
   de 45 s do `timestamp` (`estacao_id` e `timestamp // 45`, lidos do `w`
