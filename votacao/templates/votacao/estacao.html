@@ -27,8 +27,9 @@
       var intervalo = Number(qr.dataset.intervalo) * 1000;
       var RETENTATIVA = 5000;
       var PRAZO_FETCH = 10000;
-      // O QR vale 90 s a partir do desenho (tolerância do servidor).
-      var VALIDADE = 90000;
+      // O servidor aceita o QR por 90 s a partir do ts, mas o relógio daqui
+      // conta da chegada da resposta, que pode levar até PRAZO_FETCH: apaga antes.
+      var VALIDADE = 90000 - PRAZO_FETCH;
       var agendado = null;
       var emCurso = false;
       var recarregando = false;
@@ -81,7 +82,7 @@
             emCurso = false;
           });
       }
-      // Rede de segurança: sem desenho bem-sucedido há 90 s, o QR já expirou.
+      // Rede de segurança: sem desenho bem-sucedido há VALIDADE, o QR pode ter expirado.
       function vigiar() {
         if (Date.now() - ultimoDesenho >= VALIDADE) { qr.innerHTML = ""; }
       }
