@@ -3,7 +3,10 @@
 # a aprovação dele — aprovação entre alunos não basta.
 #
 # Os PRs do próprio coordenador entram pelo bypass do ruleset
-# main-aprovacao (só via PR, nunca push direto) e continuam presos aos
-# checks do ruleset main-checks, que não tem bypass.
+# main-aprovacao (só via PR, nunca push direto), com a aprovação do
+# Renan (@ReCroffi) por combinado — ver ADR-010. O GitHub não impõe essa
+# aprovação: ele não é code owner, para a aprovação dele não bastar nos
+# PRs dos alunos (ADR-005). Os PRs continuam presos aos checks do ruleset
+# main-checks, que não tem bypass.
 
 *  @guilhermepama
