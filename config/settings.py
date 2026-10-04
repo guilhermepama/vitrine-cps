@@ -10,7 +10,7 @@ from pathlib import Path
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
-from config.env import carregar_env
+from config.env import carregar_env, url_publica
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -62,6 +62,11 @@ DEBUG = env_bool("DJANGO_DEBUG")
 ALLOWED_HOSTS = env_lista("DJANGO_ALLOWED_HOSTS")
 if DEBUG and not ALLOWED_HOSTS:
     ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+
+# Origem pública do site, ex.: https://vitrine.exemplo.com.br (ADR-006).
+# Base dos links absolutos, como o QR das estações (spec 03): não depende do
+# Host da requisição nem do X-Forwarded-Proto. Obrigatória sem DEBUG.
+URL_PUBLICA = url_publica(env("DJANGO_URL_PUBLICA", ""), DEBUG)
 
 # Origem com esquema, ex: https://vitrine.exemplo.com.br (exigido pelo CSRF atrás de HTTPS)
 CSRF_TRUSTED_ORIGINS = env_lista("DJANGO_CSRF_TRUSTED_ORIGINS")
