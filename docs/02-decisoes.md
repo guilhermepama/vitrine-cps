@@ -227,13 +227,17 @@ Formato:
       não no build: no build ele exigiria os segredos como variável de
       build, que ficariam gravados na imagem (G3). Um container só: com
       mais de um, o `migrate` do início disputaria.
-    - **Variáveis de produção**: `DJANGO_DEBUG=0`; `DJANGO_ALLOWED_HOSTS`
-      e `DJANGO_CSRF_TRUSTED_ORIGINS` só com o domínio do evento. Não
-      incluir `localhost`: a página da estação monta a URL do QR a partir
-      do host da requisição. O healthcheck do Coolify em `/saude/` usa o
-      domínio como `Host` (com `localhost`, o padrão do painel, daria
-      400); se o painel não permitir, o healthcheck fica desligado e o
-      monitoramento é externo, pelo domínio.
+    - **Variáveis de produção**: `DJANGO_DEBUG=0`;
+      `DJANGO_URL_PUBLICA` com a origem do evento (`https://<domínio>`,
+      PR #32) — base dos links absolutos, como o QR das estações, que
+      assim não depende do `Host` da requisição nem do
+      `X-Forwarded-Proto`; `DJANGO_CSRF_TRUSTED_ORIGINS` com a mesma
+      origem; `DJANGO_ALLOWED_HOSTS` com o domínio e `localhost`, para o
+      healthcheck do Coolify em `/saude/`. O `localhost` não abre brecha:
+      o Traefik só encaminha ao container requisições com o `Host` do
+      domínio, e o container não tem porta mapeada. O healthcheck roda
+      dentro do container e precisa de `curl` ou `wget` na imagem (ou de
+      um comando em Python) — conferir no PR de deploy.
     - **Congelamento e plano B**: auto-deploy da `main` desligado do
       congelamento (27/10) até o fim do evento. O app não guarda estado
       (banco no Neon, imagens no R2): se o VPS cair em 29/10, sobe um
