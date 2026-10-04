@@ -83,6 +83,24 @@ def test_nome_em_maiusculas_tambem_vale_e_recusa_sem_estacao():
 
 
 @pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
+def test_sem_url_mede_a_url_publica_do_ambiente(live_server, settings):
+    call_command("createcachetable", verbosity=0)
+    settings.URL_PUBLICA = live_server.url
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    assert "201 1 409 0" in _medir("--niveis", "1", "--votos", "1")
+    assert Voto.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_url_publica_fora_do_allowed_hosts_tambem_e_recusada(settings):
+    settings.URL_PUBLICA = "https://outro.exemplo"
+    settings.ALLOWED_HOSTS = ["vitrine.exemplo"]
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="ALLOWED_HOSTS"):
+        _medir()
+
+
 @pytest.mark.django_db
 def test_recusa_url_de_host_fora_do_allowed_hosts(settings):
     """O banco conferido tem de ser o do ambiente medido."""

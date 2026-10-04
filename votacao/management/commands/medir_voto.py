@@ -1,4 +1,4 @@
-"""python manage.py medir_voto --url https://<ambiente> [--niveis 1,10,30] [--votos 10]
+"""python manage.py medir_voto [--url https://<ambiente>] [--niveis 1,10,30] [--votos 10]
 
 Mede a trava por voto (spec 03, "Referência temporal"; nota N3 do plano):
 simula visitantes contra a URL pública — `/entrar` → `/visitantes` → `/votar`
@@ -156,11 +156,12 @@ class Command(BaseCommand):
     help = 'Mede a latência do POST /votos sob concorrência (só na edição "pré-ensaio").'
 
     def add_arguments(self, parser):
-        parser.add_argument("--url", required=True, help="URL pública do ambiente, ex.: https://vitrine.exemplo")
+        parser.add_argument("--url", help="URL pública do ambiente (padrão: settings.URL_PUBLICA).")
         parser.add_argument("--niveis", default="1,10,30", help="Visitantes simultâneos por rodada.")
         parser.add_argument("--votos", type=int, default=10, help="Votos por visitante.")
 
     def handle(self, *args, url, niveis, votos, **options):
+        url = url or settings.URL_PUBLICA  # a origem pública deste mesmo ambiente (ADR-006)
         host = urllib.parse.urlsplit(url).hostname or ""
         if not validate_host(host, settings.ALLOWED_HOSTS):
             raise CommandError("O host do --url não está em ALLOWED_HOSTS: rode no shell do próprio ambiente.")
