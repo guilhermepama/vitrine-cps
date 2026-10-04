@@ -56,7 +56,7 @@ def _cadastrar(request):
         # Já cadastrado nesta edição (aba antiga, reenvio): cédula, sem novo
         # registro — a mesma regra do GET (decisão 3 do PR #33).
         if cadastro_valido(request, edicao):
-            return HttpResponseRedirect(ROTA_CEDULA)
+            return HttpResponseRedirect(reverse("votacao:votar"))
         Visitante.objects.create(
             nome=dados["nome"],
             email=dados["email"],
