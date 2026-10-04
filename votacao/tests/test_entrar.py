@@ -276,6 +276,7 @@ def test_forjadas_nao_contam(estacao, corpo_qr_expirado):
     forjada = {"w": f"{estacao.pk}:{AGORA}", "sig": "0" * 64}
     for _ in range(50):
         assert Client().get(ROTA, forjada, REMOTE_ADDR=IP_FICTICIO).status_code == 400
+    assert caches["default"].get(_chave_ip()) is None
     for _ in range(20):
         _emitido(_entrar(estacao.pk))
     _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado, antes=20)
@@ -299,6 +300,12 @@ def test_limite_estourado_nao_conta(estacao, corpo_qr_expirado):
     caches["default"].set(limite.chave_estacao(estacao.pk, AGORA), (20, AGORA + 150), 150)
     _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado)
     assert caches["default"].get(_chave_ip()) is None
+
+
+def test_recusa_pelo_ip_nao_conta_na_estacao(estacao, corpo_qr_expirado):
+    caches["default"].set(_chave_ip(), (300, AGORA + 600), 600)
+    _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado)
+    assert caches["default"].get(limite.chave_estacao(estacao.pk, AGORA)) is None
 
 
 @pytest.mark.django_db(transaction=True)
