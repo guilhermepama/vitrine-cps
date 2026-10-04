@@ -1,7 +1,8 @@
 # Spec — Vitrine pública e área do grupo
 
 - **Responsável**: Cleiton (@gustimmolp)
-- **Status**: rascunho (parecer do coordenador no PR #23 incorporado; aguardando nova revisão)
+- **Status**: pronta para implementar (parecer e respostas do coordenador
+  incorporados; aguardando a aprovação final no PR #23)
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto)
@@ -26,7 +27,9 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   Campos: título, resumo, descrição, componente de origem, links e equipe
   (integrantes).
 - **Imagens enviadas uma a uma**, em requisições próprias: capa e até 6
-  imagens extras, com legenda opcional, e remoção individual.
+  imagens extras, com legenda opcional, e remoção individual. Trocar a
+  capa ou remover uma extra **apaga o arquivo antigo do storage** depois
+  de confirmada a gravação.
 - Mensagem do admin (`motivo_ajustes`) exibida ao grupo quando o projeto
   está em `ajustes`.
 - Lista "o que falta para a publicação" na página de edição, vinda de
@@ -40,13 +43,16 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   projetos `publicado`.
 - Meta tags Open Graph e Twitter Card — a prévia no WhatsApp é o canal de
   divulgação.
-- Convite para o evento, com data vinda da `Edicao` e **local e horário em
-  texto fixo no template** (nesta edição, sem campo novo), e um botão que
-  leva a uma página de explicação do voto presencial, `/como-votar/`
-  (guardrail 8).
-- Templates das páginas desta spec, herdando o **`base.html` do projeto**
-  (criado pelo coordenador, na pasta `templates/` da raiz, com as variáveis
-  de CSS e o logo SVG em `static/` do projeto), mobile-first.
+- Convite para o evento, com a data vinda da `Edicao` e o **texto fixo no
+  template** (nesta edição, sem campo novo): "às **19h**, no campus da
+  **Fatec Olímpia** — Av. Governador Adhemar Pereira de Barros, km 3,
+  Recanto Bela Vista, Olímpia/SP". Um botão leva a uma página de explicação
+  do voto presencial, `/como-votar/` (guardrail 8), com o nome de rota
+  `vitrine:como_votar` — a spec 03 redireciona por esse nome.
+- Templates das páginas desta spec, herdando o **`templates/base.html` do
+  projeto** (blocos `titulo`, `meta` e `conteudo`; criado pelo coordenador,
+  com as variáveis de CSS e o logo SVG em `static/` do projeto),
+  mobile-first.
 
 ## Fora de escopo
 - Models, migrations, admin, importação da lista, moderação, regerar e
@@ -145,6 +151,12 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   formulário preenchido. Em `ajustes`, mostra o `motivo_ajustes` no topo.
   Projeto da Etec mostra a orientação "não envie fotos de pessoas" (a
   conferência é humana, na moderação — spec 01).
+- **Texto não salvo × imagens.** O envio de imagem é outra requisição e
+  recarrega a página: o que foi digitado e não foi salvo se perde. Para não
+  haver surpresa, a página mostra, **junto dos campos de imagem**, o aviso
+  visível "Salve o texto antes de enviar imagens: o envio recarrega a
+  página e o que não foi salvo se perde." (Não há rascunho automático nem
+  JavaScript para isso nesta edição.)
 - Quando o grupo clica em **"Salvar"** com formulário válido: grava os
   campos e os integrantes (1–10) numa transação e **mantém o status**;
   mostra "Rascunho salvo" e a lista "o que falta". Salvar com campos
@@ -183,19 +195,33 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - `POST .../imagem/` recebe **um** arquivo (`arquivo`), o `tipo` (`capa` ou
   `extra`) e a `legenda` opcional. Nenhuma requisição leva mais de uma
   imagem, então o corpo máximo é o de uma imagem de 3 MB mais o formulário.
-- `tipo=capa` grava (ou substitui) `Projeto.capa`. O arquivo antigo pode
-  ficar órfão no bucket (aceito: não há limpeza nesta edição). `tipo=extra`
-  cria uma `ImagemProjeto`; a 7ª extra é recusada.
+- Cada upload ou remoção roda numa transação que **trava a linha do
+  `Projeto`** (`select_for_update`) **antes** de contar as extras. Assim,
+  dois uploads simultâneos com 5 extras gravam só um (o limite de 6 vale
+  mesmo sob concorrência).
+- `tipo=capa` grava (ou substitui) `Projeto.capa`. `tipo=extra` cria uma
+  `ImagemProjeto`; a 7ª extra é recusada.
 - `POST .../imagem/<id>/remover/` remove uma imagem extra **do próprio
   projeto**; `<id>` de outro projeto responde 404.
+- **Arquivo antigo apagado do bucket.** Ao trocar a capa ou remover uma
+  extra, o arquivo anterior é apagado do storage por
+  `transaction.on_commit` — só **depois** de a gravação ser confirmada. Se a
+  transação falhar e for desfeita, o arquivo antigo permanece (o projeto
+  ainda aponta para ele). Falha ao apagar no storage não desfaz a gravação:
+  é registrada em log, sem token nem RA, e a resposta segue normal. O
+  motivo: o bucket é público (domínio próprio, ADR-006), então um arquivo
+  que ficasse órfão — por exemplo, a foto de aluno menor da Etec recusada
+  na moderação — continuaria acessível por quem tivesse a URL.
 - Tipo real, 3 MB e nome gerado pelo servidor vêm de `cadastro.imagens`
   (`validar_imagem`, G14); o limite de 6 vem de
   `ImagemProjeto.MAXIMO_POR_PROJETO` e o de 10 integrantes de
   `Integrante.MAXIMO_POR_PROJETO`. O arquivo original nunca é usado como
   nome. Imagem inválida ou grande demais → 400, nada gravado.
 - As mesmas regras de "editável" valem: fora dela, 403 e nada é gravado.
-- O servidor da hospedagem precisa aceitar corpo de pelo menos 4 MB por
-  requisição (ver pergunta 1).
+- O servidor aceita corpo de **pelo menos 4 MB por requisição** (critério
+  eliminatório da escolha do servidor, ADR-006): uma imagem de até 3 MB mais
+  o formulário. Confirmado no ambiente publicado (ver "Dependências do
+  coordenador").
 
 ### Página pública (`/projeto/<slug>/`)
 - Quando o `slug` não existe **ou** o projeto não está `publicado`, o sistema
@@ -211,10 +237,11 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Meta tags: `og:title` (título), `og:description` (resumo), `og:image`
   (capa, URL absoluta `https`), `og:url` (URL canônica absoluta),
   `og:type=website`, `og:locale=pt_BR`, `twitter:card=summary_large_image`.
-  `<title>`: "Título — Vitrine CPS".
-- Bloco de convite: "Conheça este projeto no evento — [data da `Edicao`],
-  [local e horário em texto fixo]" e botão "Quero votar" que aponta **só**
-  para `/como-votar/`.
+  `<title>`: "Título — Vitrine CPS". Os links absolutos usam
+  `settings.URL_PUBLICA` (`DJANGO_URL_PUBLICA`), não o `Host` da requisição.
+- Bloco de convite: "Conheça este projeto no evento — [data da `Edicao`]
+  às 19h, no campus da Fatec Olímpia — [endereço]" e botão "Quero votar"
+  que aponta **só** para `/como-votar/` (`vitrine:como_votar`).
 - `/como-votar/`: página estática que explica que a votação é presencial,
   como funciona o credenciamento por QR nas estações e que o link público
   não vota. Nenhum formulário, nenhum botão de voto.
@@ -256,26 +283,30 @@ testada sem HTTP.
 ## Endpoints / telas
 | Método | Rota | Entrada | Saída | Erros |
 |---|---|---|---|---|
-| GET | `/projeto/<slug>/` | — | HTML da vitrine + Open Graph | 404 (inexistente ou não publicado) |
-| GET | `/como-votar/` | — | HTML estático | — |
-| GET | `/grupo/` | — | formulário de RA | — |
-| POST | `/grupo/` | `ra` | link de edição (1 vez) ou resposta genérica | 400 formato inválido; 429 rate limit |
-| GET | `/grupo/editar/<token>/` | — | formulário, ou leitura se não editável | 404 token inválido |
-| POST | `/grupo/editar/<token>/` | campos + integrantes + `acao` (`salvar` ou `enviar`) | confirmação | 400 validação ou pendências; 403 não editável; 404 token inválido |
-| POST | `/grupo/editar/<token>/imagem/` | `arquivo` (1), `tipo`, `legenda?` (multipart) | página de edição atualizada | 400 imagem inválida ou 7ª extra; 403 não editável; 404 token inválido |
-| POST | `/grupo/editar/<token>/imagem/<id>/remover/` | — | página de edição atualizada | 403 não editável; 404 token ou imagem inválidos |
+| Nome | Método | Rota | Entrada | Saída | Erros |
+|---|---|---|---|---|---|
+| `vitrine:projeto` | GET | `/projeto/<slug>/` | — | HTML da vitrine + Open Graph | 404 (inexistente ou não publicado) |
+| `vitrine:como_votar` | GET | `/como-votar/` | — | HTML estático | — |
+| `vitrine:grupo` | GET | `/grupo/` | — | formulário de RA | — |
+| `vitrine:grupo` | POST | `/grupo/` | `ra` | link de edição (1 vez) ou resposta genérica | 400 formato inválido; 429 rate limit |
+| `vitrine:editar` | GET | `/grupo/editar/<token>/` | — | formulário, ou leitura se não editável | 404 token inválido |
+| `vitrine:editar` | POST | `/grupo/editar/<token>/` | campos + integrantes + `acao` (`salvar` ou `enviar`) | confirmação | 400 validação ou pendências; 403 não editável; 404 token inválido |
+| `vitrine:imagem` | POST | `/grupo/editar/<token>/imagem/` | `arquivo` (1), `tipo`, `legenda?` (multipart) | página de edição atualizada | 400 imagem inválida ou 7ª extra; 403 não editável; 404 token inválido |
+| `vitrine:imagem_remover` | POST | `/grupo/editar/<token>/imagem/<id>/remover/` | — | página de edição atualizada | 403 não editável; 404 token ou imagem inválidos |
 
 Rotas em `vitrine/urls.py` (`app_name = "vitrine"`); o include raiz já
 existe. CSRF ligado nos POSTs. Templates em `vitrine/templates/vitrine/`,
-herdando o `base.html` do projeto.
+herdando o `templates/base.html` do projeto.
 
 ## Guardrails aplicáveis
-3 (por analogia: nenhum segredo no código ou na resposta), 7 (por analogia:
-rate limit na reivindicação), 8, 11 (por analogia: RA, token e IP nunca em
-log, resposta de erro ou página pública), 12, 13, 14, 17.
+3 (por analogia: nenhum segredo no código ou na resposta), 5 (por analogia:
+resposta genérica na reivindicação, sem revelar qual regra barrou), 7 (por
+analogia: rate limit na reivindicação), 8, 11 (por analogia: RA, token e IP
+nunca em log, resposta de erro ou página pública), 12, 13, 14, 17.
 
-Reler antes de implementar: 8 (nenhum caminho de voto na vitrine), 12
-(validar toda entrada, erro genérico), 13 (só ORM) e 14 (upload).
+Reler antes de implementar: 5 (resposta genérica), 8 (nenhum caminho de voto
+na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
+(upload).
 
 ## Critérios de aceite
 
@@ -305,9 +336,14 @@ Reler antes de implementar: 8 (nenhum caminho de voto na vitrine), 12
 - [ ] Link com `http://` ou `javascript:` → recusado; integrante de projeto da Etec com duas palavras → recusado; o mesmo nome em projeto da Fatec → aceito; 11º integrante → recusado
 - [ ] Nenhum `update()` ou `bulk_update()` em `status`, `slug` ou `turma` no app `vitrine` (revisão de código)
 - [ ] Páginas do grupo respondem com `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e `Cache-Control: no-store`
+- [ ] A página de edição mostra, junto dos campos de imagem, o aviso "Salve o texto antes de enviar imagens" (teste de conteúdo)
 
 **Imagens**
 - [ ] Capa válida grava `Projeto.capa` e substitui a anterior; extra válida cria `ImagemProjeto`
+- [ ] Trocar a capa → o arquivo antigo **não existe mais no storage** depois do commit; remover uma extra → idem
+- [ ] Se a transação do upload falhar e for desfeita, o arquivo antigo **continua** no storage e no projeto
+- [ ] Falha do storage ao apagar o arquivo antigo não desfaz a gravação nem derruba a resposta, e fica registrada em log sem token nem RA
+- [ ] Com 5 extras, 2 uploads **simultâneos** → só um grava; o projeto termina com 6 extras (teste de concorrência)
 - [ ] 7ª imagem extra, arquivo `.jpg` que não é imagem, GIF e imagem > 3 MB → recusados (400), nada gravado
 - [ ] PNG renomeado para `.jpg` → aceito e gravado como `.png`
 - [ ] Nome gravado = `projetos/<uuid>.<ext>`, sem o nome original
@@ -318,13 +354,16 @@ Reler antes de implementar: 8 (nenhum caminho de voto na vitrine), 12
 **Vitrine pública**
 - [ ] Projeto `publicado` → 200 com título, resumo, descrição, equipe, links e galeria
 - [ ] Slug inexistente e projeto `em_revisao`, `ajustes` ou `pre_cadastrado` → 404 idêntico
-- [ ] HTML contém `og:title`, `og:description`, `og:image` (URL absoluta https), `og:url` e `twitter:card`
+- [ ] HTML contém `og:title`, `og:description`, `og:image` (URL absoluta https), `og:url` e `twitter:card`; os links absolutos usam `settings.URL_PUBLICA`, não o `Host` da requisição
+- [ ] `reverse("vitrine:como_votar")` resolve para `/como-votar/` e a página responde 200
+- [ ] O convite mostra a data da `Edicao`, "19h" e o endereço do campus da Fatec Olímpia
 - [ ] Descrição com `<script>` aparece escapada, sem executar
 - [ ] O HTML da vitrine e de `/como-votar/` não contém nenhum link ou formulário para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (teste automático, G8)
 - [ ] O HTML não contém `representante_nome`, RA nem token
 - [ ] Projeto publicado numa edição anterior continua acessível
 - [ ] Página legível em 360 px de largura, sem rolagem horizontal
 - [ ] **Manual, antes de 13/10**: o link de um projeto com capa de ~3 MB, colado numa conversa do WhatsApp, mostra a prévia com a imagem (ver "Riscos")
+- [ ] **Manual, no ambiente publicado (deploy, até 08/10)**: o upload de uma imagem de 3 MB funciona (o servidor aceita pelo menos 4 MB por requisição)
 - [ ] Testes do caminho crítico passando (`pytest`), CI verde
 
 **Fatiamento sugerido (PRs até ~300 linhas, sem migrations e testes)**
@@ -341,38 +380,56 @@ Reler antes de implementar: 8 (nenhum caminho de voto na vitrine), 12
   nesse caso vira proposta em `docs/02-decisoes.md` e alteração coordenada
   com a spec 01.
 - **Prazo apertado**: as fatias 1 a 3 vencem em 10/10 e a 4 depende do
-  `base.html` do coordenador.
+  `templates/base.html` do coordenador.
+- **`base.html` e o CI das fatias 1 a 3**: os testes dessas fatias
+  renderizam templates que herdam `base.html`. Sem o arquivo na `main`, o
+  CI falharia (`TemplateDoesNotExist`). Ver pergunta 1.
+
+## Dependências do coordenador (com data)
+- **Até 08/10 — servidor aceita pelo menos 4 MB por requisição.** Já é
+  critério eliminatório na ADR-006 (o Traefik do Coolify não limita o corpo
+  por padrão); confirmar no deploy com um upload de imagem de 3 MB.
+- **Antes do PR 4 (12/10) — `templates/base.html`** com os blocos `titulo`,
+  `meta` e `conteudo`, as variáveis CSS e o logo SVG em `static/` do
+  projeto. Até lá, as fatias 1 a 3 usam um stub local **fora dos PRs**.
 
 ## Perguntas em aberto
-Dúvidas para o coordenador, **antes** de implementar:
+1. **`base.html` antes do PR 1.** Como os testes das fatias 1 a 3 (10/10)
+   renderizam as páginas, o `templates/base.html` precisa existir na `main`
+   antes delas, mesmo que mínimo. O coordenador pode colocar uma versão
+   mínima (só os três blocos) na `main` até 07/10, e a identidade visual
+   entra depois, sem mudar o nome nem os blocos? Se preferir, o PR 1 leva
+   esse arquivo mínimo e o coordenador o substitui depois.
 
-1. **Corpo da requisição no servidor.** O desenho agora envia uma imagem
-   por requisição (≤ 3 MB, com o formulário perto de 3,5 MB). Ainda assim
-   o padrão do nginx (1 MB) recusaria. O critério de escolha do servidor
-   (ADR-006, até 08/10) pode exigir aceitar pelo menos **4 MB** por
-   requisição?
-2. **Texto fixo do convite.** Qual o local e o horário exatos do evento
-   para o template?
-3. **`base.html` do projeto.** Caminho e blocos que as minhas páginas devem
-   usar (proposta: `templates/base.html`, com os blocos `titulo`, `meta`
-   e `conteudo`). Enquanto não existir, desenvolvo contra um stub local que
-   não vai no PR.
-
-### Respondidas pelo parecer do coordenador (PR #23)
+### Respondidas pelo coordenador (PR #23)
 - **Editar em `em_revisao`**: não. "Salvar" mantém o status; "Enviar para
   revisão" só sem pendências; em `em_revisao` a tela é somente leitura.
 - **Logs**: `/grupo/editar/` entra no critério do servidor; o token fica na
-  URL, sem troca por sessão.
+  URL, sem troca por sessão. A ADR-006 já registra: sem log de acesso no
+  gunicorn nem no Traefik.
 - **Rate limit**: 50 falhas/10 min por IP; global sobe de 200 para
-  1.000/h; IPv6 pelo /64.
-- **Local e horário**: texto fixo no template, sem campo novo na `Edicao`.
-- **Identidade visual e `base.html`**: do projeto (variáveis CSS + logo SVG
-  em `static/` da raiz); o coordenador cria a estrutura.
-- **`/projetos/`**: fora de 12/10.
-- **Upload de ~21 MB**: mudar o desenho (imagens uma a uma — acima).
+  1.000/h; IPv6 pelo /64. O IP real vem de `X-Real-Ip`
+  (`DJANGO_IP_HEADER`, ADR-006).
+- **Local e horário**: texto fixo no template, sem campo novo na `Edicao`:
+  "às 19h, no campus da Fatec Olímpia — Av. Governador Adhemar Pereira de
+  Barros, km 3, Recanto Bela Vista, Olímpia/SP".
+- **Identidade visual e `base.html`**: do projeto (`templates/base.html`,
+  blocos `titulo`, `meta` e `conteudo`; variáveis CSS + logo SVG em
+  `static/` da raiz); o coordenador cria a estrutura.
+- **`/projetos/`**: fora de 12/10; fatia pequena depois de 13/10, se houver
+  folga.
+- **Upload de ~21 MB**: mudar o desenho (imagens uma a uma) e exigir 4 MB
+  por requisição no servidor.
 - **Chave do IP**: usar `ip_do_cliente(request)` e `chave_ip(ip)` de
   `cadastro/seguranca.py`; o cabeçalho é `DJANGO_IP_HEADER`.
 - **Reivindicação depois do prazo**: recusar com a resposta genérica.
+- **Nome da rota**: `/como-votar/` com `name="como_votar"`
+  (`vitrine:como_votar`), porque a spec 03 redireciona por esse nome.
+- **Arquivo antigo no bucket**: apagar com `transaction.on_commit` ao
+  trocar a capa ou remover uma extra (nada de "órfão aceito").
+- **Texto não salvo × upload**: aviso visível junto dos campos de imagem.
+- **Limite de 6 extras sob concorrência**: travar a linha do `Projeto`
+  antes de contar.
 
 ### Já respondidas pela spec 01 (e pelo código na `main`)
 - `cadastro.seguranca` já tem `hash_token(token)`, `token_confere` e
