@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cadastro do visitante — Vitrine CPS</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; color: #111; background: #fff; }
+    main { max-width: 32rem; margin: 0 auto; padding: 1.5rem 1rem; }
+    label { display: block; margin-top: 1rem; }
+    input[type=text], input[type=email], input[type=tel] { display: block; width: 100%; box-sizing: border-box; padding: .6rem; font-size: 1rem; margin-top: .25rem; }
+    .consentimento { display: flex; gap: .5rem; align-items: flex-start; }
+    .erro { padding: .75rem; background: #fde8e8; border: 1px solid #c00; }
+    button { margin-top: 1.5rem; width: 100%; padding: .8rem; font-size: 1.1rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Cadastro para votar</h1>
+    {# Mensagem genérica: não diz qual campo nem qual regra barrou (G12). #}
+    {% if mensagem %}<p class="erro" role="alert">{{ mensagem }}</p>{% endif %}
+    <form method="post" action="{% url 'votacao:visitantes' %}">
+      {% csrf_token %}
+      <label>Nome
+        <input type="text" name="nome" required maxlength="120" autocomplete="name" value="{{ form.nome.value|default_if_none:'' }}">
+      </label>
+      <label>E-mail
+        <input type="email" name="email" required maxlength="254" autocomplete="email" value="{{ form.email.value|default_if_none:'' }}">
+      </label>
+      <label>Telefone (opcional)
+        <input type="tel" name="telefone" maxlength="20" autocomplete="tel" placeholder="(17) 99999-9999" value="{{ form.telefone.value|default_if_none:'' }}">
+      </label>
+      {# Texto provisório da spec 03; o final vem da coordenação até 20/10 (C11). #}
+      <label class="consentimento">
+        <input type="checkbox" name="consentimento" required>
+        <span>Aceito que o Centro Paula Souza (Fatec e Etec Olímpia) use meu nome, e-mail e telefone para enviar comunicações sobre eventos e cursos.</span>
+      </label>
+      <button type="submit">Continuar para a votação</button>
+    </form>
+  </main>
+</body>
+</html>
