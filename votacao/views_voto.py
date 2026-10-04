@@ -67,6 +67,9 @@ def votar(request):
         .order_by("turma__curso__sigla", "turma__tipo_periodo", "turma__numero_periodo", "turma__pk", "titulo")
     )
     contexto = {
+        # Sempre presente: variável ausente gera log DEBUG de django.template com o
+        # contexto inteiro (inclusive os votos do token), o que o P2 não permite.
+        "encerrada": False,
         "projetos": projetos,
         "votados": set(token.votos.values_list("projeto_id", flat=True)),
     }

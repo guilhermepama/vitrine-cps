@@ -12,6 +12,7 @@ Critérios de aceite fechados aqui (citados em cada bloco):
 - Sem edição em votação: só o aviso "Votação encerrada".
 """
 
+import unittest
 import uuid
 
 import pytest
@@ -66,6 +67,14 @@ def test_js_marca_votado_so_no_201_e_recarrega_no_409(client, cenario):
     assert "marcar(botao)" in ramo_201
     assert "location.reload()" in ramo_409
     assert "marcar(" not in ramo_409[: ramo_409.index("return;")]
+
+
+def test_cedula_nao_gera_log_de_template_nem_em_debug(client, cenario):
+    """Variável ausente no template vira log DEBUG de django.template com o
+    contexto inteiro (inclusive os votos do token) — P2."""
+    fabricas.voto(cenario.token, cenario.publicado)
+    with unittest.TestCase().assertNoLogs("django.template", level="DEBUG"):
+        assert cenario.votante(client).get(ROTA).status_code == 200
 
 
 def test_projeto_votado_aparece_marcado_e_desabilitado(client, cenario):
