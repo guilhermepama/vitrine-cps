@@ -9,6 +9,7 @@ estação inexistente.
 from urllib.parse import urlencode
 
 import qrcode
+from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
@@ -47,8 +48,8 @@ def svg_do_qr(url):
 
 
 def _svg_da_estacao(request, estacao):
-    # TODO(#32): trocar build_absolute_uri por settings.URL_PUBLICA quando o #32 entrar.
-    entrar = request.build_absolute_uri(reverse("votacao:entrar"))
+    # Origem pública fixa (ADR-006, #32): não depende do Host nem do X-Forwarded-Proto.
+    entrar = settings.URL_PUBLICA + reverse("votacao:entrar")
     return svg_do_qr(entrar + "?" + urlencode(nova_janela(estacao.pk), safe=":"))
 
 

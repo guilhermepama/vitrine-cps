@@ -14,6 +14,7 @@ from unittest import mock
 
 import pytest
 from django.contrib.auth.models import Group, Permission, User
+from django.test import override_settings
 from django.urls import reverse
 
 from votacao.assinatura import assinar
@@ -26,6 +27,15 @@ AGORA = 1_793_000_000
 SENHA = "senha-forte-123"
 INEXISTENTE = 999_999
 MARCADOR = "MARCADOR-DO-SEGREDO-QR"  # segredo fictício
+
+
+# Origem pública de teste: o QR nunca sai com o host do request (ADR-006, #32).
+URL_PUBLICA = "https://vitrine.teste"
+
+
+@pytest.fixture(autouse=True)
+def url_publica(settings):
+    settings.URL_PUBLICA = URL_PUBLICA
 
 
 @pytest.fixture(autouse=True)
@@ -195,22 +205,30 @@ def test_staff_sem_permissao_em_estacao_inexistente_tem_o_mesmo_404(digitacao, e
 def test_operador_ve_o_qr_da_janela_assinada(operador, estacao):
     resposta = operador.get(_pagina(estacao.pk))
     assert resposta.status_code == 200
-    url = f"http://testserver/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
+    url = f"{URL_PUBLICA}/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
     assert svg_do_qr(url) in resposta.text
     assert estacao.nome in resposta.text
 
 
 @pytest.mark.parametrize("rota", [_pagina, _renovacao])
+@override_settings(URL_PUBLICA="https://vitrine.exemplo.com.br")
 def test_qr_sai_com_https_atras_do_proxy(operador, estacao, rota, settings):
+    """O QR usa a URL_PUBLICA seja qual for o Host e o X-Forwarded-Proto."""
     # Valor do config/settings.py com DEBUG desligado (produção e CI); fixado
     # aqui para o teste não depender do DJANGO_DEBUG do .env local.
     settings.SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-    # O proxy repassa o Host do visitante (sem porta); sem ele, o cliente de
-    # teste montaria o host com SERVER_PORT=80 ("testserver:80").
-    resposta = operador.get(rota(estacao.pk), HTTP_HOST="testserver", HTTP_X_FORWARDED_PROTO="https")
-    assert resposta.status_code == 200
-    url = f"https://testserver/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
-    assert svg_do_qr(url) in resposta.content.decode()
+    settings.ALLOWED_HOSTS = ["interno.coolify", "testserver"]
+    esperado = f"https://vitrine.exemplo.com.br/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
+    # Host interno e esquema http no proxy: nada disso vai para o QR.
+    for cabecalhos in (
+        {"HTTP_HOST": "interno.coolify", "HTTP_X_FORWARDED_PROTO": "http"},
+        {"HTTP_HOST": "testserver", "HTTP_X_FORWARDED_PROTO": "https"},
+        {"HTTP_HOST": "interno.coolify"},
+    ):
+        resposta = operador.get(rota(estacao.pk), **cabecalhos)
+        assert resposta.status_code == 200
+        assert svg_do_qr(esperado) in resposta.content.decode()
+        assert "interno.coolify" not in resposta.content.decode()
 
 
 def test_operador_loga_pelo_login_do_admin(client, estacao, grupo_estacao):
@@ -274,7 +292,7 @@ def test_renovacao_devolve_so_o_svg(operador, estacao):
     resposta = operador.get(_renovacao(estacao.pk))
     assert resposta.status_code == 200
     assert resposta["Content-Type"].startswith("image/svg+xml")
-    url = f"http://testserver/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
+    url = f"{URL_PUBLICA}/entrar?w={estacao.pk}:{AGORA}&sig={assinar(estacao.pk, AGORA)}"
     assert resposta.content.decode() == svg_do_qr(url)
 
 
@@ -284,7 +302,7 @@ def test_qr_muda_a_cada_45s(operador, estacao, relogio):
     relogio.return_value = AGORA + 45
     segundo = operador.get(_renovacao(estacao.pk)).content
     assert segundo != primeiro
-    url = f"http://testserver/entrar?w={estacao.pk}:{AGORA + 45}&sig={assinar(estacao.pk, AGORA + 45)}"
+    url = f"{URL_PUBLICA}/entrar?w={estacao.pk}:{AGORA + 45}&sig={assinar(estacao.pk, AGORA + 45)}"
     assert segundo.decode() == svg_do_qr(url)
 
 
