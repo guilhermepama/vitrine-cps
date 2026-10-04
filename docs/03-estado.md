@@ -72,7 +72,8 @@ em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
       (ADR-004, ADR-005 — coordenador aprova todos os PRs)
 - [x] Referência dos cursos para a modelagem (`docs/referencias/cursos.md`)
 - [x] Stack decidida (ADR-002)
-- [x] Banco: Neon; imagens: Cloudflare R2 (ADR-006); servidor pendente
+- [x] Banco: Neon; imagens: Cloudflare R2; servidor: VPS com Coolify
+      (ADR-006) — falta publicar
 - [x] Esqueleto Django na `main` com CI verde (spec 00, PR #15)
 - [x] Planilha modelo enviada às coordenações (02/10, sem coluna de turno)
 - [x] Spec 01 completa, absorvendo a 05 (PR #16); models do cadastro com
