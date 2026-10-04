@@ -21,9 +21,6 @@ from qrcode.image.svg import SvgPathImage
 from votacao.assinatura import ROTACAO_QR, nova_janela
 from votacao.models import Estacao
 
-# Rota da emissão (F4). Caminho fixo: é o que a spec define para o QR.
-ROTA_ENTRAR = "/entrar"
-
 
 def _estacao_autorizada(request, estacao_id):
     """Estação ativa ou Http404. Devolve None para anônimo (vai para o login)."""
@@ -50,8 +47,9 @@ def svg_do_qr(url):
 
 
 def _svg_da_estacao(request, estacao):
-    url = request.build_absolute_uri(ROTA_ENTRAR) + "?" + urlencode(nova_janela(estacao.pk), safe=":")
-    return svg_do_qr(url)
+    # TODO(#32): trocar build_absolute_uri por settings.URL_PUBLICA quando o #32 entrar.
+    entrar = request.build_absolute_uri(reverse("votacao:entrar"))
+    return svg_do_qr(entrar + "?" + urlencode(nova_janela(estacao.pk), safe=":"))
 
 
 # never_cache por fora: até o 405 do require_GET sai com no-store.
