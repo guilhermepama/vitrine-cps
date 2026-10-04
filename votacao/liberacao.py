@@ -11,11 +11,14 @@ from django.core.signing import BadSignature, Signer
 COOKIE_CADASTRO = "cadastro"
 VALIDADE_COOKIE = 24 * 60 * 60  # 1 dia
 
-_assinador = Signer(salt="votacao.cadastro")
+
+def _assinador():
+    # Criado a cada chamada: lê SECRET_KEY e SECRET_KEY_FALLBACKS da hora.
+    return Signer(salt="votacao.cadastro")
 
 
 def valor_do_cookie(edicao):
-    return _assinador.sign(str(edicao.pk))
+    return _assinador().sign(str(edicao.pk))
 
 
 def cadastro_valido(request, edicao):
@@ -25,7 +28,7 @@ def cadastro_valido(request, edicao):
     if edicao is None or not valor:
         return False
     try:
-        return _assinador.unsign(valor) == str(edicao.pk)
+        return _assinador().unsign(valor) == str(edicao.pk)
     except BadSignature:
         return False
 

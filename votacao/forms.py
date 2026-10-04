@@ -46,6 +46,14 @@ class VisitanteForm(forms.Form):
     telefone = TextoSemEspacoNasPontas(required=False, max_length=20)
     consentimento = forms.BooleanField(required=True)
 
+    def clean_consentimento(self):
+        # Lista de aceitos: o checkbox do template não tem value, então o
+        # navegador manda "on". Qualquer outro texto ("0", "off", "true"...)
+        # não é aceite explícito (guardrail 10).
+        if self.data.get("consentimento") != "on":
+            raise ValidationError("inválido")
+        return True
+
     def clean_telefone(self):
         valor = self.cleaned_data["telefone"]
         # Gravado só com os dígitos; vazio vira NULL.

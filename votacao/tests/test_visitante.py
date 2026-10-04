@@ -231,9 +231,24 @@ def test_telefone_aceito_gravado_so_com_digitos(client, evento, telefone, gravad
     assert _aceito(_postar(client, telefone=telefone)).telefone == gravado
 
 
-@pytest.mark.parametrize("consentimento", [None, "", "false"])
+@pytest.mark.parametrize("consentimento", [None, "", "false", "0", "off", "no", "nao", "true"])
 def test_sem_consentimento_400(client, evento, consentimento):
     _recusado(_postar(client, consentimento=consentimento))
+
+
+def test_post_invalido_nao_consulta_o_banco(client, evento, django_assert_num_queries):
+    # Validação antes de qualquer consulta (guardrail 12).
+    with django_assert_num_queries(0):
+        resposta = _postar(client, nome="A")
+    _recusado(resposta)
+
+
+def test_post_invalido_com_votacao_encerrada_devolve_o_formulario(client, evento):
+    encerrar_votacao(evento.pk)
+    resposta = _postar(client, nome="A")
+    _recusado(resposta)
+    assert "<form" in resposta.content.decode()
+    assert QR_EXPIRADO not in resposta.content.decode()
 
 
 def test_erro_nao_diz_qual_campo_barrou(client, evento):
@@ -350,6 +365,7 @@ def test_csrf_recusado_sem_log(evento):
 # --- Revisão de código: o cadastro não lê token nem estação --------------------------
 
 MODULOS = ["views_visitante.py", "forms.py", "liberacao.py", "respostas.py"]
+TEMPLATE = Path("templates/votacao/visitante.html")
 PROIBIDOS = ("token", "estacao", "localstorage")
 
 
@@ -375,3 +391,6 @@ def test_cadastro_nao_le_token_nem_estacao():
         assert not [n for n in nomes if any(p in n.lower() for p in PROIBIDOS)], modulo
         if modulo != "liberacao.py":
             assert "COOKIES" not in nomes, modulo
+    # O template também não lê token: "token" só pode aparecer em "csrf_token".
+    texto = (pasta / TEMPLATE).read_text().lower()
+    assert "token" not in texto.replace("csrf_token", ""), TEMPLATE
