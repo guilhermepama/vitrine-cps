@@ -6,6 +6,9 @@ uma variável que já existe no ambiente.
 """
 
 import os
+from urllib.parse import urlsplit
+
+from django.core.exceptions import ImproperlyConfigured
 
 
 def carregar_env(caminho):
@@ -22,3 +25,38 @@ def carregar_env(caminho):
             valor = valor[1:-1]
         if chave:
             os.environ.setdefault(chave, valor)
+
+
+def url_publica(valor, debug):
+    """Origem pública do site (ADR-006), normalizada e sem barra no fim.
+
+    Base dos links absolutos que saem do sistema — o QR das estações
+    (spec 03) — para não depender do `Host` da requisição nem do
+    `X-Forwarded-Proto` do proxy. Só origem: esquema e domínio, sem
+    caminho, query, usuário ou senha. Em produção (`debug` falso) é
+    obrigatória e com `https://`; no desenvolvimento, vazia vira
+    `http://localhost:8000`.
+    """
+    valor = (valor or "").strip().rstrip("/")
+    if not valor:
+        if debug:
+            return "http://localhost:8000"
+        raise ImproperlyConfigured(
+            "Variável de ambiente DJANGO_URL_PUBLICA não definida (ver .env.example)."
+        )
+    partes = urlsplit(valor)
+    esquemas = {"https", "http"} if debug else {"https"}
+    if (
+        partes.scheme not in esquemas
+        or not partes.hostname
+        or partes.username is not None
+        or partes.password is not None
+        or partes.path
+        or partes.query
+        or partes.fragment
+    ):
+        raise ImproperlyConfigured(
+            "DJANGO_URL_PUBLICA inválida: use só a origem, ex.: "
+            "https://vitrine.exemplo.com.br (https:// obrigatório em produção)."
+        )
+    return valor
