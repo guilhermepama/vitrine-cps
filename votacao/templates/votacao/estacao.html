@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Reserva sem JS: recarrega a página inteira a cada rotação. #}
+  <noscript><meta http-equiv="refresh" content="{{ rotacao }}"></noscript>
+  <title>Estação {{ estacao.nome }} — Vitrine CPS</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #fff; color: #111; font-family: system-ui, sans-serif; }
+    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; text-align: center; }
+    h1 { margin: 0; font-size: 4vh; }
+    p { margin: 0; font-size: 3vh; }
+    #qr svg { width: min(90vw, 75vh); height: auto; display: block; }
+    #qr:empty::after { content: "QR indisponível — aguarde…"; font-size: 3vh; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Votação — {{ estacao.nome }}</h1>
+    <div id="qr" data-renovar="{% url 'votacao:estacao_qr' estacao.pk %}" data-intervalo="{{ rotacao }}">{{ qr_svg }}</div>
+    <p>Aponte a câmera do celular para o QR para votar.</p>
+  </main>
+  <script>
+    (function () {
+      var qr = document.getElementById("qr");
+      var intervalo = Number(qr.dataset.intervalo) * 1000;
+      var RETENTATIVA = 5000;
+      var PRAZO_FETCH = 10000;
+      // O servidor aceita o QR por 90 s a partir do ts, mas o relógio daqui
+      // conta da chegada da resposta, que pode levar até PRAZO_FETCH: apaga antes.
+      var VALIDADE = 90000 - PRAZO_FETCH;
+      var agendado = null;
+      var emCurso = false;
+      var recarregando = false;
+      var ultimoDesenho = Date.now();
+      function agendar(espera) {
+        clearTimeout(agendado);
+        agendado = setTimeout(renovar, espera);
+      }
+      function falhou(recarregar) {
+        // Nunca deixar um QR velho na tela: apaga antes de qualquer coisa.
+        qr.innerHTML = "";
+        if (recarregar) {
+          // Sessão caiu, permissão retirada ou estação desativada: o reload
+          // leva ao login ou ao 404. Não renova mais até lá.
+          recarregando = true;
+          clearTimeout(agendado);
+          setTimeout(function () { window.location.reload(); }, 3000);
+        } else {
+          // Rede oscilou, fetch passou do prazo ou erro passageiro do
+          // servidor: tenta de novo sem recarregar, para não parar numa
+          // página de erro do navegador.
+          agendar(RETENTATIVA);
+        }
+      }
+      function renovar() {
+        // Uma renovação por vez: o visibilitychange não dispara outra em
+        // paralelo, e respostas fora de ordem não trocam o QR.
+        if (emCurso || recarregando) { return; }
+        clearTimeout(agendado);
+        emCurso = true;
+        // Rede travada sem erro (Wi-Fi sem rota): o abort cai no catch.
+        var controle = new AbortController();
+        var prazo = setTimeout(function () { controle.abort(); }, PRAZO_FETCH);
+        // redirect manual: se a sessão caiu, o login não entra no lugar do QR.
+        fetch(qr.dataset.renovar, { credentials: "same-origin", cache: "no-store", redirect: "manual", signal: controle.signal })
+          .then(function (resposta) {
+            if (resposta.ok) {
+              return resposta.text().then(function (svg) {
+                qr.innerHTML = svg;
+                ultimoDesenho = Date.now();
+                agendar(intervalo);
+              });
+            }
+            var s = resposta.status;
+            falhou(resposta.type === "opaqueredirect" || (s >= 300 && s < 400) || s === 401 || s === 403 || s === 404);
+          })
+          .catch(function () { falhou(false); })
+          .then(function () {
+            clearTimeout(prazo);
+            emCurso = false;
+          });
+      }
+      // Rede de segurança: sem desenho bem-sucedido há VALIDADE, o QR pode ter expirado.
+      function vigiar() {
+        if (Date.now() - ultimoDesenho >= VALIDADE) { qr.innerHTML = ""; }
+      }
+      setInterval(vigiar, 1000);
+      // Aba oculta atrasa os timers: ao voltar a ficar visível, renova na hora.
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "visible") {
+          vigiar();
+          renovar();
+        }
+      });
+      agendar(intervalo);
+    })();
+  </script>
+</body>
+</html>
