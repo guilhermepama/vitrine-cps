@@ -238,10 +238,11 @@ WhatsApp). Decisão do coordenador no PR #18.
   contadores (assinatura forjada não esgota a janela de uma estação);
   conta mesmo quando devolve o mesmo token (re-scan).
 - **Por janela de estação** (a camada que importa): no máximo **20
-  tokens por janela de 45s por estação**, isto é, por valor de `w`
-  assinado (`<estacao>:<timestamp>`). Um QR fotografado e repassado
-  esgota rápido. Cada janela tem contador próprio; estações diferentes
-  não se afetam.
+  tokens por janela de 45s por estação**, isto é, por estação e bloco
+  de 45 s do `timestamp` (`estacao_id` e `timestamp // 45`, lidos do `w`
+  já validado e assinado). Um QR fotografado e repassado esgota rápido.
+  Cada bloco tem contador próprio; estações diferentes não se afetam
+  (decisão 1 do coordenador no PR #31).
 - **Por IP, generoso**: no máximo **300 emissões por 10 min por IP**. No
   evento quase todos saem pelo mesmo IP do Wi-Fi da Fatec; o limite só
   barra script.
