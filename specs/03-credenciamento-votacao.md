@@ -342,13 +342,18 @@ WhatsApp). Decisão do coordenador no PR #18.
   `/entrar`, com **contador próprio** (chave
   `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))`, separada da do
   `/entrar`, para o visitante do Wi-Fi não gastar duas vagas) no
-  `DatabaseCache`, conferido **depois** da validação do formulário (o
-  contador mora no banco — G12) e **antes** da trava da `Edicao`. Recusa
-  não conta. Estouro → 400 com o formulário e a mesma mensagem genérica,
-  nada gravado. Motivo: sem limite, um script enche `visitantes` de
-  contatos falsos (ADR-003) e cada envio disputa a trava da `Edicao` com
-  `/entrar` e `/votos`. Limite aceito: fora da trava, envios simultâneos
-  podem ler a mesma contagem e passar um pouco do teto.
+  `DatabaseCache`. **Ordem do `POST /visitantes`**: validação do
+  formulário (o contador mora no banco — G12) → **pré-checagem só de
+  leitura, sem trava**: contador já no teto → recusa, sem contar e sem
+  tocar na `Edicao` → transação com a trava da `Edicao` (sem edição em
+  votação → "QR expirado", sem contar) → **contagem com a `Edicao`
+  travada**, como no `/entrar`: passou do teto → recusa → cadastro já
+  válido → cédula → grava. Recusa não conta. Estouro → 400 com o
+  formulário e a mesma mensagem genérica, nada gravado. Motivo: sem
+  limite, um script enche `visitantes` de contatos falsos (ADR-003) e
+  cada envio disputa a trava da `Edicao` com `/entrar` e `/votos`; com a
+  pré-checagem, a enxurrada acima do teto não encosta na trava, e a
+  contagem sob a trava mantém o teto exato mesmo com envios simultâneos.
 
 ### Liberação da cédula (sem vínculo visitante × token)
 - Cadastro concluído grava um **cookie de cadastro**: valor =
@@ -436,7 +441,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes` | `email` | obrigatório; até 254 caracteres; `EmailValidator` do Django | 400, idem |
 | `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-` e um `+` opcional no começo (`^\+?[0-9 ()-]*$`); depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
 | `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
-| `POST /visitantes` | IP do cliente | no máximo 300 envios por 10 min por IP (`chave_ip(ip_do_cliente(request))`), antes da trava da `Edicao` — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
+| `POST /visitantes` | IP do cliente | no máximo 300 envios por 10 min por IP (`chave_ip(ip_do_cliente(request))`), depois da validação: pré-checagem sem trava e contagem com a `Edicao` travada — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
@@ -626,7 +631,7 @@ a spec 04 e o G6 citam:
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
 - [ ] `nome` com U+200B, U+202E, U+FEFF ou U+2028, ou só com 2×NBSP ou 2×U+3000 → 400; NBSP entre letras e acentos → aceito
 - [ ] `POST /visitantes` válido com cookie de cadastro válido da edição em votação → 302 para `/votar`, nenhum registro novo, o mesmo cookie (não regravado); conferido dentro da transação com a `Edicao` travada; formulário inválido com cadastro válido → 400 com o formulário
-- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao`; a chave no cache é a de `chave_ip`, sem o IP em claro
+- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao` (pré-checagem); envios simultâneos com o contador perto do teto nunca passam do teto (contagem com a `Edicao` travada); a chave no cache é a de `chave_ip`, sem o IP em claro
 - [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
 - [ ] `telefone` com 9 dígitos, 14 dígitos, letras, 21 caracteres ou `+` fora do começo (`1+7 99999-9999`) → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
 - [ ] Consentimento ausente ou desmarcado → 400, nada gravado, sem cookie de cadastro, `/votar` não libera a cédula
@@ -749,4 +754,7 @@ coordenador no PR #33).
    `/entrar`, com `chave_ip(ip_do_cliente(request))`, antes da trava;
    estouro → 400 com o formulário e a mensagem genérica, nada gravado.
    Implementado na fatia F5b, depois da F4, que cria a infraestrutura do
-   rate limit. Ver "Cadastro do visitante".
+   rate limit: o "antes da trava" é uma pré-checagem só de leitura (acima
+   do teto, nada encosta na `Edicao`), e a contagem acontece com a
+   `Edicao` travada, para o teto valer também sob rajada (revisão da
+   F5b). Ver "Cadastro do visitante".
