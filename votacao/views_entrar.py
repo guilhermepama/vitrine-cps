@@ -20,7 +20,6 @@ from votacao.limite import liberar
 from votacao.models import Estacao, Token
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
-from votacao.views_visitante import ROTA_CEDULA
 
 
 # never_cache por fora: o token não fica em cache de navegador nem de proxy.
@@ -44,7 +43,7 @@ def entrar(request):
         if estacao is None:
             return qr_expirado()
         token = token_do_cookie(request, edicao) or Token.objects.create(estacao=estacao)
-    destino = ROTA_CEDULA if cadastro_valido(request, edicao) else reverse("votacao:visitantes")
+    destino = reverse("votacao:votar") if cadastro_valido(request, edicao) else reverse("votacao:visitantes")
     resposta = render(request, "votacao/entrar.html", {"token": str(token.pk), "destino": destino})
     gravar_cookie(resposta, token)
     return resposta
