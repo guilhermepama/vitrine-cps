@@ -73,6 +73,7 @@ jobs:
       DJANGO_SECRET_KEY: testetestetestetestetestetestete
       RA_HMAC_SECRET: testetestetestetestetestetestete
       IP_HMAC_SECRET: testetestetestetestetestetestete
+      DJANGO_URL_PUBLICA: https://testserver
     steps:
       - uses: actions/checkout@v7
 
