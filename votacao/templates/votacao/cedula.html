@@ -62,9 +62,14 @@
                 headers: { "X-CSRFToken": csrf },
                 body: new URLSearchParams({ projeto_id: botao.dataset.projeto })
               }).then(function (resposta) {
-                // 201 registrado; 409 é a rejeição genérica (já votado, entre outros).
-                if (resposta.status === 201 || resposta.status === 409) {
+                if (resposta.status === 201) {
                   marcar(botao);
+                  return;
+                }
+                // 409 é a rejeição genérica (já votado, votação encerrada, cookie
+                // vencido...): recarrega e o servidor mostra o estado real.
+                if (resposta.status === 409) {
+                  location.reload();
                   return;
                 }
                 throw new Error();

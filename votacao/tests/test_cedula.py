@@ -56,6 +56,18 @@ def test_cedula_lista_so_publicados_da_edicao_em_votacao_por_turma(client, cenar
     assert "no-store" in resposta["Cache-Control"]
 
 
+def test_js_marca_votado_so_no_201_e_recarrega_no_409(client, cenario):
+    """No 409 o botão não vira "Votado": a rejeição é genérica e pode ser
+    cookie vencido, sem voto gravado. Recarregar mostra o estado do servidor."""
+    html = cenario.votante(client).get(ROTA).content.decode()
+    js = html[html.index("<script>") : html.index("</script>")]
+    ramo_201 = js[js.index("resposta.status === 201") : js.index("resposta.status === 409")]
+    ramo_409 = js[js.index("resposta.status === 409") :]
+    assert "marcar(botao)" in ramo_201
+    assert "location.reload()" in ramo_409
+    assert "marcar(" not in ramo_409[: ramo_409.index("return;")]
+
+
 def test_projeto_votado_aparece_marcado_e_desabilitado(client, cenario):
     fabricas.voto(cenario.token, cenario.publicado)
     html = cenario.votante(client).get(ROTA).content.decode()
