@@ -214,11 +214,38 @@ Formato:
       único para todo mundo. **Teste obrigatório ao publicar**: requisição
       com `X-Real-Ip` e `X-Forwarded-For` falsos → `ip_do_cliente` não
       devolve o valor falso.
+    - **Rede**: o container não mapeia porta para o host (só a porta
+      interna exposta ao Traefik) e o firewall do VPS libera só 22, 80 e
+      443. Acesso direto ao gunicorn furaria o `X-Real-Ip` e o
+      `X-Forwarded-Proto`.
     - **Deploy**: o Coolify publica a `main` pelo app do GitHub (só
-      leitura). `collectstatic` no build; início com
-      `python manage.py migrate --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3`
-      (G16). Um container só: com mais de um, o `migrate` do início
-      disputaria.
+      leitura). Início com
+      `python manage.py migrate --noinput && python manage.py createcachetable && python manage.py collectstatic --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3`
+      (G16). O `createcachetable` cria a tabela `cache_django` do
+      rate limit (`DatabaseCache`, sem migration): sem ela, `/entrar` e o
+      cadastro dão 500. É idempotente. O `collectstatic` roda no início,
+      não no build: no build ele exigiria os segredos como variável de
+      build, que ficariam gravados na imagem (G3). Um container só: com
+      mais de um, o `migrate` do início disputaria.
+    - **Variáveis de produção**: `DJANGO_DEBUG=0`; `DJANGO_ALLOWED_HOSTS`
+      e `DJANGO_CSRF_TRUSTED_ORIGINS` só com o domínio do evento. Não
+      incluir `localhost`: a página da estação monta a URL do QR a partir
+      do host da requisição. O healthcheck do Coolify em `/saude/` usa o
+      domínio como `Host` (com `localhost`, o padrão do painel, daria
+      400); se o painel não permitir, o healthcheck fica desligado e o
+      monitoramento é externo, pelo domínio.
+    - **Congelamento e plano B**: auto-deploy da `main` desligado do
+      congelamento (27/10) até o fim do evento. O app não guarda estado
+      (banco no Neon, imagens no R2): se o VPS cair em 29/10, sobe um
+      segundo destino com as mesmas variáveis e o DNS é trocado (TTL baixo
+      na véspera). A troca é ensaiada no pré-ensaio de 21/10.
+    - **Ficam para o PR de deploy** (até 08/10): versão do Python fixada
+      (3.12); configuração de log do Traefik anexada (sem `--accesslog`,
+      `--log.level` fora de DEBUG), como pede a spec 03; teste de IP real
+      — estourar o rate limit variando `X-Real-Ip` e `X-Forwarded-For`
+      falsos (o bloqueio tem de vir) e, logo depois, de outra rede (4G),
+      não estar bloqueado; o mesmo com IPv6, ou não publicar registro
+      AAAA.
     - **O banco continua no Neon** — o Coolify não cria Postgres no VPS.
     - Variáveis de ambiente só no painel do Coolify, nunca no repositório
       (G3).
