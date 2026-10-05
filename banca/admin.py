@@ -1,4 +1,5 @@
-"""Admin da banca (spec 06): critérios e jurados (fatia 2) e digitação (fatia 3).
+"""Admin da banca (spec 06): critérios e jurados (fatia 2), digitação (fatia 3)
+e rotas da ficha para imprimir (fatia 4, views em `banca/fichas.py`).
 
 Critérios e jurados: quem altera é o superusuário (permissões padrão do
 model); o grupo `digitacao-banca` só vê. Avaliações: o grupo cria e altera,
@@ -13,9 +14,11 @@ from django.contrib import admin, messages
 from django.db import IntegrityError
 from django.forms.models import BaseInlineFormSet
 from django.http import HttpResponseRedirect, QueryDict
+from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
+from banca import fichas
 from banca.models import Avaliacao, Criterio, Jurado, Nota
 from cadastro.models import Edicao, Projeto, Turma
 
@@ -113,6 +116,27 @@ class JuradoAdmin(admin.ModelAdmin):
         if obj is not None and obj.avaliacoes.exists():
             return False
         return super().has_delete_permission(request, obj)
+
+    def get_urls(self):
+        # Antes das padrão: senão o `<path:object_id>/` do admin as captura.
+        protegida = self.admin_site.admin_view
+        return [
+            path("<int:id>/ficha/", protegida(fichas.ficha_do_jurado), name="banca_jurado_ficha"),
+            path("edicao/<int:id>/fichas/", protegida(fichas.fichas_da_edicao), name="banca_jurado_fichas_edicao"),
+        ] + super().get_urls()
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj is not None and request.user.has_perm(fichas.IMPRIMIR_FICHA):
+            return ["links_da_ficha"]
+        return []
+
+    @admin.display(description="ficha para imprimir")
+    def links_da_ficha(self, jurado):
+        return format_html(
+            '<a href="{}">Ficha deste jurado</a> · <a href="{}">Fichas de todos os jurados da edição</a>',
+            reverse("admin:banca_jurado_ficha", args=[jurado.pk]),
+            reverse("admin:banca_jurado_fichas_edicao", args=[jurado.edicao_id]),
+        )
 
 
 # --- Digitação das fichas (fatia 3) ---------------------------------------------------------
