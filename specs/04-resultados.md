@@ -130,7 +130,12 @@ qualquer consulta aos dados de negócio:
   regra de banca pendente abaixo.
 - Turma sem projetos: não aparece.
 - Os cálculos usam `Decimal`; a tela mostra 2 casas decimais. Nenhum
-  arredondamento intermediário entra no cálculo.
+  arredondamento intermediário entra no cálculo. Por dentro, `p`, `b` e o
+  final são frações exatas (`Fraction`), convertidas para `Decimal` só na
+  saída; a nota da banca, que chega do `AVG` do Postgres já arredondada na
+  16ª casa, é reconstituída como fração exata (`limit_denominator`, as
+  notas têm uma casa decimal). Assim um resto de divisão nunca decide
+  desempate (PR #52).
 - **Banca pendente** (decisão do coordenador no PR #14):
   - Quando `Edicao.banca_conferida_em` está vazio, a conferência das
     notas (30/10) não terminou: **todas** as turmas mostram só a parte do
