@@ -8,9 +8,12 @@ Critérios de aceite fechados aqui (citados em cada bloco):
 - Rate limit: 21ª no mesmo bloco; outra estação no mesmo bloco passa; 301ª
   do mesmo IP; estouro com corpo idêntico e sem token; forjadas não contam;
   chave do IP = HMAC, sem o IP em claro, expira em 10 min; IP só por
-  `ip_do_cliente`/`chave_ip`; contadores no DatabaseCache.
+  `ip_do_cliente`/`chave_ip`; contadores no DatabaseCache; já esgotado
+  recusa sem travar a `Edicao` e sem contar; o contador da estação
+  sobrevive a mais de 300 chaves vivas no cache.
 - Isolamento: re-scan com cookie do ensaio emite token novo; o do ensaio
-  continua intacto.
+  continua intacto; /entrar não cria sessão e só grava as chaves do rate
+  limit.
 """
 
 import ast
@@ -27,6 +30,7 @@ from django.core.cache import caches
 from django.core.management import call_command
 from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
 from cadastro.seguranca import chave_ip
@@ -248,7 +252,7 @@ def test_so_get():
 def test_vinte_por_bloco_da_estacao_e_a_21a_recusa(estacao, corpo_qr_expirado):
     # Clientes sem cookie: cada um é um celular novo. ts diferentes, mesmo bloco de 45 s.
     for i in range(20):
-        _emitido(_entrar(estacao.pk, ts=AGORA - (AGORA % 45) + i % 45))
+        _emitido(_entrar(estacao.pk, ts=AGORA - (AGORA % 45) + i))
     _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado, antes=20)
 
 
@@ -369,6 +373,68 @@ def test_contador_vencido_recomeca(estacao, relogio):
     caches["default"].set(_chave_ip(), (300, AGORA - 1), 600)
     _emitido(_entrar(estacao.pk))
     assert caches["default"].get(_chave_ip()) == (1, AGORA + 600)
+
+
+def _esgotar_estacao(estacao):
+    caches["default"].set(limite.chave_estacao(estacao.pk, AGORA), (20, AGORA + 150), 150)
+
+
+def _esgotar_ip():
+    caches["default"].set(_chave_ip(), (300, AGORA + 600), 600)
+
+
+@pytest.mark.parametrize("esgotar", ["estacao", "ip"])
+def test_ja_esgotado_recusa_sem_travar_a_edicao(estacao, corpo_qr_expirado, esgotar):
+    """Pré-leitura sem trava (parecer do #34): quem já estourou não espera a
+    linha da `Edicao` nem enfileira na frente dos /votos."""
+    _esgotar_estacao(estacao) if esgotar == "estacao" else _esgotar_ip()
+    with CaptureQueriesContext(connection) as consultas:
+        resposta = _entrar(estacao.pk)
+    _recusa_sem_token(resposta, corpo_qr_expirado)
+    assert not any("FOR UPDATE" in q["sql"] for q in consultas.captured_queries)
+
+
+def test_pre_leitura_nao_conta(estacao):
+    _esgotar_estacao(estacao)
+    _entrar(estacao.pk)
+    assert caches["default"].get(limite.chave_estacao(estacao.pk, AGORA)) == (20, AGORA + 150)
+    assert caches["default"].get(_chave_ip()) is None
+
+
+def test_pre_leitura_pelo_ip_nao_conta(estacao):
+    _esgotar_ip()
+    _entrar(estacao.pk)
+    assert caches["default"].get(_chave_ip()) == (300, AGORA + 600)
+    assert caches["default"].get(limite.chave_estacao(estacao.pk, AGORA)) is None
+
+
+def test_contador_da_estacao_sobrevive_a_mais_de_300_chaves_vivas(estacao, corpo_qr_expirado):
+    """Bloqueante 1 do parecer do #34: com o MAX_ENTRIES padrão (300), o cull
+    do DatabaseCache apagava ~1/3 das chaves vivas em ordem alfabética, e
+    `rl:entrar:estacao:*` vem antes de `rl:entrar:ip:*` — a estação esgotada
+    voltava a emitir. O `settings.py` sobe o limite (#38)."""
+    for i in range(20):
+        _emitido(_entrar(estacao.pk, ip=f"198.51.100.{i}"))
+    # 301 IPs distintos com contador vivo (4G, IPv6 em 10 min).
+    for i in range(301):
+        caches["default"].set("rl:entrar:ip:" + chave_ip(f"10.0.{i // 256}.{i % 256}"), (1, AGORA + 600), 600)
+    # Sem pré-condição sobre o total de linhas: com o MAX_ENTRIES padrão o
+    # cull já teria apagado parte delas, e é a recusa abaixo que tem de falhar.
+    _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado, antes=20)
+
+
+def test_entrar_nao_cria_sessao_e_so_grava_as_chaves_do_rate_limit(client, estacao):
+    """Critério de isolamento: em /entrar, só as chaves do rate limit."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM django_session")
+        sessoes_antes = cursor.fetchone()[0]
+    _emitido(_entrar(estacao.pk, client=client))
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT COUNT(*) FROM django_session")
+        assert cursor.fetchone()[0] == sessoes_antes
+    chaves = {chave for chave, _, _ in _linhas_de_cache()}
+    assert chaves == {":1:" + limite.chave_estacao(estacao.pk, AGORA), ":1:" + _chave_ip()}
+    assert "sessionid" not in client.cookies
 
 
 # --- Revisão de código automatizada --------------------------------------------------
