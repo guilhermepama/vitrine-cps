@@ -392,6 +392,11 @@ WhatsApp). Decisão do coordenador no PR #18.
   → edição), agrupados por turma. Projetos em outro status ou de outra
   edição não aparecem.
 - Projetos já votados por aquele token aparecem marcados e desabilitados.
+- Na cédula, o botão só vira "Votado" com o **201**. Com **409** (rejeição
+  genérica) ou **403** (CSRF, por exemplo cookies limpos com a cédula
+  aberta), a página recarrega e o servidor mostra o estado real; qualquer
+  outra falha mostra "Não foi possível votar agora. Tente de novo."
+  (decisão do coordenador no PR #36).
 - Quando não há token, o token é malformado, não existe ou é de outra
   edição (via estação), o sistema redireciona para `/como-votar/`
   (`vitrine:como_votar`, spec 02), sem dizer qual foi o caso.
@@ -738,6 +743,25 @@ coordenador no PR #20).
    `DJANGO_IP_HEADER`, do coordenador. Ver "Rate limit da emissão".
 3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
    Ver "Formulário de visitante".
+
+## Decisões do PR #36
+Parecer do coordenador sobre a cédula e o voto (decisão do coordenador
+no PR #36).
+
+1. **Refactor `cookie_token.py`** (mexe em `views_entrar.py` do #34, sem
+   mudar comportamento) — aceito. Ordem de merge: #34 → #35 → #36 → #37.
+2. **Sem token → sempre `/como-votar/`**, mesmo com a votação encerrada —
+   confirmado.
+3. **"Votação encerrada" com status 200** — confirmado.
+4. **409 recarrega a cédula** — confirmado; o **403 do CSRF também
+   recarrega**, para o visitante não ficar preso no "Tente de novo". Ver
+   "Cédula".
+5. **`django.template` em INFO no `LOGGING`** — entrou com o PR #38.
+6. **`/como-votar/`** nasce na fatia 1 da spec 02 (PR #23, 10/10). Até
+   ela estar na `main`, esta fatia não vai para ensaio nem deploy.
+7. **Aceite P2 do fluxo completo** (`assertLogs` em `/entrar` →
+   `/visitantes` → `/votar` → `/votos`) — fica na F8, o PR #37
+   (`votacao/tests/test_fluxo_completo.py`).
 
 ## Decisões do PR #34
 Parecer do coordenador sobre a emissão em `/entrar` (decisão do
