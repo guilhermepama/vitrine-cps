@@ -10,7 +10,7 @@ from django.db.models.lookups import Exact
 from django.utils import timezone
 from django.utils.text import slugify
 
-from cadastro.imagens import caminho_capa, caminho_imagem, validar_imagem
+from cadastro.imagens import caminho_capa, caminho_imagem, remover_metadados, validar_imagem
 from cadastro.seguranca import gerar_token_edicao
 
 somente_https = URLValidator(schemes=["https"])
@@ -229,6 +229,7 @@ class Projeto(models.Model):
             self._verificar_travas(travar_edicao=True)
             if not self.slug:
                 self.slug = self._slug_livre()
+            remover_metadados(self.capa)
             super().save(*args, **kwargs)
 
     def _verificar_travas(self, travar_edicao=False):
@@ -363,6 +364,10 @@ class ImagemProjeto(models.Model):
         verbose_name = "imagem do projeto"
         verbose_name_plural = "imagens do projeto"
         ordering = ["ordem", "id"]
+
+    def save(self, *args, **kwargs):
+        remover_metadados(self.arquivo)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.legenda or f"Imagem {self.pk}"
