@@ -281,3 +281,24 @@ def test_saida_e_dataclass_imutavel():
     assert isinstance(r.linhas, tuple) and isinstance(r.linhas[0], LinhaRanking)
     with pytest.raises(AttributeError):
         r.linhas[0].final = D(0)
+
+
+def test_nota_da_banca_como_o_postgres_entrega_nao_decide_o_desempate():
+    """AVG(8, 9, 9) chega como 8.6666666666666667. Na conta exata, X (26/3) e
+    Y (9) empatam no final (0,525) e Y vence pela banca maior; com o valor
+    arredondado do Postgres, X ficaria à frente por 5,8e-18 (parecer do #52)."""
+    from decimal import Decimal
+
+    from resultados.calculo import ProjetoEntrada, TurmaEntrada, calcular_ranking
+
+    turma = TurmaEntrada(id=1, nome="DSM", projetos=(
+        ProjetoEntrada(1, "Alfa"), ProjetoEntrada(2, "Beta"), ProjetoEntrada(3, "A X"), ProjetoEntrada(4, "Z Y"),
+    ))
+    notas = {1: Decimal("6"), 2: Decimal("10"), 3: Decimal("8.6666666666666667"), 4: Decimal("9")}
+    votos = {1: 36, 2: 0, 3: 7, 4: 0}
+    ranking = calcular_ranking([turma], votos, notas, Decimal("0.70"), Decimal("0.30"), True)
+    linhas = {linha.projeto_id: linha for linha in ranking[0].linhas}
+    assert linhas[3].final == linhas[4].final
+    assert linhas[4].posicao < linhas[3].posicao
+    assert not linhas[3].empate and not linhas[4].empate
+    assert linhas[3].banca == Decimal("8.6666666666666667")  # a tela mostra a nota como veio

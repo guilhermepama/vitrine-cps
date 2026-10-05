@@ -139,6 +139,17 @@ def _normalizar(valores):
     return [Fraction(v - menor) / Fraction(maior - menor) for v in valores]
 
 
+# A nota da banca vem do AVG do Postgres, já arredondada na 16ª-20ª casa
+# (8, 9, 9 → 8.6666666666666667). As notas têm uma casa decimal, então a média
+# exata é uma fração de denominador pequeno: limit_denominator a recupera, e o
+# resto do arredondamento não decide desempate (parecer do #52).
+DENOMINADOR_MAXIMO = 10**6
+
+
+def _nota_exata(nota):
+    return Fraction(nota).limit_denominator(DENOMINADOR_MAXIMO)
+
+
 def _decimal(fracao):
     return Decimal(fracao.numerator) / Decimal(fracao.denominator)
 
@@ -165,7 +176,7 @@ def _so_publico(projetos, votos):
 
 def _oficial(projetos, votos, notas_banca, peso_banca, peso_publico):
     brutos_v = [votos.get(pr.id, 0) for pr in projetos]
-    brutos_b = [notas_banca[pr.id] for pr in projetos]
+    brutos_b = [_nota_exata(notas_banca[pr.id]) for pr in projetos]
     ps = _normalizar(brutos_v)
     bs = _normalizar(brutos_b)
     pb, pp = Fraction(peso_banca), Fraction(peso_publico)
@@ -173,8 +184,8 @@ def _oficial(projetos, votos, notas_banca, peso_banca, peso_publico):
     itens = []
     for pr, v, nb, p, b in zip(projetos, brutos_v, brutos_b, ps, bs):
         final = pb * b + pp * p
-        # Chave de empate total: final, banca bruta e votos.
-        itens.append(((final, Fraction(nb), v), pr, v, nb, p, b, final))
+        # Chave de empate total: final, banca bruta (exata) e votos.
+        itens.append(((final, nb, v), pr, v, notas_banca[pr.id], p, b, final))
     itens.sort(key=lambda it: (-it[0][0], -it[0][1], -it[0][2], _chave_titulo(it[1].titulo), it[1].id))
 
     contagem = {}
