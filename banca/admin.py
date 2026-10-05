@@ -1,5 +1,6 @@
-"""Admin da banca (spec 06): critérios e jurados (fatia 2), digitação (fatia 3)
-e rotas da ficha para imprimir (fatia 4, views em `banca/fichas.py`).
+"""Admin da banca (spec 06): critérios e jurados (fatia 2), digitação (fatia 3),
+rotas da ficha para imprimir (fatia 4, views em `banca/fichas.py`) e da
+conferência (fatia 5, `banca/conferencia.py`).
 
 Critérios e jurados: quem altera é o superusuário (permissões padrão do
 model); o grupo `digitacao-banca` só vê. Avaliações: o grupo cria e altera,
@@ -18,7 +19,7 @@ from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
-from banca import fichas
+from banca import conferencia, fichas
 from banca.models import Avaliacao, Criterio, Jurado, Nota
 from cadastro.models import Edicao, Projeto, Turma
 
@@ -123,12 +124,18 @@ class JuradoAdmin(admin.ModelAdmin):
         return [
             path("<int:id>/ficha/", protegida(fichas.ficha_do_jurado), name="banca_jurado_ficha"),
             path("edicao/<int:id>/fichas/", protegida(fichas.fichas_da_edicao), name="banca_jurado_fichas_edicao"),
+            path(
+                "edicao/<int:id>/conferencia/",
+                protegida(conferencia.conferencia),
+                name="banca_jurado_conferencia",
+            ),
         ] + super().get_urls()
 
     def get_readonly_fields(self, request, obj=None):
-        if obj is not None and request.user.has_perm(fichas.IMPRIMIR_FICHA):
-            return ["links_da_ficha"]
-        return []
+        if obj is None:
+            return []
+        links = [("links_da_ficha", fichas.IMPRIMIR_FICHA), ("link_conferencia", conferencia.CONCLUIR_CONFERENCIA)]
+        return [campo for campo, permissao in links if request.user.has_perm(permissao)]
 
     @admin.display(description="ficha para imprimir")
     def links_da_ficha(self, jurado):
@@ -137,6 +144,11 @@ class JuradoAdmin(admin.ModelAdmin):
             reverse("admin:banca_jurado_ficha", args=[jurado.pk]),
             reverse("admin:banca_jurado_fichas_edicao", args=[jurado.edicao_id]),
         )
+
+    @admin.display(description="conferência")
+    def link_conferencia(self, jurado):
+        url = reverse("admin:banca_jurado_conferencia", args=[jurado.edicao_id])
+        return format_html('<a href="{}">Conferência da banca desta edição</a>', url)
 
 
 # --- Digitação das fichas (fatia 3) ---------------------------------------------------------

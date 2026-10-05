@@ -29,21 +29,27 @@ IMPRIMIR_FICHA = "banca.imprimir_ficha"
 ORDEM_TURMA = ["curso__sigla", "tipo_periodo", "numero_periodo", "turno", "id"]
 
 
-def exige_imprimir_ficha(view):
+def exige_permissao(permissao):
     """O `admin_view` de fora já garantiu staff ativo; aqui, a permissão."""
 
-    @wraps(view)
-    def protegida(request, *args, **kwargs):
-        try:
-            if not request.user.has_perm(IMPRIMIR_FICHA):
-                raise PermissionDenied
-            return view(request, *args, **kwargs)
-        except (PermissionDenied, Http404) as excecao:
-            # Resposta montada aqui dentro para o never_cache do admin_view
-            # também marcar o 403/404 como no-store.
-            return response_for_exception(request, excecao)
+    def decorador(view):
+        @wraps(view)
+        def protegida(request, *args, **kwargs):
+            try:
+                if not request.user.has_perm(permissao):
+                    raise PermissionDenied
+                return view(request, *args, **kwargs)
+            except (PermissionDenied, Http404) as excecao:
+                # Resposta montada aqui dentro para o never_cache do admin_view
+                # também marcar o 403/404 como no-store.
+                return response_for_exception(request, excecao)
 
-    return protegida
+        return protegida
+
+    return decorador
+
+
+exige_imprimir_ficha = exige_permissao(IMPRIMIR_FICHA)
 
 
 def _fichas(edicao, jurados):

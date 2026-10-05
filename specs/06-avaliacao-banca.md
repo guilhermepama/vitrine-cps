@@ -24,9 +24,13 @@ nota de banca de cada projeto.
   e a ação que preenche `Edicao.banca_conferida_em`.
 - Função `nota_banca_por_projeto(edicao)` em `banca/servicos.py`, a única
   regra da nota de banca (ADR-007), consumida pela spec 04.
-- Um ajuste no admin do `cadastro` (código do coordenador):
-  `banca_conferida_em` passa a ser somente leitura na tela de `Edicao`.
-  Só a ação de conferência e as correções desta spec o escrevem.
+- Um ajuste no `cadastro` (código do coordenador): `banca_conferida_em`
+  passa a ser somente leitura no admin de `Edicao`. Como o admin de
+  `Edicao` ainda não existe (cadastro 3/3), a regra fica no próprio campo
+  (`editable=False`, como `votacao_aberta_em`): nenhum formulário do admin
+  o recebe, e o admin do cadastro, quando vier, o mostra em
+  `readonly_fields`. Só a conferência, a reabertura e as correções desta
+  spec o escrevem.
 
 ## Fora de escopo
 - Login de jurado e tela de avaliação no celular (próxima edição, ADR-008).
@@ -205,6 +209,16 @@ nota de banca de cada projeto.
   digitar fichas no dia 30, o Renan conclui.
 - Projetos sem avaliação **não** impedem concluir: a página mostra o aviso
   antes do botão, e a spec 04 mostra a turma como pendente.
+- **Reabrir digitação** (decisão do coordenador em 05/10, parecer do #55):
+  na mesma página, só quando a edição está conferida, com a mesma
+  permissão. POST com CSRF que apaga `banca_conferida_em` (a `Edicao`
+  travada, `save(update_fields=["banca_conferida_em"])`), registra no
+  histórico do admin da `Edicao` (`LogEntry`, "Digitação reaberta por
+  <usuário>") e volta à página (302) com a mensagem. Com isso o passo 1
+  da digitação volta a listar os jurados da edição (ficha esquecida achada
+  depois da conferência). Edição não conferida → recusa (302 com a
+  mensagem), nada muda. Concluir também fica no histórico ("Conferência
+  da banca concluída por <usuário>").
 
 ### Nota de banca do projeto (`nota_banca_por_projeto`)
 - `nota_banca_por_projeto(edicao) -> dict[int, Decimal]`, em
@@ -263,7 +277,8 @@ Tabelas novas (migrations do app `banca`):
 - Lê de `cadastro`: `Edicao` (`votacao_aberta_em`, `votacao_encerrada_em`,
   `banca_conferida_em`), `Turma`, `Projeto` (`status`, `titulo`, `turma`).
   Escreve em `cadastro` só `Edicao.banca_conferida_em`, pelo `save()` da
-  instância travada.
+  instância travada. O campo passa a `editable=False` (migration
+  `cadastro/0002`, sem mudança no banco).
 - **Retenção**: nomes de jurados e notas ficam no banco como registro do
   resultado oficial, como os projetos da edição. Não há outro dado pessoal
   de jurado.
@@ -277,7 +292,7 @@ Tabelas novas (migrations do app `banca`):
 | `GET /admin/banca/jurado/<int:id>/ficha/` | `banca.imprimir_ficha` | id | HTML para imprimir | staff sem permissão → 403; não staff ou anônimo → login do admin; inexistente → 404 |
 | `GET /admin/banca/jurado/edicao/<int:id>/fichas/` | `banca.imprimir_ficha` | id da edição | todas as fichas | idem |
 | `GET /admin/banca/jurado/edicao/<int:id>/conferencia/` | `banca.concluir_conferencia` | id da edição; `?digitador=<id>` opcional | cobertura, amostra | idem |
-| `POST /admin/banca/jurado/edicao/<int:id>/conferencia/` | `banca.concluir_conferencia` | CSRF | preenche `banca_conferida_em`; 302 para a página com mensagem | recusas → 302 com a mensagem, nada muda; sem CSRF → 403 |
+| `POST /admin/banca/jurado/edicao/<int:id>/conferencia/` | `banca.concluir_conferencia` | CSRF; `acao` = `concluir` ou `reabrir` | `concluir` preenche e `reabrir` apaga `banca_conferida_em`, com `LogEntry`; 302 para a página com mensagem | recusas e `acao` inválida → 302 com a mensagem, nada muda; sem CSRF → 403 |
 
 - As rotas próprias saem do `get_urls()` do `JuradoAdmin` e vêm **antes**
   das padrão (senão o `<path:object_id>/` do admin as captura), envolvidas
@@ -347,6 +362,9 @@ Tabelas novas (migrations do app `banca`):
 - [ ] Concluir válido → `banca_conferida_em` preenchido
 - [ ] POST sem CSRF → 403
 - [ ] `banca_conferida_em` é somente leitura no admin de `Edicao`
+- [ ] Reabrir digitação com a edição conferida → `banca_conferida_em` vazio, `LogEntry` "Digitação reaberta por <usuário>" na `Edicao`, e o passo 1 da digitação volta a listar os jurados da edição
+- [ ] Reabrir com a edição não conferida → recusa com a mensagem, nada muda
+- [ ] Página com número fixo de consultas, independente de jurados, turmas e avaliações
 
 **Nota de banca**
 - [ ] Jurado A dá {8, 6} e jurado B dá {10, 10} ao projeto → 8,5 (média de 7 e 10)
@@ -379,6 +397,9 @@ ensaio de 22/10 testa a digitação de fichas de teste na edição "Ensaio
    correção feita depois não impede.
 4. **Amostra de 20%, mínimo 10**; achou erro → todas as avaliações daquele
    digitador.
+5. **Reabrir digitação** (05/10, parecer do #55): botão na conferência que
+   desfaz a conferência e devolve os jurados ao passo 1 da digitação, com
+   registro no histórico do admin.
 
 ## Critérios propostos para a edição 2026/2 (conteúdo, não código)
 > Proposta do coordenador para a coordenação bater o martelo, tirada dos

@@ -31,7 +31,8 @@ class Edicao(models.Model):
     # Preenchidos pela votação (spec 03). Depois de aberta, a edição trava.
     votacao_aberta_em = models.DateTimeField(null=True, blank=True, editable=False)
     votacao_encerrada_em = models.DateTimeField(null=True, blank=True, editable=False)
-    banca_conferida_em = models.DateTimeField(null=True, blank=True)
+    # Escrito só pela conferência da banca e pelas correções (spec 06).
+    banca_conferida_em = models.DateTimeField(null=True, blank=True, editable=False)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     objects = EdicaoQuerySet.as_manager()
