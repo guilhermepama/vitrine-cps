@@ -233,13 +233,21 @@ máximo 1 voto por projeto por token.
 Uma das duas camadas da ADR-001 contra o link do QR repassado (ex:
 WhatsApp). Decisão do coordenador no PR #18.
 - **Ordem em `/entrar`**: validação de entrada → assinatura e janela →
-  transação com a trava da `Edicao` → rate limit → estação → token. Só a
+  pré-leitura dos contadores, sem trava e sem contar (quem já estourou é
+  recusado aqui) → transação com a trava da `Edicao` → rate limit →
+  estação → token. Só a
   requisição com entrada válida, assinatura correta, janela no prazo e
   edição em votação conta nos contadores (assinatura forjada não esgota a
   janela de uma estação); conta mesmo quando devolve o mesmo token
   (re-scan). O rate limit fica **dentro** da trava da `Edicao`: fora
   dela, requisições simultâneas leriam a mesma contagem e todas
-  passariam.
+  passariam (decisão do coordenador no PR #34).
+- **Pré-leitura sem trava**: antes da transação, uma leitura só dos
+  contadores; se alguma camada já está no limite, recusa ali mesmo, sem
+  travar a `Edicao` e sem contar. Um script repetindo uma URL válida não
+  enfileira trabalho na frente dos `/votos`. A pré-leitura não decide
+  sozinha: entre ela e a trava outra emissão pode contar, e quem decide é
+  a contagem sob a trava (decisão do coordenador no PR #34).
 - **Por janela de estação** (a camada que importa): no máximo **20
   tokens por janela de 45s por estação**, isto é, por estação e bloco
   de 45 s do `timestamp` (`estacao_id` e `timestamp // 45`, lidos do `w`
@@ -288,8 +296,15 @@ WhatsApp). Decisão do coordenador no PR #18.
   enfileira as emissões da edição: duas requisições simultâneas não leem
   a mesma contagem e o limite vale também sob rajada.
 - **Estourou** → a mesma página "QR expirado", **400, corpo idêntico** ao
-  da assinatura inválida; nada revela que foi o limite. Não emite token
-  nem conta nos contadores.
+  da assinatura inválida; o corpo não revela que foi o limite (a recusa
+  pela pré-leitura é mais rápida, ver decisão 8 do PR #34). Não emite
+  token nem conta nos contadores (decisão do coordenador no PR #34).
+- **Chaves vivas não somem**: o `DatabaseCache`, ao passar do
+  `MAX_ENTRIES`, apaga cerca de 1/3 das chaves em ordem alfabética, vivas
+  ou não, e `rl:entrar:estacao:*` vem antes de `rl:entrar:ip:*`. Com o
+  padrão do Django (300), ~300 IPs distintos em 10 min bastariam para a
+  estação esgotada voltar a emitir. O `settings.py` sobe o limite para
+  100.000 (PR #38, do coordenador).
 - Não remover nem afrouxar "para testar" (guardrail 7): testes ajustam o
   contador, não desligam o limite.
 
@@ -338,11 +353,17 @@ WhatsApp). Decisão do coordenador no PR #18.
   coordenador no PR #33). O toque duplo no botão não é coberto (os dois
   envios saem antes do cookie chegar); só o cliente evitaria.
 - **Rate limit** (decisão do coordenador no PR #33; fatia F5b, depois da
-  F4): no máximo **300 envios por 10 min por IP**, o mesmo teto do
-  `/entrar`, com **contador próprio** (chave
-  `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))`, separada da do
-  `/entrar`, para o visitante do Wi-Fi não gastar duas vagas) no
-  `DatabaseCache`. **Ordem do `POST /visitantes`**: validação do
+  F4): no máximo **300 envios por bloco fixo de 10 min por IP**, o mesmo
+  teto do `/entrar`, com **contador próprio** (chave
+  `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request)) + ":" + str(agora // 600)`,
+  separada da do `/entrar`, para o visitante do Wi-Fi não gastar duas
+  vagas) no `DatabaseCache`. O contador **expira no fim do bloco**, não
+  em "primeiro envio + 600 s": assim a coluna `expires` e o `expira_em`
+  do valor não guardam o horário do cadastro com segundos, e o mesmo
+  HMAC do IP na chave do `/entrar` não liga, num `pg_dump`, o horário do
+  token ao do cadastro (B1; decisão do coordenador no PR #35). Na virada
+  do bloco passam até 2× o teto, aceito como na janela fixa do `/entrar`.
+  **Ordem do `POST /visitantes`**: validação do
   formulário (o contador mora no banco — G12) → **pré-checagem só de
   leitura, sem trava**: contador já no teto → recusa, sem contar e sem
   tocar na `Edicao` → transação com a trava da `Edicao` (sem edição em
@@ -441,7 +462,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes` | `email` | obrigatório; até 254 caracteres; `EmailValidator` do Django | 400, idem |
 | `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-` e um `+` opcional no começo (`^\+?[0-9 ()-]*$`); depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
 | `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
-| `POST /visitantes` | IP do cliente | no máximo 300 envios por 10 min por IP (`chave_ip(ip_do_cliente(request))`), depois da validação: pré-checagem sem trava e contagem com a `Edicao` travada — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
+| `POST /visitantes` | IP do cliente | no máximo 300 envios por bloco fixo de 10 min (`agora // 600`) por IP (`chave_ip(ip_do_cliente(request))`), depois da validação: pré-checagem sem trava e contagem com a `Edicao` travada — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
@@ -501,9 +522,23 @@ ordem física de gravação, e numa hora com poucos cadastros o horário
 truncado ainda permite inferência. O controle que resta é o acesso
 restrito ao banco e aos dumps (ADR-006). A spec não promete anonimato
 absoluto contra quem tem o banco inteiro. As chaves por IP do rate limit
-ficam na tabela do `DatabaseCache` até expirarem e serem removidas pela
-limpeza do cache; guardam o HMAC do IP (nunca o IP em claro) e não têm
-token nem visitante.
+ficam na tabela do `DatabaseCache` até o fim do evento: a linha vencida
+só é apagada quando a mesma chave é lida de novo ou quando a tabela passa
+do `MAX_ENTRIES` (100 mil, PR #38), e a chave do bloco anterior do
+cadastro nunca é lida de novo — sobra uma linha por (IP, bloco). Guardam o HMAC do IP (nunca o IP em claro) e não têm
+token nem visitante. O **mesmo HMAC** aparece na chave do `/entrar`
+(`rl:entrar:ip:<H>`, que expira 10 min depois da primeira emissão) e na
+do cadastro (`rl:visitantes:ip:<H>:<bloco>`, que expira no fim do bloco
+de 10 min): no dump, as duas dizem só que o mesmo IP emitiu um token e
+fez cadastros naquele bloco de **10 min** — resolução 6 vezes mais fina
+que a hora truncada do `consentimento_em`. Com a ordem física das linhas,
+quem tem o dump consegue fatiar os cadastros de uma hora em blocos de
+10 min e, para um celular em 4G, ligar o token a um grupo menor de
+cadastros. Aceito (decisão do coordenador no parecer do #41): no Wi-Fi do
+evento o IP é de todos, e um bloco de 1 h exigiria teto de 1.800, que
+afrouxa o G7. Com expiração "primeiro cadastro +
+600 s", o horário do cadastro ficaria com segundos e ligaria o celular
+em 4G ao token (decisão do coordenador no PR #35).
 
 **Aceites:**
 - [ ] Revisão de schema: `visitantes.id` é UUID com `default=uuid4`; a migration não cria sequência para `visitantes`
@@ -560,6 +595,8 @@ a spec 04 e o G6 citam:
 - 7: rate limit em `/entrar` em duas camadas — 20 tokens por janela de
   45s por estação e 300 emissões por 10 min por IP; estouro = página "QR
   expirado" idêntica; IP só como HMAC na chave de cache, com expiração.
+  Em `POST /visitantes`, 300 envios por bloco fixo de 10 min por IP, com
+  contador próprio; estouro = formulário com a mensagem genérica.
 - 8: `GET /votar` sem token válido redireciona para `/como-votar/`
   (`vitrine:como_votar`, spec 02), nunca mostra a cédula; a página e o
   botão da vitrine são da spec 02.
@@ -594,6 +631,8 @@ a spec 04 e o G6 citam:
 - [ ] O app `votacao` obtém o IP só por `ip_do_cliente(request)` e monta a chave só com `chave_ip(...)`, de `cadastro/seguranca.py`; nenhuma ocorrência de `REMOTE_ADDR`, `X-Forwarded-For`/`HTTP_X_FORWARDED_FOR` nem `hmac` sobre IP no app (revisão de código + `grep`)
 - [ ] Sem `IP_HMAC_SECRET`, a aplicação não sobe; o segredo não é o mesmo valor do `QR_HMAC_SECRET` nem do `RA_HMAC_SECRET` (revisão de código: o rate limit lê só `IP_HMAC_SECRET`)
 - [ ] Contadores no `DatabaseCache` (`CACHES["default"]`), sem cache por processo
+- [ ] Com a estação ou o IP já no limite, `/entrar` recusa sem `SELECT ... FOR UPDATE` e sem alterar os contadores (pré-leitura sem trava)
+- [ ] Com a janela de uma estação esgotada e mais de 300 chaves vivas no cache, a estação continua recusando
 
 **Abrir e encerrar**
 - [ ] Abrir com outra edição em votação → recusado, nenhuma `Edicao` alterada
@@ -631,7 +670,7 @@ a spec 04 e o G6 citam:
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
 - [ ] `nome` com U+200B, U+202E, U+FEFF ou U+2028, ou só com 2×NBSP ou 2×U+3000 → 400; NBSP entre letras e acentos → aceito
 - [ ] `POST /visitantes` válido com cookie de cadastro válido da edição em votação → 302 para `/votar`, nenhum registro novo, o mesmo cookie (não regravado); conferido dentro da transação com a `Edicao` travada; formulário inválido com cadastro válido → 400 com o formulário
-- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao` (pré-checagem); envios simultâneos com o contador perto do teto nunca passam do teto (contagem com a `Edicao` travada); a chave no cache é a de `chave_ip`, sem o IP em claro
+- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao` (pré-checagem); envios simultâneos com o contador perto do teto nunca passam do teto (contagem com a `Edicao` travada); a chave no cache é a de `chave_ip`, sem o IP em claro; a chave termina no número do bloco de 10 min e o contador expira no fim do bloco: dois cadastros em segundos diferentes do mesmo bloco têm o mesmo `expira_em`, e um segundo envio não empurra a expiração
 - [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
 - [ ] `telefone` com 9 dígitos, 14 dígitos, letras, 21 caracteres ou `+` fora do começo (`1+7 99999-9999`) → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
 - [ ] Consentimento ausente ou desmarcado → 400, nada gravado, sem cookie de cadastro, `/votar` não libera a cédula
@@ -736,6 +775,34 @@ coordenador no PR #20).
 3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
    Ver "Formulário de visitante".
 
+## Decisões do PR #34
+Parecer do coordenador sobre a emissão em `/entrar` (decisão do
+coordenador no PR #34).
+
+1. **Ordem "transação → rate limit"** — aprovada (antes, "rate limit →
+   transação", item 9 do PR #18). O teste de rajada do #35 mostrou que
+   contar fora da trava estoura o teto. Ver "Rate limit da emissão".
+2. **Recusa não conta nos contadores** — aprovada: o QR repassado esgota
+   a estação sem comer o limite do IP do Wi-Fi que todos dividem.
+3. **Pré-leitura sem trava** antes da transação, só para recusar rápido —
+   pedida junto com a aprovação do item 1.
+4. **`MAX_ENTRIES` do cache** — no `CACHES["default"]` (PR #38), sem alias
+   próprio, para não mexer nas chaves nem nos testes que leem
+   `cache_django`. Teste com mais de 300 chaves vivas no PR #34.
+5. **Janela fixa no limite por IP** — aceita: na virada da janela passam
+   até 600 emissões em poucos segundos, mas o limite é barreira contra
+   script, e a camada da estação (20 por bloco) continua valendo.
+6. **Wi-Fi da Fatec com IP único** — 300 por 10 min ≈ 30 tokens por minuto
+   para o evento inteiro, re-scan incluso. Medir no pré-ensaio (21/10) e
+   no ensaio (22/10); se apertar, o coordenador revê o número.
+7. **Aceite P2 do `GET /entrar`** (exceção forçada, sem dados no log) —
+   adiado para a F8 e fechado lá: `test_fluxo_completo.py` força a
+   exceção pelas views reais com o `LOGGING` real (PR #37).
+8. **Tempo de resposta da recusa** — aceito: a recusa pela pré-leitura
+   volta antes de travar a `Edicao`, então quem mede o tempo pode
+   distinguir "estourou" de "assinatura inválida". O corpo é idêntico
+   (G5); o tempo só diz a um script que ele já está barrado.
+
 ## Decisões do PR #33
 Parecer do coordenador sobre o cadastro do visitante (decisão do
 coordenador no PR #33).
@@ -756,5 +823,8 @@ coordenador no PR #33).
    Implementado na fatia F5b, depois da F4, que cria a infraestrutura do
    rate limit: o "antes da trava" é uma pré-checagem só de leitura (acima
    do teto, nada encosta na `Edicao`), e a contagem acontece com a
-   `Edicao` travada, para o teto valer também sob rajada (revisão da
-   F5b). Ver "Cadastro do visitante".
+   `Edicao` travada, para o teto valer também sob rajada. Contador
+   próprio, pré-checagem sem trava e contagem sob a trava aprovados pelo
+   coordenador no PR #35, junto com o **bloco fixo de 10 min** (chave com
+   o número do bloco, expiração no fim dele) contra a correlação pelo
+   horário. Ver "Cadastro do visitante" e "Risco residual".
