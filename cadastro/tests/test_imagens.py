@@ -195,3 +195,53 @@ def test_resolucao_acima_do_teto_e_recusada():
     with pytest.raises(ValidationError) as erro:
         validar_imagem(arquivo)
     assert erro.value.code == "pixels"
+
+
+@pytest.mark.django_db
+def test_comentario_do_jpeg_nao_vaza(settings, tmp_path):
+    import io
+
+    from PIL import Image
+
+    settings.MEDIA_ROOT = tmp_path
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), "red").save(buffer, "JPEG", comment=b"Rua do aluno, 123")
+    fabricas.projeto(capa=SimpleUploadedFile("c.jpg", buffer.getvalue(), content_type="image/jpeg"))
+    assert b"Rua do aluno" not in next(tmp_path.rglob("*.*")).read_bytes()
+
+
+def _jpeg_cortado():
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.effect_noise((200, 200), 64).convert("RGB").save(buffer, "JPEG")
+    return SimpleUploadedFile("cortada.jpg", buffer.getvalue()[:-2000], content_type="image/jpeg")
+
+
+def test_jpeg_cortado_e_recusado_na_validacao():
+    """Upload interrompido no celular: o `verify()` deixava passar, e a
+    limpeza quebrava com 500 na hora de gravar."""
+    with pytest.raises(ValidationError) as erro:
+        validar_imagem(_jpeg_cortado())
+    assert erro.value.code == "formato"
+
+
+def _png_grande_demais():
+    import io
+
+    from PIL import Image
+
+    buffer = io.BytesIO()
+    Image.new("1", (5001, 5000)).save(buffer, "PNG")
+    return SimpleUploadedFile("g.png", buffer.getvalue(), content_type="image/png")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("arquivo", [_jpeg_cortado, _png_grande_demais])
+def test_salvar_sem_validar_jpeg_cortado_ou_grande_demais_nao_grava(settings, tmp_path, arquivo):
+    settings.MEDIA_ROOT = tmp_path
+    with pytest.raises(ValidationError):
+        fabricas.projeto(capa=arquivo())
+    assert not any(tmp_path.rglob("*.*"))
