@@ -1,8 +1,9 @@
 """Emissão do token em `GET /entrar` (spec 03, "Emissão de token" e "Rate limit
 da emissão").
 
-Ordem da spec: validação de entrada → assinatura e janela → transação com a
-trava da `Edicao` → rate limit → estação → token. Toda recusa é a mesma
+Ordem da spec: validação de entrada → assinatura e janela → pré-leitura do
+rate limit sem trava → transação com a trava da `Edicao` → rate limit →
+estação → token. Toda recusa é a mesma
 página "QR expirado" (400, corpo idêntico ao do /visitantes) e nenhuma cria
 token. Nenhum `logger` aqui (P2).
 """
@@ -17,7 +18,7 @@ from django.views.decorators.http import require_GET
 
 from votacao.assinatura import ler_janela
 from votacao.liberacao import cadastro_valido
-from votacao.limite import liberar
+from votacao.limite import esgotado, liberar
 from votacao.models import Estacao, Token
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
@@ -49,6 +50,10 @@ def entrar(request):
     if janela is None:
         return qr_expirado()
     estacao_id, ts = janela
+    # Já estourado: recusa sem esperar a trava (não enfileira na frente dos
+    # /votos). Só lê; a decisão que conta é a de `liberar`, sob a trava.
+    if esgotado(request, estacao_id, ts):
+        return qr_expirado()
     with transaction.atomic():
         # Edição travada antes de ler a estação (corrida A8 e referência temporal).
         edicao = edicao_em_votacao(travar=True)
