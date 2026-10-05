@@ -181,8 +181,10 @@ def test_expiracao_nao_guarda_o_horario_do_cadastro(evento, relogio):
 
 
 def test_novo_cadastro_nao_empurra_a_expiracao(evento, relogio):
-    """Armadilha A2 no contador do cadastro: o segundo envio no mesmo bloco
-    mantém o fim do bloco."""
+    """O segundo envio no mesmo bloco mantém o fim do bloco. Pelo desenho do
+    bloco fixo a armadilha A2 não ocorre aqui (o fim é o mesmo para todo o
+    bloco): este teste trava a regressão para "agora + 600", não a A2 — a
+    A2 é coberta no `/entrar` (`test_nova_emissao_nao_empurra_a_expiracao`)."""
     assert _celular().post(ROTA, DADOS).status_code == 302
     relogio.return_value = AGORA + 100
     assert _celular().post(ROTA, {**DADOS, "email": "bia@example.com"}).status_code == 302

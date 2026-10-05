@@ -462,7 +462,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes` | `email` | obrigatório; até 254 caracteres; `EmailValidator` do Django | 400, idem |
 | `POST /visitantes` | `telefone` | opcional; até 20 caracteres; só dígitos, espaço, `(`, `)`, `-` e um `+` opcional no começo (`^\+?[0-9 ()-]*$`); depois de remover o que não é dígito: 10 ou 11 dígitos (DDD + número), ou 12–13 começando com `55`; gravado só com os dígitos | 400, idem |
 | `POST /visitantes` | `consentimento` | obrigatório e marcado (checkbox, `BooleanField(required=True)`) | 400, idem |
-| `POST /visitantes` | IP do cliente | no máximo 300 envios por 10 min por IP (`chave_ip(ip_do_cliente(request))`), depois da validação: pré-checagem sem trava e contagem com a `Edicao` travada — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
+| `POST /visitantes` | IP do cliente | no máximo 300 envios por bloco fixo de 10 min (`agora // 600`) por IP (`chave_ip(ip_do_cliente(request))`), depois da validação: pré-checagem sem trava e contagem com a `Edicao` travada — fatia F5b | 400, formulário com mensagem genérica, nada gravado |
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
@@ -522,14 +522,21 @@ ordem física de gravação, e numa hora com poucos cadastros o horário
 truncado ainda permite inferência. O controle que resta é o acesso
 restrito ao banco e aos dumps (ADR-006). A spec não promete anonimato
 absoluto contra quem tem o banco inteiro. As chaves por IP do rate limit
-ficam na tabela do `DatabaseCache` até expirarem e serem removidas pela
-limpeza do cache; guardam o HMAC do IP (nunca o IP em claro) e não têm
+ficam na tabela do `DatabaseCache` até o fim do evento: a linha vencida
+só é apagada quando a mesma chave é lida de novo ou quando a tabela passa
+do `MAX_ENTRIES` (100 mil, PR #38), e a chave do bloco anterior do
+cadastro nunca é lida de novo — sobra uma linha por (IP, bloco). Guardam o HMAC do IP (nunca o IP em claro) e não têm
 token nem visitante. O **mesmo HMAC** aparece na chave do `/entrar`
 (`rl:entrar:ip:<H>`, que expira 10 min depois da primeira emissão) e na
 do cadastro (`rl:visitantes:ip:<H>:<bloco>`, que expira no fim do bloco
 de 10 min): no dump, as duas dizem só que o mesmo IP emitiu um token e
-fez cadastros naquele bloco — a mesma resolução do horário truncado, e
-no Wi-Fi do evento o IP é de todos. Com expiração "primeiro cadastro +
+fez cadastros naquele bloco de **10 min** — resolução 6 vezes mais fina
+que a hora truncada do `consentimento_em`. Com a ordem física das linhas,
+quem tem o dump consegue fatiar os cadastros de uma hora em blocos de
+10 min e, para um celular em 4G, ligar o token a um grupo menor de
+cadastros. Aceito (decisão do coordenador no parecer do #41): no Wi-Fi do
+evento o IP é de todos, e um bloco de 1 h exigiria teto de 1.800, que
+afrouxa o G7. Com expiração "primeiro cadastro +
 600 s", o horário do cadastro ficaria com segundos e ligaria o celular
 em 4G ao token (decisão do coordenador no PR #35).
 
