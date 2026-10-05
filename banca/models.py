@@ -75,6 +75,22 @@ class Jurado(models.Model):
     def __str__(self):
         return f"{self.edicao} · {self.nome}"
 
+    def clean(self):
+        super().clean()
+        self._verificar_edicao()
+
+    def save(self, *args, **kwargs):
+        self._verificar_edicao()
+        super().save(*args, **kwargs)
+
+    def _verificar_edicao(self):
+        """Jurado com avaliação não muda de edição (as avaliações iriam junto)."""
+        if not self.pk:
+            return
+        antes = Jurado.objects.filter(pk=self.pk).values_list("edicao_id", flat=True).first()
+        if antes is not None and antes != self.edicao_id and self.avaliacoes.exists():
+            raise ValidationError("Jurado com avaliação digitada não muda de edição.")
+
 
 class Avaliacao(models.Model):
     """Uma linha da ficha: o que um jurado deu a um projeto."""

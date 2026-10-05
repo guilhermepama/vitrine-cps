@@ -12,7 +12,7 @@ from banca.models import Avaliacao, Criterio, Jurado
 from cadastro.models import Turma
 
 
-def _votacao_aberta(edicao):
+def _edicao_aberta(edicao):
     return edicao is not None and edicao.votacao_aberta_em is not None
 
 
@@ -31,12 +31,12 @@ class CriterioAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         # Edição com votação aberta: critério fica só para leitura (ADR-007).
-        if obj is not None and _votacao_aberta(obj.edicao):
+        if obj is not None and _edicao_aberta(obj.edicao):
             return False
         return super().has_change_permission(request, obj)
 
     def has_delete_permission(self, request, obj=None):
-        if obj is not None and _votacao_aberta(obj.edicao):
+        if obj is not None and _edicao_aberta(obj.edicao):
             return False
         return super().has_delete_permission(request, obj)
 
@@ -48,7 +48,9 @@ class TurmaComEdicao(forms.ModelMultipleChoiceField):
 
 class JuradoForm(forms.ModelForm):
     turmas = TurmaComEdicao(
-        queryset=Turma.objects.select_related("edicao", "curso").order_by("edicao__nome", "curso__sigla"),
+        queryset=Turma.objects.select_related("edicao", "curso").order_by(
+            "edicao__nome", "curso__sigla", "numero_periodo", "turno"
+        ),
         widget=admin.widgets.FilteredSelectMultiple("turmas", is_stacked=False),
     )
 

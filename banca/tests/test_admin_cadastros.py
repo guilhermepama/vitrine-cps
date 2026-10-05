@@ -60,10 +60,22 @@ def test_criterio_de_edicao_aberta_e_so_leitura(admin_client):
     assert criterio.nome == "Critério 1"
 
 
-def test_sem_apagar_em_lote(admin_client):
-    for modelo in ("criterio", "jurado"):
-        resposta = admin_client.get(_url(modelo, "changelist"))
-        assert "delete_selected" not in resposta.content.decode()
+def test_sem_apagar_em_lote(rf):
+    from django.contrib import admin
+
+    request = rf.get("/")
+    request.user = User.objects.create_superuser("root", "r@example.com", "senha-forte-123")
+    for modelo in (Criterio, Jurado):
+        assert "delete_selected" not in admin.site._registry[modelo].get_actions(request)
+
+
+def test_criterio_travado_abre_so_leitura_para_o_superusuario(admin_client):
+    edicao = fabricas.cenario()[0]
+    criterio = Criterio.objects.filter(edicao=edicao).first()
+    resposta = admin_client.get(_url("criterio", "change", criterio.pk))
+    corpo = resposta.content.decode()
+    assert resposta.status_code == 200
+    assert 'name="nome"' not in corpo and 'name="_save"' not in corpo
 
 
 # --- Jurados ----------------------------------------------------------------------------
@@ -86,6 +98,13 @@ def test_turma_de_outra_edicao_e_recusada(admin_client):
     resposta = admin_client.post(_url("jurado", "add"), _dados_jurado(edicao, turma, alheia))
     assert resposta.status_code == 200
     assert "da edição dele" in resposta.content.decode()
+    assert not Jurado.objects.exists()
+
+
+def test_jurado_sem_turma_e_recusado(admin_client):
+    edicao = fabricas.cenario()[0]
+    resposta = admin_client.post(_url("jurado", "add"), _dados_jurado(edicao))
+    assert resposta.status_code == 200
     assert not Jurado.objects.exists()
 
 
@@ -159,6 +178,40 @@ def test_digitacao_ve_mas_nao_altera(digitacao):
     assert criterio.nome == "C"
 
 
-def test_anonimo_vai_para_o_login(client):
+def test_anonimo_e_nao_staff_vao_para_o_login(client):
     resposta = client.get(_url("criterio", "changelist"))
     assert resposta.status_code == 302 and "/login/" in resposta["Location"]
+    client.force_login(User.objects.create_user("aluno", "a@example.com", "senha-forte-123"))
+    resposta = client.get(_url("jurado", "changelist"))
+    assert resposta.status_code == 302 and "/login/" in resposta["Location"]
+
+
+# --- Travas fora do admin -------------------------------------------------------------------
+
+
+def test_travas_do_jurado_valem_por_qualquer_caminho(jurado_com_avaliacao):
+    from django.core.exceptions import ValidationError
+    from django.db import transaction
+
+    edicao, turma, jurado = jurado_com_avaliacao
+    for operacao in (
+        lambda: jurado.turmas.remove(turma),
+        lambda: jurado.turmas.clear(),
+        lambda: jurado.turmas.set([]),
+        lambda: turma.jurados.remove(jurado),
+        lambda: turma.jurados.clear(),
+    ):
+        with pytest.raises(ValidationError), transaction.atomic():
+            operacao()
+    assert list(Jurado.objects.get(pk=jurado.pk).turmas.all()) == [turma]
+    jurado.edicao = cadastro.edicao(nome="Ensaio 2026/2")
+    with pytest.raises(ValidationError):
+        jurado.save()
+
+
+def test_turma_sem_avaliacao_pode_sair(jurado_com_avaliacao):
+    edicao, turma, jurado = jurado_com_avaliacao
+    outra = cadastro.turma(edicao, cadastro.curso("GTUR"))
+    jurado.turmas.add(outra)
+    jurado.turmas.remove(outra)
+    assert list(jurado.turmas.all()) == [turma]

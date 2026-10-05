@@ -6,7 +6,8 @@ e nas `Nota` apagadas em cascata, sempre dentro da transação da exclusão.
 """
 
 from django.contrib.auth.models import Group, Permission
-from django.db.models.signals import post_delete, post_save, pre_save
+from django.core.exceptions import ValidationError
+from django.db.models.signals import m2m_changed, post_delete, post_save, pre_save
 from django.dispatch import receiver
 
 from banca.models import Avaliacao, Jurado, Nota
@@ -93,6 +94,25 @@ def _avaliacao_apagada(sender, instance, **kwargs):
 def _nota_apagada(sender, instance, **kwargs):
     # Na cascata, as notas saem antes da avaliação: ela ainda é encontrada.
     _desfazer(_edicao_da_avaliacao(instance.avaliacao_id))
+
+
+@receiver(m2m_changed, sender=Jurado.turmas.through)
+def _turma_do_jurado(sender, instance, action, reverse, pk_set, **kwargs):
+    """Jurado não perde turma em que já avaliou, por qualquer caminho
+    (`remove`, `set`, `clear`, pelo jurado ou pela turma)."""
+    if action not in ("pre_remove", "pre_clear"):
+        return
+    avaliacoes = Avaliacao.objects.all()
+    if reverse:  # turma.jurados.remove(...)
+        avaliacoes = avaliacoes.filter(projeto__turma=instance)
+        if action == "pre_remove":
+            avaliacoes = avaliacoes.filter(jurado_id__in=pk_set)
+    else:
+        avaliacoes = avaliacoes.filter(jurado=instance)
+        if action == "pre_remove":
+            avaliacoes = avaliacoes.filter(projeto__turma_id__in=pk_set)
+    if avaliacoes.exists():
+        raise ValidationError("Jurado com avaliação digitada não perde a turma em que avaliou.")
 
 
 def criar_grupo_digitacao(sender, **kwargs):
