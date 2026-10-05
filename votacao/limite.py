@@ -6,7 +6,7 @@ workers):
 - `/entrar`, por estação e bloco de 45 s do `timestamp` do QR: 20 emissões,
   expira em 150 s;
 - `/entrar`, por IP: 300 emissões em 10 min;
-- `POST /visitantes`, por IP: 300 envios em 10 min.
+- `POST /visitantes`, por IP e bloco fixo de 10 min: 300 envios.
 As chaves de IP levam só o HMAC do IP (`chave_ip`, de
 `cadastro/seguranca.py`), nunca o IP em claro.
 
@@ -19,6 +19,11 @@ da última. Quem chama trava a linha da `Edicao` antes da contagem que vale:
 As pré-leituras (`esgotado`, `cadastro_no_teto`) só leem, sem trava, para
 recusar rápido quem já está no teto.
 
+O contador do cadastro é por **bloco fixo** (decisão do coordenador no
+PR #35): a chave termina no número do bloco e expira no fim dele. Com
+"primeiro cadastro + 600 s", a coluna `expires` guardaria o horário do
+cadastro com segundos, e o mesmo HMAC na chave do `/entrar` ligaria, num
+`pg_dump`, o horário do token ao do cadastro (B1, ADR-003).
 """
 
 from django.core.cache import caches
@@ -30,6 +35,7 @@ LIMITE_ESTACAO = 20
 EXPIRA_ESTACAO = 150  # tolerância do QR (90 s + 5 s) com folga
 LIMITE_IP = 300
 EXPIRA_IP = 10 * 60
+BLOCO_CADASTRO = 10 * 60
 
 
 def chave_estacao(estacao_id, ts):
@@ -40,8 +46,14 @@ def chave_do_ip(request):
     return "rl:entrar:ip:" + chave_ip(ip_do_cliente(request))
 
 
-def chave_do_ip_cadastro(request):
-    return "rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))
+def chave_do_ip_cadastro(request, momento=None):
+    """Chave do bloco fixo de 10 min em que `momento` cai (padrão: agora)."""
+    momento = assinatura.agora() if momento is None else momento
+    return f"rl:visitantes:ip:{chave_ip(ip_do_cliente(request))}:{momento // BLOCO_CADASTRO}"
+
+
+def fim_do_bloco_cadastro(momento):
+    return (momento // BLOCO_CADASTRO + 1) * BLOCO_CADASTRO
 
 
 def _ler(cache, chave, momento):
@@ -68,7 +80,7 @@ def _camadas_entrar(request, estacao_id, ts, momento):
 
 
 def _camadas_cadastro(request, momento):
-    return [(chave_do_ip_cadastro(request), LIMITE_IP, momento + EXPIRA_IP)]
+    return [(chave_do_ip_cadastro(request, momento), LIMITE_IP, fim_do_bloco_cadastro(momento))]
 
 
 def _algum_esgotado(lidos, camadas):

@@ -33,7 +33,9 @@ pytestmark = pytest.mark.django_db
 ROTA = "/visitantes"
 AGORA = 1_793_000_000
 IP_FICTICIO = "203.0.113.7"
-CHAVE = "rl:visitantes:ip:"
+# Bloco fixo de 10 min (decisão do coordenador no PR #35): o contador expira
+# no fim do bloco em que AGORA cai, não em AGORA + 600.
+FIM_BLOCO = AGORA - AGORA % 600 + 600
 MENSAGEM = "Não foi possível concluir o cadastro. Confira os campos."
 DADOS = {"nome": "Ana Souza", "email": "ana@example.com", "telefone": "(17) 99999-9999", "consentimento": "on"}
 
@@ -57,12 +59,16 @@ def _celular(ip=IP_FICTICIO):
     return Client(REMOTE_ADDR=ip)
 
 
+def _chave(ip=IP_FICTICIO, momento=AGORA):
+    return f"rl:visitantes:ip:{chave_ip(ip)}:{momento // 600}"
+
+
 def _contador(ip=IP_FICTICIO):
-    return caches["default"].get(CHAVE + chave_ip(ip))
+    return caches["default"].get(_chave(ip))
 
 
 def _pre_carregar(contagem, ip=IP_FICTICIO):
-    caches["default"].set(CHAVE + chave_ip(ip), (contagem, AGORA + 600), 600)
+    caches["default"].set(_chave(ip), (contagem, FIM_BLOCO), FIM_BLOCO - AGORA)
 
 
 def _sem_csrf(resposta):
@@ -74,14 +80,14 @@ def test_a_300a_passa_e_a_301a_recusa(evento):
     resposta = _celular().post(ROTA, DADOS)
     assert resposta.status_code == 302
     assert Visitante.objects.count() == 1
-    assert _contador() == (300, AGORA + 600)
+    assert _contador() == (300, FIM_BLOCO)
 
     recusa = _celular().post(ROTA, DADOS)
     assert recusa.status_code == 400
     assert MENSAGEM in recusa.content.decode()
     assert "cadastro" not in recusa.cookies
     assert Visitante.objects.count() == 1
-    assert _contador() == (300, AGORA + 600)  # recusa não conta
+    assert _contador() == (300, FIM_BLOCO)  # recusa não conta
 
 
 def test_recusa_pelo_limite_nao_trava_a_edicao(evento):
@@ -101,7 +107,7 @@ def test_recusa_dentro_da_trava_quando_o_teto_chega_depois_da_pre_checagem(event
     assert recusa.status_code == 400
     assert MENSAGEM in recusa.content.decode()
     assert Visitante.objects.count() == 0
-    assert _contador() == (300, AGORA + 600)
+    assert _contador() == (300, FIM_BLOCO)
 
 
 def test_sem_edicao_em_votacao_nao_gasta_vaga(evento):
@@ -125,7 +131,7 @@ def test_formulario_invalido_nao_consulta_o_banco_nem_conta(evento, django_asser
     _pre_carregar(300)
     with django_assert_num_queries(0):
         assert _celular().post(ROTA, {**DADOS, "nome": "A"}).status_code == 400
-    assert _contador() == (300, AGORA + 600)
+    assert _contador() == (300, FIM_BLOCO)
 
 
 def test_outro_ip_tem_contador_proprio(evento):
@@ -138,28 +144,65 @@ def test_contador_proprio_separado_do_entrar(evento):
     caches["default"].set(limite.chave_do_ip(_request()), (300, AGORA + 600), 600)
     assert _celular().post(ROTA, DADOS).status_code == 302
     assert caches["default"].get(limite.chave_do_ip(_request())) == (300, AGORA + 600)
-    assert _contador() == (1, AGORA + 600)
+    assert _contador() == (1, FIM_BLOCO)
 
 
 def _request():
     return RequestFactory(REMOTE_ADDR=IP_FICTICIO).post(ROTA)
 
 
-def test_chave_e_o_hmac_sem_o_ip_em_claro_e_expira_em_10_min(evento):
-    assert _celular().post(ROTA, DADOS).status_code == 302
+def _linhas():
     with connection.cursor() as cursor:
         cursor.execute("SELECT cache_key, value, expires FROM cache_django")
-        linhas = cursor.fetchall()
-    assert [chave for chave, _, _ in linhas] == [":1:" + CHAVE + chave_ip(IP_FICTICIO)]
+        return cursor.fetchall()
+
+
+def test_chave_e_o_hmac_do_ip_com_o_bloco_sem_o_ip_em_claro(evento):
+    assert _celular().post(ROTA, DADOS).status_code == 302
+    linhas = _linhas()
+    esperada = f"rl:visitantes:ip:{chave_ip(IP_FICTICIO)}:{AGORA // 600}"
+    assert [chave for chave, _, _ in linhas] == [":1:" + esperada]
     assert all(IP_FICTICIO not in f"{chave}{valor}" for chave, valor, _ in linhas)
+    # Expira no fim do bloco (AGORA + 400 aqui), não em AGORA + 600.
     agora = timezone.now()
-    assert agora + timedelta(seconds=590) < linhas[0][2] <= agora + timedelta(seconds=600)
+    restante = FIM_BLOCO - AGORA
+    assert agora + timedelta(seconds=restante - 10) < linhas[0][2] <= agora + timedelta(seconds=restante)
+
+
+def test_expiracao_nao_guarda_o_horario_do_cadastro(evento, relogio):
+    """Correlação pelo horário (B1, decisão do coordenador no PR #35): dois
+    IPs que se cadastram em segundos diferentes do mesmo bloco ficam com o
+    mesmo `expira_em`, e a chave não leva o segundo do cadastro."""
+    assert _celular().post(ROTA, DADOS).status_code == 302
+    relogio.return_value = AGORA + 137
+    assert _celular("198.51.100.9").post(ROTA, {**DADOS, "email": "bia@example.com"}).status_code == 302
+    valores = {caches["default"].get(_chave(ip, AGORA + 137)) for ip in (IP_FICTICIO, "198.51.100.9")}
+    assert valores == {(1, FIM_BLOCO)}
+
+
+def test_novo_cadastro_nao_empurra_a_expiracao(evento, relogio):
+    """Armadilha A2 no contador do cadastro: o segundo envio no mesmo bloco
+    mantém o fim do bloco."""
+    assert _celular().post(ROTA, DADOS).status_code == 302
+    relogio.return_value = AGORA + 100
+    assert _celular().post(ROTA, {**DADOS, "email": "bia@example.com"}).status_code == 302
+    assert caches["default"].get(_chave(momento=AGORA + 100)) == (2, FIM_BLOCO)
+
+
+def test_bloco_seguinte_tem_contador_proprio(evento, relogio):
+    """Na virada do bloco o contador recomeça (aceito: até 2× o teto na
+    virada, como a janela fixa do /entrar)."""
+    _pre_carregar(300)
+    assert _celular().post(ROTA, DADOS).status_code == 400
+    relogio.return_value = FIM_BLOCO
+    assert _celular().post(ROTA, DADOS).status_code == 302
+    assert caches["default"].get(_chave(momento=FIM_BLOCO)) == (1, FIM_BLOCO + 600)
 
 
 def test_ip_vem_do_cabecalho_configurado(settings, evento):
     settings.IP_HEADER = "X-Real-Ip"
     assert Client(REMOTE_ADDR="10.0.0.1").post(ROTA, DADOS, HTTP_X_REAL_IP=IP_FICTICIO).status_code == 302
-    assert _contador() == (1, AGORA + 600)
+    assert _contador() == (1, FIM_BLOCO)
     assert _contador("10.0.0.1") is None
 
 
@@ -170,7 +213,7 @@ def test_cadastro_ja_valido_tambem_conta(evento):
     assert celular.post(ROTA, DADOS).status_code == 302
     assert celular.post(ROTA, DADOS).status_code == 302
     assert Visitante.objects.count() == 1
-    assert _contador() == (2, AGORA + 600)
+    assert _contador() == (2, FIM_BLOCO)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -192,4 +235,4 @@ def test_rajada_simultanea_nunca_passa_do_teto(evento):
         status = list(executor.map(enviar, range(n)))
     assert (status.count(302), status.count(400)) == (5, n - 5)
     assert Visitante.objects.count() == 5
-    assert _contador() == (300, AGORA + 600)
+    assert _contador() == (300, FIM_BLOCO)

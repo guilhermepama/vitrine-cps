@@ -389,13 +389,16 @@ def test_post_nao_grava_sessao_e_no_cache_so_o_contador_do_ip(client, evento):
     valor (contagem, expira_em) — nada do visitante."""
     call_command("createcachetable", verbosity=0)
     sessoes, cache = Session.objects.count(), _linhas_de_cache()
-    _aceito(_postar(client))
-    _postar(client, nome="A")
+    # Relógio fixo: a chave do cadastro leva o bloco de 10 min (PR #35).
+    with mock.patch("votacao.assinatura.agora", return_value=1_793_000_000):
+        _aceito(_postar(client))
+        _postar(client, nome="A")
+        chave = limite.chave_do_ip_cadastro(_request_de_teste())
     assert (Session.objects.count(), _linhas_de_cache()) == (sessoes, cache + 1)
     with connection.cursor() as cursor:
         cursor.execute("SELECT cache_key FROM cache_django")
-        assert [linha[0] for linha in cursor.fetchall()] == [":1:" + limite.chave_do_ip_cadastro(_request_de_teste())]
-    assert caches["default"].get(limite.chave_do_ip_cadastro(_request_de_teste()))[0] == 1
+        assert [linha[0] for linha in cursor.fetchall()] == [":1:" + chave]
+    assert caches["default"].get(chave)[0] == 1
 
 
 def test_isolamento_ensaio_e_evento():
