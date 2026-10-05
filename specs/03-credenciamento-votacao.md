@@ -781,10 +781,15 @@ ferramenta, a medição seria gente clicando junto, sem número confiável.
    poucos workers síncronos, boa parte da espera é a fila do servidor, que
    existiria sem a trava. Por isso a ferramenta imprime, em cada nível,
    uma **linha de base** (`GET /votar` dos mesmos visitantes, juntos, sem
-   a trava da `Edicao`) antes da linha dos votos; a diferença entre as
-   duas no mesmo nível é a espera pela trava. O coordenador anota o
-   número de workers do ambiente e olha as esperas por lock no Neon (C13)
-   durante a carga. Condição de merge do #37 (decisão do coordenador),
+   a trava da `Edicao`) antes da linha dos votos. A diferença entre as
+   duas no mesmo nível **aproxima** a espera pela trava: o voto também
+   grava e faz commit, e a cédula renderiza a lista inteira — por isso a
+   medida principal são as esperas por lock no Neon (C13), lidas durante
+   a carga, com o número de workers do ambiente anotado. Os celulares do
+   roteiro usam uma estação ativa reservada a eles, criada depois de o
+   comando começar (ele lê as estações no início): o distribuidor só
+   conta as próprias emissões, e celulares na mesma estação podem
+   estourar os 20 por bloco e abortar a rodada com "respondeu 400". Condição de merge do #37 (decisão do coordenador),
    entregue no PR #43.
 
 ## Decisões do PR #36

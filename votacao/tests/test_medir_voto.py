@@ -297,3 +297,44 @@ def test_entrar_recusado_aborta_a_largada_sem_travar(live_server):
     assert time.monotonic() - inicio < 10
     assert Voto.objects.count() == 0
 
+
+
+@pytest.mark.django_db(transaction=True)
+def test_falha_na_linha_de_base_solta_a_segunda_barreira(live_server):
+    """Um visitante quebra ao abrir a cédula (erro que não é de rede): os
+    outros, já na segunda barreira, são soltos na hora e nenhum voto sai."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    original = medir_voto.Visitante.abrir_cedula
+    chamadas = []
+
+    def abrir_cedula(self):
+        chamadas.append(1)
+        if len(chamadas) == 3:
+            time.sleep(0.5)  # os outros dois já estão na segunda barreira
+            raise ValueError("quebrou")
+        return original(self)
+
+    inicio = time.monotonic()
+    with mock.patch.object(medir_voto.Visitante, "abrir_cedula", abrir_cedula):
+        with pytest.raises(CommandError, match="ValueError: quebrou"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert time.monotonic() - inicio < 10
+    assert Voto.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_linha_de_base_nao_trava_a_edicao(client):
+    """Premissa da linha de base: o GET /votar não trava a `Edicao`; se um dia
+    travar, a linha 'cédulas' deixa de ser a referência sem trava."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from votacao.tests.cenario import montar
+
+    cenario = montar()
+    votante = cenario.votante(client)
+    with CaptureQueriesContext(connection) as consultas:
+        assert votante.get("/votar").status_code == 200
+    assert consultas.captured_queries
+    assert not any("FOR UPDATE" in q["sql"] for q in consultas.captured_queries)

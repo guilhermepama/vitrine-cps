@@ -251,7 +251,11 @@ class Command(BaseCommand):
                 largada.abort()  # ninguém fica esperando quem não vai chegar
                 raise
             largada.wait(PRAZO * 4)
-            base = [visitante.abrir_cedula() for _ in range(votos)]
+            try:
+                base = [visitante.abrir_cedula() for _ in range(votos)]
+            except BaseException:
+                segunda.abort()  # idem na segunda barreira
+                raise
             segunda.wait(PRAZO * 4 * votos)
             return base, [visitante.votar(projeto_id) for projeto_id in projetos[:votos]]
 
@@ -261,6 +265,6 @@ class Command(BaseCommand):
         # O erro de quem falhou, não o BrokenBarrierError de quem esperava por ele.
         erros.sort(key=lambda erro: isinstance(erro, threading.BrokenBarrierError))
         if erros:
-            raise CommandError(f"Falhou ao preparar os visitantes: {type(erros[0]).__name__}: {erros[0]}")
+            raise CommandError(f"A rodada falhou: {type(erros[0]).__name__}: {erros[0]}")
         base = [r for futuro in futuros for r in futuro.result()[0]]
         return base, [r for futuro in futuros for r in futuro.result()[1]]
