@@ -3,9 +3,9 @@ visitantes (specs/04-resultados.md, fatias 2 e 3).
 
 Só leitura e só agregados: nenhuma linha identifica um token. De visitante,
 as páginas mostram só a contagem; nome, email, telefone e data do aceite só
-saem no CSV, com permissão própria. As views buscam os dados e chamam `calcular_ranking`; a
-regra do cálculo mora em `resultados/calculo.py` e a nota da banca vem
-pronta de `banca.servicos.nota_banca_por_projeto`.
+saem no CSV, com permissão própria. As views buscam os dados e chamam
+`calcular_ranking`; a regra do cálculo mora em `resultados/calculo.py` e a
+nota da banca vem pronta de `banca.servicos.nota_banca_por_projeto`.
 
 Acesso (ordem da spec, antes de qualquer consulta a dados de negócio):
 anônimo → login do admin; logado sem `is_active`/`is_staff` → 403, mesmo com
