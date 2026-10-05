@@ -760,11 +760,15 @@ no PR #36).
    recarrega**, para o visitante não ficar preso no "Tente de novo". Ver
    "Cédula".
 5. **`django.template` em INFO no `LOGGING`** — entrou com o PR #38.
-6. **`/como-votar/`** nasce na fatia 1 da spec 02 (PR #23, 10/10). Até
-   ela estar na `main`, esta fatia não vai para ensaio nem deploy.
+6. **`/como-votar/`** nasce na fatia 1 da spec 02 (PR #44). Até ela
+   estar na `main`, esta fatia não vai para ensaio nem deploy.
 7. **Aceite P2 do fluxo completo** (`assertLogs` em `/entrar` →
    `/visitantes` → `/votar` → `/votos`) — fica na F8, o PR #37
    (`votacao/tests/test_fluxo_completo.py`).
+8. **403 persistente** (CSRF de origem mal configurado no deploy, ou 403
+   do proxy) faz a cédula só recarregar, sem mensagem. Não muda o código:
+   o roteiro do pré-ensaio (21/10) inclui um voto real pelo domínio e
+   pelo proxy de produção antes da medição (parecer do #42).
 
 ## Decisões do PR #34
 Parecer do coordenador sobre a emissão em `/entrar` (decisão do
