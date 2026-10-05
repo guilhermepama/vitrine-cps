@@ -401,6 +401,13 @@ def test_pre_leitura_nao_conta(estacao):
     assert caches["default"].get(_chave_ip()) is None
 
 
+def test_pre_leitura_pelo_ip_nao_conta(estacao):
+    _esgotar_ip()
+    _entrar(estacao.pk)
+    assert caches["default"].get(_chave_ip()) == (300, AGORA + 600)
+    assert caches["default"].get(limite.chave_estacao(estacao.pk, AGORA)) is None
+
+
 def test_contador_da_estacao_sobrevive_a_mais_de_300_chaves_vivas(estacao, corpo_qr_expirado):
     """Bloqueante 1 do parecer do #34: com o MAX_ENTRIES padrão (300), o cull
     do DatabaseCache apagava ~1/3 das chaves vivas em ordem alfabética, e
@@ -411,7 +418,8 @@ def test_contador_da_estacao_sobrevive_a_mais_de_300_chaves_vivas(estacao, corpo
     # 301 IPs distintos com contador vivo (4G, IPv6 em 10 min).
     for i in range(301):
         caches["default"].set("rl:entrar:ip:" + chave_ip(f"10.0.{i // 256}.{i % 256}"), (1, AGORA + 600), 600)
-    assert len(_linhas_de_cache()) > 300
+    # Sem pré-condição sobre o total de linhas: com o MAX_ENTRIES padrão o
+    # cull já teria apagado parte delas, e é a recusa abaixo que tem de falhar.
     _recusa_sem_token(_entrar(estacao.pk), corpo_qr_expirado, antes=20)
 
 
