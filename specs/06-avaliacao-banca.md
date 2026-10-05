@@ -109,6 +109,12 @@ nota de banca de cada projeto.
   "#<id> — <título> (<turma>)", e uma nota por critério da edição.
   "Salvar e adicionar outra" volta ao formulário com o mesmo jurado, para
   digitar a ficha inteira em sequência.
+- **Só edição aberta e não conferida** (decisão do coordenador no parecer
+  do PR #55): o passo 1 e o `?jurado=` do passo 2 aceitam só jurados de
+  edições com votação aberta **e** `banca_conferida_em` vazio; os demais
+  voltam ao passo 1. Assim o ensaio e as edições passadas não recebem
+  ficha por engano. Corrigir uma avaliação existente continua pela
+  alteração, que desfaz a conferência.
 - **Inline das notas**: `min_num = max_num =` número de critérios da
   edição, `extra = 0`, `validate_min = validate_max = True`,
   `can_delete = False`, critério oculto e fixo em cada linha, valor

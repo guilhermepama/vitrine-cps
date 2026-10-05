@@ -5,10 +5,12 @@ model); o grupo `digitacao-banca` só vê. Avaliações: o grupo cria e altera,
 só o superusuário apaga.
 """
 
+import re
 from urllib.parse import urlsplit, urlunsplit
 
 from django import forms
 from django.contrib import admin, messages
+from django.db import IntegrityError
 from django.forms.models import BaseInlineFormSet
 from django.http import HttpResponseRedirect, QueryDict
 from django.utils import timezone
@@ -120,8 +122,12 @@ CONFERENCIA_DESFEITA = "A conferência desta edição foi desfeita; confira de n
 
 def _jurados_digitaveis():
     """Jurados de edições que já abriram a votação (antes disso turma e status
-    dos projetos ainda mudam). Encerrada continua valendo: digita-se no dia 30."""
-    return Jurado.objects.filter(edicao__votacao_aberta_em__isnull=False).select_related("edicao")
+    dos projetos ainda mudam) e cuja banca não foi conferida (decisão do
+    coordenador no #55: edição antiga ou ensaio não recebem ficha nova por
+    engano). Encerrada continua valendo: digita-se no dia 30."""
+    return Jurado.objects.filter(
+        edicao__votacao_aberta_em__isnull=False, edicao__banca_conferida_em__isnull=True
+    ).select_related("edicao")
 
 
 def _jurado_da_url(request):
@@ -184,10 +190,23 @@ class CriterioFixo(forms.HiddenInput):
         return format_html("{}{}", super().render(name, value, attrs, renderer), nomes.get(str(value), ""))
 
 
+FORMATO_NOTA = re.compile(r"\d{1,2}([,.]\d)?", re.ASCII)
+
+
+class NotaDaFicha(forms.DecimalField):
+    """Só o que se escreve numa ficha: "7", "7,5" (ou "7.5"). Recusa o que o
+    Decimal aceitaria por acaso: 1e1, 1_0, dígitos de largura total, "7,", ",5"."""
+
+    def to_python(self, value):
+        if isinstance(value, str):
+            value = value.strip()
+            if value and not FORMATO_NOTA.fullmatch(value):
+                raise forms.ValidationError("Use de 0 a 10, com no máximo uma casa decimal (ex.: 7,5).")
+        return super().to_python(value)
+
+
 class NotaForm(forms.ModelForm):
-    valor = forms.DecimalField(
-        max_digits=3, decimal_places=1, min_value=0, max_value=10, localize=True, label="Nota (0 a 10)"
-    )
+    valor = NotaDaFicha(max_digits=3, decimal_places=1, max_value=10, localize=True, label="Nota (0 a 10)")
 
     class Meta:
         model = Nota
@@ -216,7 +235,19 @@ class NotasFormSet(BaseInlineFormSet):
             esperados = sorted(self._criterios().values_list("pk", flat=True))
             if None in enviados or sorted(c.pk for c in enviados) != esperados:
                 raise forms.ValidationError("A ficha tem de ter uma nota para cada critério da edição do jurado.")
+        self._conferir_linhas_gravadas()
         super().clean()
+
+    def _conferir_linhas_gravadas(self):
+        """POST adulterado: as linhas "existentes" têm de ser exatamente as notas
+        desta avaliação (nenhuma na criação), sem id repetido nem alheio, e o
+        critério de uma nota gravada não muda."""
+        gravadas = self.get_queryset().values_list("pk", flat=True) if self.instance.pk else []
+        enviadas = [form.instance.pk for form in self.initial_forms]  # pk None: id alheio
+        if sorted(map(str, enviadas)) != sorted(map(str, gravadas)) or any(
+            "criterio" in form.changed_data for form in self.initial_forms
+        ):
+            raise forms.ValidationError("As linhas da ficha não conferem com as notas gravadas desta avaliação.")
 
 
 class NotaInline(admin.TabularInline):
@@ -230,7 +261,11 @@ class NotaInline(admin.TabularInline):
         return obj.jurado if obj is not None else _jurado_da_url(request)
 
     def get_min_num(self, request, obj=None, **kwargs):
-        return _criterios_do(self._jurado(request, obj)).count()
+        jurado = self._jurado(request, obj)
+        cache = request.__dict__.setdefault("_banca_n_criterios", {})
+        if jurado not in cache:
+            cache[jurado] = _criterios_do(jurado).count()
+        return cache[jurado]
 
     get_max_num = get_min_num
 
@@ -241,11 +276,26 @@ class NotaInline(admin.TabularInline):
         return super().get_formset(request, obj, validate_min=True, validate_max=True, **kwargs)
 
 
+class JuradoFiltro(admin.SimpleListFilter):
+    """Jurados com avaliação, numa consulta só (o filtro padrão lia a edição de
+    cada jurado para o rótulo)."""
+
+    title = "jurado"
+    parameter_name = "jurado__id__exact"
+
+    def lookups(self, request, model_admin):
+        jurados = Jurado.objects.filter(avaliacoes__isnull=False).distinct().select_related("edicao")
+        return [(jurado.pk, str(jurado)) for jurado in jurados]
+
+    def queryset(self, request, queryset):
+        return queryset.filter(jurado_id=self.value()) if self.value() else queryset
+
+
 @admin.register(Avaliacao)
 class AvaliacaoAdmin(admin.ModelAdmin):
     inlines = [NotaInline]
     list_display = ["jurado", "rotulo_projeto", "digitado_por", "digitado_em"]
-    list_filter = [("jurado__edicao", admin.RelatedOnlyFieldListFilter), "jurado"]
+    list_filter = [("jurado__edicao", admin.RelatedOnlyFieldListFilter), JuradoFiltro]
     list_select_related = ["jurado__edicao", "projeto", "digitado_por"]
     search_fields = ["projeto__titulo"]
 
@@ -296,6 +346,17 @@ class AvaliacaoAdmin(admin.ModelAdmin):
                 "show_save_and_continue": False,
             }
         return super().add_view(request, form_url, extra_context)
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        """Duplo clique em "Salvar": as duas requisições passam na validação e a
+        segunda bate no índice único. A transação do admin já desfez tudo; valida
+        de novo, e agora o formulário volta com a mensagem da duplicata."""
+        try:
+            return super().changeform_view(request, object_id, form_url, extra_context)
+        except IntegrityError:
+            if request.method != "POST":
+                raise
+            return super().changeform_view(request, object_id, form_url, extra_context)
 
     @staticmethod
     def _com_jurado(url, jurado):

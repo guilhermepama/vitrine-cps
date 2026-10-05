@@ -20,6 +20,8 @@ pytestmark = pytest.mark.django_db
 User = get_user_model()
 ADD = reverse("admin:banca_avaliacao_add")
 MENSAGEM_DUPLICATA = "Esta ficha já foi digitada; edite a existente."
+FORMATO = "no máximo uma casa decimal"
+LINHAS = "não conferem com as notas gravadas"
 
 
 @pytest.fixture
@@ -191,11 +193,20 @@ def test_criterio_em_branco_e_recusado(digitacao, ficha):
 @pytest.mark.parametrize(
     "valor, erro",
     [
-        ("7,55", "1 casa decimal"),
+        ("7,55", FORMATO),
         ("11", "menor ou igual a 10"),
         ("10,1", "menor ou igual a 10"),
-        ("-1", "maior ou igual a 0"),
-        ("abc", "Informe um número"),
+        ("99", "menor ou igual a 10"),
+        ("-1", FORMATO),
+        ("abc", FORMATO),
+        ("1e1", FORMATO),
+        ("1E-1", FORMATO),
+        ("1_0", FORMATO),
+        ("７,５", FORMATO),
+        ("7,", FORMATO),
+        (",5", FORMATO),
+        ("7 ,5", FORMATO),
+        ("NaN", FORMATO),
     ],
 )
 def test_nota_invalida_e_recusada(digitacao, ficha, valor, erro):
@@ -365,15 +376,64 @@ def test_alterar_com_conferencia_desfaz_e_avisa(digitacao, digitada):
     assert CONFERENCIA_DESFEITA in resposta.content.decode()
 
 
-def test_criar_com_conferencia_desfaz_e_avisa(digitacao, digitada, ficha):
+def test_edicao_conferida_nao_recebe_ficha_nova(digitacao, digitada, ficha):
+    """Decisão do coordenador (#55): passo 1 e ?jurado= só de edição não conferida."""
     edicao, _ = digitada
+    jurado = ficha[1]
     edicao.banca_conferida_em = timezone.now()
     edicao.save()
-    dados = _post(ficha[2][1], _criterios(edicao), ["5"] * 3)
-    resposta = digitacao.post(_passo2(ficha[1]), dados, follow=True)
+    assert f'value="{jurado.pk}"' not in digitacao.get(ADD).content.decode()
+    assert digitacao.get(_passo2(jurado))["Location"] == ADD
+    resposta = digitacao.post(_passo2(jurado), _post(ficha[2][1], _criterios(edicao), ["5"] * 3))
+    assert resposta.status_code == 302 and resposta["Location"] == ADD
+    assert Avaliacao.objects.count() == 1
     edicao.refresh_from_db()
-    assert edicao.banca_conferida_em is None
-    assert CONFERENCIA_DESFEITA in resposta.content.decode()
+    assert edicao.banca_conferida_em is not None
+
+
+def test_criar_sem_conferencia_nao_avisa(digitacao, ficha):
+    edicao, jurado, projetos = ficha
+    resposta = digitacao.post(_passo2(jurado), _post(projetos[0], _criterios(edicao), ["5"] * 3), follow=True)
+    assert Avaliacao.objects.count() == 1
+    assert CONFERENCIA_DESFEITA not in resposta.content.decode()
+
+
+def test_alterar_sem_conferencia_nao_avisa(digitacao, digitada):
+    _, avaliacao = digitada
+    resposta = digitacao.post(_change(avaliacao), _post_alteracao(avaliacao, ["1", "8", "9"]), follow=True)
+    assert Avaliacao.objects.get(pk=avaliacao.pk).alterado_por is not None
+    assert CONFERENCIA_DESFEITA not in resposta.content.decode()
+
+
+def test_apagar_sem_conferencia_nao_avisa(admin_client, digitada):
+    _, avaliacao = digitada
+    url = reverse("admin:banca_avaliacao_delete", args=[avaliacao.pk])
+    resposta = admin_client.post(url, {"post": "yes"}, follow=True)
+    assert not Avaliacao.objects.exists()
+    assert CONFERENCIA_DESFEITA not in resposta.content.decode()
+
+
+def test_apagar_em_lote_sem_conferencia_nao_avisa(admin_client, digitada):
+    _, avaliacao = digitada
+    dados = {"action": "delete_selected", "_selected_action": [avaliacao.pk], "post": "yes"}
+    resposta = admin_client.post(reverse("admin:banca_avaliacao_changelist"), dados, follow=True)
+    assert not Avaliacao.objects.exists()
+    assert CONFERENCIA_DESFEITA not in resposta.content.decode()
+
+
+def test_apagar_em_lote_de_outra_edicao_nao_avisa_nem_desfaz(admin_client, digitada):
+    """Edição A conferida; o lote apaga só uma avaliação da edição B: sem aviso."""
+    edicao, avaliacao = digitada
+    outra, turma_o, projetos_o = fabricas.cenario(nome="Ensaio 2026/2", sigla="GTUR", criterios=3)
+    alheia = fabricas.avaliar(fabricas.jurado(outra, turma_o), projetos_o[0], [1, 2, 3])
+    edicao.refresh_from_db()
+    edicao.banca_conferida_em = timezone.now()
+    edicao.save()
+    dados = {"action": "delete_selected", "_selected_action": [alheia.pk], "post": "yes"}
+    resposta = admin_client.post(reverse("admin:banca_avaliacao_changelist"), dados, follow=True)
+    assert CONFERENCIA_DESFEITA not in resposta.content.decode()
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is not None
 
 
 def test_alterar_nota_para_invalida_nao_grava(digitacao, digitada):
@@ -437,3 +497,170 @@ def test_lista_mostra_jurado_projeto_e_digitador(digitacao, digitada):
 def test_anonimo_vai_para_o_login(client):
     resposta = client.get(ADD)
     assert resposta.status_code == 302 and "/login/" in resposta["Location"]
+
+
+# --- Revisão do #55: POST adulterado, corrida, ordem das linhas, consultas, formato ------------
+
+
+def _sem_500_nada_gravado(resposta, avaliacoes=0, notas=0):
+    assert resposta.status_code == 200, resposta.status_code
+    assert Avaliacao.objects.count() == avaliacoes and Nota.objects.count() == notas
+
+
+@pytest.fixture
+def outra_ficha(ficha):
+    """Uma avaliação já gravada (de outro projeto), dona dos ids "alheios"."""
+    edicao, jurado, projetos = ficha
+    return fabricas.avaliar(jurado, projetos[1], [1, 2, 3], usuario=fabricas.digitador("carla"))
+
+
+@pytest.mark.parametrize("k", [1, 3])
+def test_add_com_ids_de_notas_alheias_e_recusado(digitacao, ficha, outra_ficha, k):
+    edicao, jurado, projetos = ficha
+    alheias = list(outra_ficha.notas.order_by("criterio__ordem").values_list("pk", flat=True))
+    dados = _post(projetos[0], _criterios(edicao), ["2", "10", "10"], inicial=k)
+    for i in range(k):
+        dados[f"notas-{i}-id"] = alheias[i]
+    resposta = digitacao.post(_passo2(jurado), dados)
+    _sem_500_nada_gravado(resposta, avaliacoes=1, notas=3)
+    assert LINHAS in resposta.content.decode()
+
+
+def test_add_com_initial_forms_forjado_sem_id_e_recusado(digitacao, ficha):
+    edicao, jurado, projetos = ficha
+    resposta = digitacao.post(_passo2(jurado), _post(projetos[0], _criterios(edicao), ["7"] * 3, inicial=3))
+    _sem_500_nada_gravado(resposta)
+
+
+def _alteracao_recusada(digitacao, avaliacao, dados):
+    antes = list(Nota.objects.values().order_by("pk"))
+    resposta = digitacao.post(_change(avaliacao), dados)
+    assert resposta.status_code == 200, resposta.status_code
+    assert LINHAS in resposta.content.decode()
+    assert list(Nota.objects.values().order_by("pk")) == antes
+    assert Avaliacao.objects.get(pk=avaliacao.pk).alterado_por is None
+
+
+def test_change_com_ids_de_outra_avaliacao_e_recusado(digitacao, digitada, outra_ficha):
+    _, avaliacao = digitada
+    dados = _post_alteracao(avaliacao, ["1", "1", "1"])
+    for i, pk in enumerate(outra_ficha.notas.order_by("criterio__ordem").values_list("pk", flat=True)):
+        dados[f"notas-{i}-id"] = pk
+    _alteracao_recusada(digitacao, avaliacao, dados)
+
+
+def test_change_trocando_criterio_entre_linhas_e_recusado(digitacao, digitada):
+    _, avaliacao = digitada
+    dados = _post_alteracao(avaliacao, ["7", "8", "9"])
+    dados["notas-0-criterio"], dados["notas-1-criterio"] = dados["notas-1-criterio"], dados["notas-0-criterio"]
+    _alteracao_recusada(digitacao, avaliacao, dados)
+
+
+def test_change_com_initial_forms_zero_e_recusado(digitacao, digitada):
+    _, avaliacao = digitada
+    dados = _post_alteracao(avaliacao, ["1", "2", "3"])
+    dados["notas-INITIAL_FORMS"] = 0
+    for i in range(3):
+        del dados[f"notas-{i}-id"]
+    _alteracao_recusada(digitacao, avaliacao, dados)
+
+
+def test_change_com_id_repetido_e_recusado(digitacao, digitada):
+    _, avaliacao = digitada
+    dados = _post_alteracao(avaliacao, ["1", "2", "3"])
+    dados["notas-2-id"] = dados["notas-1-id"]
+    _alteracao_recusada(digitacao, avaliacao, dados)
+
+
+def test_duplo_clique_volta_com_a_mensagem_sem_500(digitacao, ficha):
+    """Corrida: a 1ª validação não vê a duplicata (a outra requisição ainda não
+    tinha gravado); o índice único recusa e o admin valida de novo."""
+    from unittest import mock
+
+    edicao, jurado, projetos = ficha
+    fabricas.avaliar(jurado, projetos[0], [7, 8, 9])
+    original = Avaliacao.validate_constraints
+    chamadas = []
+
+    def primeira_cega(self, exclude=None):
+        chamadas.append(1)
+        if len(chamadas) > 1:
+            return original(self, exclude=exclude)
+
+    with mock.patch.object(Avaliacao, "validate_constraints", primeira_cega):
+        resposta = digitacao.post(_passo2(jurado), _post(projetos[0], _criterios(edicao), ["1"] * 3))
+    assert len(chamadas) == 2
+    assert resposta.status_code == 200 and MENSAGEM_DUPLICATA in resposta.content.decode()
+    assert Avaliacao.objects.count() == 1 and Nota.objects.count() == 3
+
+
+@pytest.fixture
+def ficha_embaralhada():
+    """Critérios criados fora da ordem da ficha (pk não segue `ordem`)."""
+    from votacao.servicos import encerrar_votacao, abrir_votacao
+    from cadastro.models import Edicao
+
+    for aberta in Edicao.objects.filter(votacao_aberta_em__isnull=False, votacao_encerrada_em__isnull=True):
+        encerrar_votacao(aberta.pk)
+    edicao = cadastro.edicao(nome="2026/2")
+    turma = cadastro.turma(edicao, cadastro.curso("DSM"))
+    projeto = cadastro.projeto(turma, titulo="Projeto 0", status=fabricas.PUBLICADO)
+    for nome, ordem in [("Gama", 3), ("Alfa", 1), ("Beta", 2)]:
+        Criterio.objects.create(edicao=edicao, nome=nome, ordem=ordem)
+    assert abrir_votacao(edicao.pk) is None
+    return edicao, fabricas.jurado(edicao, turma), projeto
+
+
+def _linhas(corpo, edicao):
+    """(critério, valor) de cada linha do inline, na ordem do HTML."""
+    import re
+
+    nomes = {str(c.pk): c.nome for c in Criterio.objects.filter(edicao=edicao)}
+    linhas = []
+    for i in range(3):
+        oculto = re.search(rf'<input[^>]*name="notas-{i}-criterio"[^>]*>', corpo).group(0)
+        criterio = re.search(r'value="(\d+)"', oculto).group(1)
+        tag = re.search(rf'<input[^>]*name="notas-{i}-valor"[^>]*>', corpo).group(0)
+        valor = re.search(r'value="([^"]*)"', tag)
+        linhas.append((nomes[criterio], valor and valor.group(1)))
+    posicoes = [corpo.index(nome) for nome, _ in linhas]
+    assert posicoes == sorted(posicoes)  # o nome visível acompanha a linha
+    return linhas
+
+
+def test_linhas_na_ordem_da_ficha_no_add_e_no_change(digitacao, ficha_embaralhada):
+    edicao, jurado, projeto = ficha_embaralhada
+    assert [nome for nome, _ in _linhas(digitacao.get(_passo2(jurado)).content.decode(), edicao)] == [
+        "Alfa",
+        "Beta",
+        "Gama",
+    ]
+    avaliacao = Avaliacao.objects.create(jurado=jurado, projeto=projeto, digitado_por=fabricas.digitador("carla"))
+    for nome, valor in [("Gama", "3.0"), ("Alfa", "1.0"), ("Beta", "2.0")]:
+        Nota.objects.create(avaliacao=avaliacao, criterio=Criterio.objects.get(edicao=edicao, nome=nome), valor=valor)
+    linhas = _linhas(digitacao.get(_change(avaliacao)).content.decode(), edicao)
+    assert linhas == [("Alfa", "1,0"), ("Beta", "2,0"), ("Gama", "3,0")]
+
+
+def test_lista_com_numero_fixo_de_consultas(digitacao):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    edicao, turma, projetos = fabricas.cenario(criterios=1, projetos=1)
+    url = reverse("admin:banca_avaliacao_changelist")
+    contagens = []
+    for total in (2, 12):
+        while edicao.jurados.count() < total:
+            j = fabricas.jurado(edicao, turma, nome=f"Jurado {edicao.jurados.count()}")
+            fabricas.avaliar(j, projetos[0], [5])
+        with CaptureQueriesContext(connection) as consultas:
+            assert digitacao.get(url).status_code == 200
+        contagens.append(len(consultas))
+    assert contagens[0] == contagens[1], contagens
+
+
+@pytest.mark.parametrize("valor, gravado", [("7,5", "7.5"), ("7.5", "7.5"), (" 7,5 ", "7.5"), ("10", "10"), ("0", "0")])
+def test_formatos_de_ficha_aceitos(digitacao, ficha, valor, gravado):
+    edicao, jurado, projetos = ficha
+    assert digitacao.post(_passo2(jurado), _post(projetos[0], _criterios(edicao), [valor, "5", "5"])).status_code == 302
+    assert Nota.objects.get(criterio__ordem=1).valor == Decimal(gravado)
