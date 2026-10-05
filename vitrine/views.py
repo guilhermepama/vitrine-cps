@@ -12,10 +12,11 @@ from django.db import transaction
 from django.http import HttpResponseNotFound
 from django.shortcuts import redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
-from cadastro.models import ImagemProjeto
+from cadastro.models import ImagemProjeto, Projeto
 from vitrine import servicos
 from vitrine.forms import ImagemUploadForm, ProjetoGrupoForm, integrante_formset
 
@@ -32,6 +33,31 @@ def paginas_do_grupo(view):
         return resposta
 
     return envolvida
+
+
+# --- Vitrine pública ----------------------------------------------------------
+
+
+def pagina_do_projeto(request, slug):
+    achados = list(
+        Projeto.objects.select_related("turma__curso", "turma__edicao")
+        .prefetch_related("integrantes", "imagens")
+        .filter(slug=slug, status=Projeto.Status.PUBLICADO)[:1]  # o slug é único: sem ORDER BY
+    )
+    publicado = achados[0] if achados else None
+    if publicado is None:
+        # Mesma resposta para slug inexistente e projeto não publicado.
+        return render(request, "vitrine/projeto_404.html", status=404)
+    edicao = publicado.turma.edicao
+    contexto = {
+        "projeto": publicado,
+        "edicao": edicao,
+        # Convite só até o dia do evento; depois, o link permanente vira registro.
+        "evento_passou": edicao.data_evento < timezone.localdate(),
+        "og_url": servicos.url_absoluta(reverse("vitrine:projeto", args=[publicado.slug])),
+        "og_imagem": servicos.url_absoluta(publicado.capa.url) if publicado.capa else None,
+    }
+    return render(request, "vitrine/projeto.html", contexto)
 
 
 def como_votar(request):

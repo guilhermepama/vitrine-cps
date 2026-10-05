@@ -1,0 +1,38 @@
+/* CSS mínimo da vitrine pública (spec 02): só o necessário para a capa em banner e
+   para a página caber em 360 px sem rolagem horizontal. A identidade visual do
+   projeto (static/ da raiz) entra depois e substitui este arquivo, sem mudar os templates. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0 16px;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+figure {
+  margin: 0 0 16px;
+}
+
+.banner {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1.91 / 1;
+  object-fit: cover;
+}

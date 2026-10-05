@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block titulo %}{{ projeto.titulo }} — Vitrine CPS{% endblock %}
+
+{% block meta %}
+  <link rel="stylesheet" href="{% static 'vitrine/vitrine.css' %}">
+  <meta property="og:title" content="{{ projeto.titulo }}">
+  <meta property="og:description" content="{{ projeto.resumo }}">
+  {% if og_imagem %}<meta property="og:image" content="{{ og_imagem }}">{% endif %}
+  <meta property="og:url" content="{{ og_url }}">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <meta name="twitter:card" content="summary_large_image">
+{% endblock %}
+
+{% block conteudo %}
+<p>Mostra de Projetos {{ edicao.nome }} · Fatec &amp; Etec Olímpia</p>
+
+{% include "vitrine/_corpo_projeto.html" %}
+
+{% if evento_passou %}
+<section>
+  <h2>Mostra de Projetos {{ edicao.nome }}</h2>
+  <p>Este projeto participou da Mostra de Projetos realizada em {{ edicao.data_evento|date:"d/m/Y" }}.</p>
+</section>
+{% else %}
+<section>
+  <h2>Venha conhecer ao vivo</h2>
+  <p>
+    Conheça este projeto no evento — {{ edicao.data_evento|date:"d/m/Y" }} às 19h, no campus da Fatec Olímpia —
+    Av. Governador Adhemar Pereira de Barros, km 3, Recanto Bela Vista, Olímpia/SP.
+  </p>
+  <p>A votação do público acontece só presencialmente, durante o evento.</p>
+  <p><a href="{% url 'vitrine:como_votar' %}">Quero votar</a></p>
+</section>
+{% endif %}
+{% endblock %}
