@@ -255,5 +255,10 @@ LOGGING = {
         "django.security.csrf": {"filters": ["rotas_visitante", "token_edicao"]},
         "django.template": {"level": "INFO"},
         "votacao": {"filters": ["rotas_visitante"]},
+        # Registro do export de visitantes (spec 04, parecer do #57): INFO,
+        # acima do root. Sem handler próprio: propaga ao console, que aplica
+        # os filtros P2, e não duplica a linha. (Filtro de logger não pegaria
+        # os registros de resultados.views, que é filho.)
+        "resultados": {"level": "INFO"},
     },
 }

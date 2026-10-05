@@ -73,14 +73,29 @@ def test_estacao_sem_emissao_total_zero_e_tracos(admin):
 
 def test_soma_das_estacoes_igual_ao_total_de_tokens_da_edicao(admin):
     ed = cadastro.edicao()
-    a, b, c = (votacao.estacao(ed, nome=n) for n in ("A", "B", "C"))
+    # Criadas fora da ordem alfabética: a tela ordena por nome (sem acento e
+    # caixa), não por id nem pela collation do banco.
+    c, b, a = (votacao.estacao(ed, nome=n) for n in ("Credenciamento", "biblioteca", "Átrio"))
     emitir(a, hora(29, 19, 0), hora(29, 19, 1))
     emitir(b, *[hora(29, 20, i) for i in range(5)])
     resposta, html = abrir(admin, ed)
+    assert [e["nome"] for e in resposta.context["estacoes"]] == ["Átrio", "biblioteca", "Credenciamento"]
     totais = [e["total"] for e in resposta.context["estacoes"]]
     assert totais == [2, 5, 0]
     assert sum(totais) == resposta.context["total"] == Token.objects.filter(estacao__edicao=ed).count() == 7
     assert "<th>Total da edição</th><td class=\"n\">7</td>" in html
+
+
+def test_estacao_desativada_que_emitiu_aparece_e_soma(admin):
+    ed = cadastro.edicao()
+    emitir(votacao.estacao(ed, nome="Entrada"), hora(29, 19, 0))
+    desligada = votacao.estacao(ed, nome="Hall")
+    emitir(desligada, hora(29, 19, 10), hora(29, 19, 40))
+    desligada.ativa = False
+    desligada.save()
+    resposta, html = abrir(admin, ed)
+    assert "<td>Hall</td><td class=\"n\">2</td><td>29/10/2026 19:10</td><td>29/10/2026 19:40</td>" in html
+    assert resposta.context["total"] == 3 == Token.objects.filter(estacao__edicao=ed).count()
 
 
 def test_outra_edicao_nao_entra(admin):

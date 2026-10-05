@@ -195,6 +195,11 @@ qualquer consulta aos dados de negócio:
 - O conteúdo do CSV nunca vai para log (guardrail 11); o log registra só
   "export de visitantes por <usuário> em <data/hora>, N linhas".
 - Edição sem visitantes: CSV só com o cabeçalho.
+- `telefone` sai formatado: 11 dígitos → `(17) 99999-0003`, 10 dígitos →
+  `(17) 3333-0003`; outro tamanho sai como veio (só dígitos); vazio sai
+  vazio. O Excel lê como texto (sem `1,8E+10`); o banco não muda — decisão
+  do coordenador no parecer do PR #57. O nível INFO do logger `resultados`
+  fica em `LOGGING` (`config/settings.py`), também pelo parecer do #57.
 
 ## Dados
 **Lê** (nomes conforme specs 01, 03 e 06 — o app não altera esses models):

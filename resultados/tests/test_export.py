@@ -19,6 +19,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
+from django.conf import settings
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -65,9 +66,9 @@ def test_cabecalho_ordem_por_nome_bom_e_separador(admin):
     assert texto.startswith(BOM + CABECALHO)
     assert linhas(texto) == [
         ["nome", "email", "telefone", "consentimento_em"],
-        ["Ágata Reis", "agata@example.com", "1733330001", "2026-10-29"],
+        ["Ágata Reis", "agata@example.com", "(17) 3333-0001", "2026-10-29"],
         ["Bruno Lima", "bruno@example.com", "", "2026-10-29"],
-        ["carla Souza", "carla@example.com", "17999990003", "2026-10-29"],
+        ["carla Souza", "carla@example.com", "(17) 99999-0003", "2026-10-29"],
     ]
 
 
@@ -92,6 +93,34 @@ def test_inicio_de_formula_ganha_apostrofo(admin, nome):
     votacao.visitante(ed, nome=nome, email="=1+1@example.com")
     _, texto = exportar(admin, ed)
     assert linhas(texto)[1][:2] == ["'" + nome, "'=1+1@example.com"]
+
+
+@pytest.mark.parametrize("nome", [" =1+1", "  @SOMA(A1)", "\u00a0-2+3"])
+def test_espaco_antes_da_formula_tambem_ganha_apostrofo(admin, nome):
+    """Valor que chega por fora do form (admin, shell) com espaço na frente."""
+    ed = cadastro.edicao()
+    votacao.visitante(ed, nome=nome)
+    _, texto = exportar(admin, ed)
+    assert linhas(texto)[1][0] == "'" + nome
+
+
+@pytest.mark.parametrize(
+    ("telefone", "saida"),
+    [
+        ("17999990003", "(17) 99999-0003"),
+        ("1733330003", "(17) 3333-0003"),
+        ("5517999990003", "5517999990003"),
+        ("551733330003", "551733330003"),
+        (None, ""),
+    ],
+)
+def test_telefone_formatado_e_banco_intacto(admin, telefone, saida):
+    ed = cadastro.edicao()
+    visitante = votacao.visitante(ed, telefone=telefone)
+    _, texto = exportar(admin, ed)
+    assert linhas(texto)[1][2] == saida
+    visitante.refresh_from_db()
+    assert visitante.telefone == telefone
 
 
 def test_valor_comum_sai_sem_apostrofo_e_separador_no_nome_fica_entre_aspas(admin):
@@ -130,13 +159,38 @@ def test_log_do_export_sem_dado_pessoal(admin, caplog):
         registros[0].getMessage(),
     )
     tudo = caplog.text + "".join(r.getMessage() for r in caplog.records)
-    for dado in ("Fulana", "Beltrano", "fulana@example.com", "beltrano@example.com", "17988887777"):
+    for dado in ("Fulana", "Beltrano", "fulana@example.com", "beltrano@example.com", "17988887777", "88887-7777"):
         assert dado not in tudo
 
 
-def test_log_do_export_passa_do_nivel_do_root():
-    """O root do LOGGING é WARNING; a linha INFO do export não pode sumir."""
-    assert logging.getLogger("resultados.views").isEnabledFor(logging.INFO)
+def test_nivel_do_log_vem_do_logging_do_settings():
+    """O root do LOGGING é WARNING; a linha INFO do export não pode sumir.
+    O nível vem de settings.LOGGING (parecer do #57), não do módulo: o teste
+    importa o logger da view e não depende de outro teste ter importado antes."""
+    from resultados.views import logger
+
+    assert settings.LOGGING["loggers"]["resultados"] == {"level": "INFO"}
+    assert logger.level == logging.NOTSET  # nada de setLevel no módulo
+    assert logger.isEnabledFor(logging.INFO)
+
+
+def test_linha_do_export_sai_uma_vez_no_console_com_a_configuracao_real(admin):
+    """Ponta a ponta: a linha chega ao handler console do root (com os filtros
+    P2), uma vez só, sem dado do visitante."""
+    [console] = [
+        h for h in logging.getLogger().handlers if type(h) is logging.StreamHandler and h.filters
+    ]
+    saida = io.StringIO()
+    antigo = console.setStream(saida)
+    try:
+        ed = cadastro.edicao()
+        votacao.visitante(ed, nome="Fulana Fictícia", email="fulana@example.com")
+        exportar(admin, ed)
+    finally:
+        console.setStream(antigo)
+    linhas_log = [l for l in saida.getvalue().splitlines() if l.startswith("export de visitantes")]
+    assert linhas_log == [linhas_log[0]] and linhas_log[0].endswith(", 1 linhas")
+    assert "Fulana" not in saida.getvalue() and "fulana@example.com" not in saida.getvalue()
 
 
 def test_export_negado_nao_registra(client, caplog):

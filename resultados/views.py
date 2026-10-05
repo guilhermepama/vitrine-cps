@@ -39,10 +39,9 @@ from votacao.models import Estacao, Token, Visitante, Voto
 VER_RESULTADOS = "resultados.ver_resultados"
 EXPORTAR_VISITANTES = "resultados.exportar_visitantes"
 
-# O root do LOGGING fica em WARNING (config/settings.py, do coordenador); o
-# registro do export é INFO, então o nível sai daqui para a linha não sumir.
+# Nível INFO do logger "resultados" em LOGGING (config/settings.py) — o root
+# fica em WARNING (decisão do coordenador no parecer do #57).
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def exige_admin_com(permissao):
@@ -182,11 +181,13 @@ def operacional(request, edicao_id):
     """Emissões de token por estação da edição: total, primeira e última.
     Uma consulta agregada para as estações; nada por token."""
     edicao = get_object_or_404(Edicao, pk=edicao_id)
-    estacoes = list(
+    # Todas as estações da edição, inclusive as desativadas (emitiram tokens).
+    # Ordem alfabética como no resto do app, sem depender da collation.
+    estacoes = sorted(
         Estacao.objects.filter(edicao=edicao)
         .annotate(total=Count("tokens"), primeira=Min("tokens__criado_em"), ultima=Max("tokens__criado_em"))
-        .order_by("nome", "id")
-        .values("nome", "total", "primeira", "ultima")
+        .values("id", "nome", "total", "primeira", "ultima"),
+        key=lambda e: (chave_alfabetica(e["nome"]), e["id"]),
     )
     contexto = {"edicao": edicao, "estacoes": estacoes, "total": sum(e["total"] for e in estacoes)}
     return render(request, "resultados/operacional.html", contexto)
@@ -199,7 +200,22 @@ INICIO_DE_FORMULA = ("=", "+", "-", "@", "\t", "\r")
 
 def _celula(valor):
     texto = "" if valor is None else str(valor)
-    return "'" + texto if texto.startswith(INICIO_DE_FORMULA) else texto
+    # lstrip: valor com espaço na frente que chegue por fora do form (admin,
+    # shell) — defesa em profundidade (parecer do #57).
+    return "'" + texto if texto.lstrip().startswith(INICIO_DE_FORMULA) else texto
+
+
+def _telefone(digitos):
+    """Telefone legível no CSV, que o Excel lê como texto (sem virar 1,8E+10):
+    11 dígitos → (17) 99999-0003; 10 → (17) 3333-0003; outro tamanho sai como
+    veio; vazio sai vazio (spec 04, parecer do #57). O banco não muda."""
+    if not digitos:
+        return ""
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+    return digitos
 
 
 @never_cache
@@ -226,7 +242,7 @@ def visitantes_csv(request, edicao_id):
     escritor.writerow(CABECALHO_CSV)
     for nome, email, telefone, consentimento_em in visitantes:
         data = timezone.localtime(consentimento_em).date().isoformat()
-        escritor.writerow([_celula(nome), _celula(email), _celula(telefone), _celula(data)])
+        escritor.writerow([_celula(nome), _celula(email), _celula(_telefone(telefone)), _celula(data)])
     logger.info(
         "export de visitantes por %s em %s, %d linhas",
         request.user.get_username(),
