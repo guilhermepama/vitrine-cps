@@ -262,8 +262,10 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   motivo: o bucket é público (domínio próprio, ADR-006), então um arquivo
   que ficasse órfão — por exemplo, a foto de aluno menor da Etec recusada
   na moderação — continuaria acessível por quem tivesse a URL.
-- Tipo real, 3 MB e nome gerado pelo servidor vêm de `cadastro.imagens`
-  (`validar_imagem`, G14); o limite de 6 vem de
+- Tipo real, 3 MB, teto de 25 megapixels e nome gerado pelo servidor vêm
+  de `cadastro.imagens` (`validar_imagem`, G14), e a remoção dos metadados
+  (GPS) vem do `save()` dos models da spec 01 — a vitrine não faz nada a
+  mais; o limite de 6 vem de
   `ImagemProjeto.MAXIMO_POR_PROJETO` e o de 10 integrantes de
   `Integrante.MAXIMO_POR_PROJETO`. O arquivo original nunca é usado como
   nome. Imagem inválida ou grande demais → 400, nada gravado.
