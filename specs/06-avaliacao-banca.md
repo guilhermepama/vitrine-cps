@@ -85,8 +85,14 @@ nota de banca de cada projeto.
   - linhas "Assinatura" e "Data";
   - rodapé com a data e hora em que foi gerada, sempre.
 - Tabela por turma do jurado: uma linha por projeto **publicado**, ordenada
-  por título, com o **número do projeto** (o `id`) e o título, e uma
-  coluna em branco por critério.
+  por título, com o **número do projeto** (o `id`, impresso como `#17`,
+  igual ao rótulo da digitação) e o título, e uma coluna em branco por
+  critério.
+- **Identificação em toda página** (decisão do coordenador no parecer do
+  PR #56): o cabeçalho de cada tabela (`thead`, que o navegador repete em
+  cada página impressa) traz uma linha com edição, jurado e turma. Folha
+  solta continua identificável, e o nome da turma não fica órfão no pé
+  da página.
 - Se a votação da edição ainda não foi aberta, a ficha mostra no topo
   "Lista provisória: projetos podem mudar até a abertura da votação".
 - **Operação** (roteiro da Barbara): imprimir as fichas oficiais depois
