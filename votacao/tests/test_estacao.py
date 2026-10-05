@@ -77,7 +77,7 @@ def operador(client, grupo_estacao):
 def digitacao(client):
     """Staff do grupo digitacao-banca, com todas as permissões de model da votação,
     menos a de operar a estação."""
-    grupo = Group.objects.create(name="digitacao-banca")
+    grupo, _ = Group.objects.get_or_create(name="digitacao-banca")  # o app banca cria no post_migrate
     grupo.permissions.set(Permission.objects.filter(content_type__app_label="votacao").exclude(codename="operar_estacao"))
     client.force_login(_usuario("barbara", grupo, is_staff=True))
     return client
