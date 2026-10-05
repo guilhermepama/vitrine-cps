@@ -24,6 +24,7 @@ from django.contrib.sessions.models import Session
 from django.core.management import call_command
 from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 
 from votacao import views_voto
 from votacao.cookie_token import COOKIE_TOKEN
@@ -197,9 +198,18 @@ def test_so_post(client, cenario):
 
 
 def test_trava_a_edicao_antes_de_conferir(client, cenario):
+    """A trava da `Edicao` vem antes de ler o token e de gravar o voto (a
+    ordem, não só a chamada — cosmético do parecer do #36)."""
+    votante = cenario.votante(client)
     with mock.patch.object(views_voto, "edicao_em_votacao", wraps=views_voto.edicao_em_votacao) as espia:
-        _votar(cenario.votante(client), cenario.publicado.pk)
+        with CaptureQueriesContext(connection) as consultas:
+            assert _votar(votante, cenario.publicado.pk).status_code == 201
     espia.assert_called_once_with(travar=True)
+    sqls = [q["sql"] for q in consultas.captured_queries]
+    trava = next(i for i, sql in enumerate(sqls) if "FOR UPDATE" in sql)
+    token = next(i for i, sql in enumerate(sqls) if 'FROM "tokens"' in sql)
+    voto = next(i for i, sql in enumerate(sqls) if 'INSERT INTO "votos"' in sql)
+    assert trava < token < voto
 
 
 # --- Fluxo sem sessão nem cache --------------------------------------------------------
