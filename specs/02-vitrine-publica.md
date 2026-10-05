@@ -7,8 +7,8 @@
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
-  do coordenador (`templates/base.html` mínimo, filtro de log do token de
-  edição e `MAX_ENTRIES` do cache)
+  do coordenador, **já na `main`** (`9738bb4`): `templates/base.html`
+  mínimo, filtro de log do token de edição e `MAX_ENTRIES` do cache
 
 ## Objetivo
 Entregar as duas telas que ficam na frente do cadastro: a **área do grupo**,
@@ -512,9 +512,8 @@ inválido (404).
   com a spec 01.
 - **Prazo apertado**: as fatias 1 a 3 vencem em 10/10 e a 4 em 12/10.
 - **`base.html` e o CI das fatias 1 a 3**: os testes dessas fatias
-  renderizam templates que herdam `base.html`. O mínimo está no PR #38 e
-  precisa estar na `main` (até 07/10); sem ele o CI falharia
-  (`TemplateDoesNotExist`).
+  renderizam templates que herdam `base.html`. O mínimo entrou na `main`
+  com o PR #38 (05/10), então esse risco está resolvido.
 - **Teste do #38 que assume rota inexistente**:
   `tests/test_logs_token_edicao.py` faz um `GET` em
   `/grupo/editar/<token>/imagem/` esperando 404 e um `GET` em
@@ -524,12 +523,12 @@ inválido (404).
   e 4 (arquivo do coordenador).
 
 ## Dependências do coordenador (com data)
-- **Até 07/10 — PR #38 na `main`**: `templates/base.html` mínimo (blocos
-  `titulo`, `meta` e `conteudo`), filtro de log do token de edição
-  (`config/logs.py`) e `MAX_ENTRIES` do cache (para o rate limit não perder
-  contadores vivos). Sem o `base.html`, o CI das fatias 1 a 3 falha. A
-  identidade visual (variáveis CSS e logo SVG em `static/` da raiz) entra
-  depois, sem mudar o nome do arquivo nem os blocos.
+- **Entregue em 05/10 — PR #38 na `main` (`9738bb4`)**: `templates/base.html`
+  mínimo (blocos `titulo`, `meta` e `conteudo`), filtro de log do token de
+  edição (`config/logs.py`) e `MAX_ENTRIES` do cache (para o rate limit não
+  perder contadores vivos). A identidade visual (variáveis CSS e logo SVG
+  em `static/` da raiz) entra depois, sem mudar o nome do arquivo nem os
+  blocos.
 - **Até 08/10 — servidor aceita pelo menos 4 MB por requisição, com teto de
   corpo de cerca de 5 MB no Traefik.** Já é critério eliminatório na
   ADR-006 (o Traefik do Coolify não limita o corpo por padrão). O teto
@@ -549,14 +548,16 @@ Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
 
 ### Decisões do coordenador em 04/10 (PR #23)
 - **`base.html` antes do PR 1**: o mínimo (blocos `titulo`, `meta` e
-  `conteudo`) está no PR #38, para entrar na `main` até 07/10. Sem "stub
-  local fora dos PRs".
+  `conteudo`) entrou na `main` com o PR #38 (05/10). Sem "stub local fora
+  dos PRs".
 - **Título travado para o grupo**: confirmado. O grupo não edita o título;
   erro de digitação se corrige no admin.
 - **Partial `vitrine/_corpo_projeto.html`**: vira nota/proposta para o
   Renan; não bloqueia esta spec.
-- **Filtro de log para `/grupo/editar/`**: está no PR #38
-  (`config.logs.FiltroTokenEdicao`); esta spec só testa o resultado.
+- **Filtro de log para `/grupo/editar/`**: entregue no PR #38
+  (`config.logs.FiltroTokenEdicao`, na `main`). O teste da `main` cobre o
+  filtro; o critério de aceite desta spec, com captura de log para 400, 403
+  e 404, cobre as views da área do grupo.
 - **`/como-votar/` na fatia 1 (10/10)**: a spec 03 (#36) depende dela.
 - **Contador do rate limit**: prazo explícito, sem `incr` (janela fixa).
 - **URLs absolutas**: regra escrita em "Página pública".
