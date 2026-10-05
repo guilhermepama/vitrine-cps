@@ -1,9 +1,11 @@
-"""Ranking por turma com participação (specs/04-resultados.md, fatia 2).
+"""Ranking por turma com participação, relatório operacional e export de
+visitantes (specs/04-resultados.md, fatias 2 e 3).
 
-Só leitura e só agregados: nenhuma linha identifica um token, e de visitante
-só sai a contagem. As views buscam os dados e chamam `calcular_ranking`; a
-regra do cálculo mora em `resultados/calculo.py` e a nota da banca vem
-pronta de `banca.servicos.nota_banca_por_projeto`.
+Só leitura e só agregados: nenhuma linha identifica um token. De visitante,
+as páginas mostram só a contagem; nome, email, telefone e data do aceite só
+saem no CSV, com permissão própria. As views buscam os dados e chamam
+`calcular_ranking`; a regra do cálculo mora em `resultados/calculo.py` e a
+nota da banca vem pronta de `banca.servicos.nota_banca_por_projeto`.
 
 Acesso (ordem da spec, antes de qualquer consulta a dados de negócio):
 anônimo → login do admin; logado sem `is_active`/`is_staff` → 403, mesmo com
@@ -13,25 +15,33 @@ Número fixo de consultas, independente de quantas turmas, projetos e votos a
 edição tem: cada dado vem de uma consulta agregada só.
 """
 
+import csv
+import logging
 from decimal import Decimal
 from functools import wraps
 
 from django.contrib.auth.views import redirect_to_login
 from django.core.handlers.exception import response_for_exception
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count
-from django.http import Http404
+from django.db.models import Count, Max, Min
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 
 from banca.servicos import nota_banca_por_projeto
 from cadastro.models import Edicao, Projeto
-from resultados.calculo import PesosInvalidos, ProjetoEntrada, TurmaEntrada, calcular_ranking
-from votacao.models import Token, Visitante, Voto
+from resultados.calculo import PesosInvalidos, ProjetoEntrada, TurmaEntrada, calcular_ranking, chave_alfabetica
+from votacao.models import Estacao, Token, Visitante, Voto
 
 VER_RESULTADOS = "resultados.ver_resultados"
+EXPORTAR_VISITANTES = "resultados.exportar_visitantes"
+
+# Nível INFO do logger "resultados" em LOGGING (config/settings.py) — o root
+# fica em WARNING (decisão do coordenador no parecer do #57).
+logger = logging.getLogger(__name__)
 
 
 def exige_admin_com(permissao):
@@ -162,3 +172,81 @@ def ranking(request, edicao_id):
     else:
         contexto["ranking"], contexto["erro"] = _ranking(edicao, turmas)
     return render(request, "resultados/ranking.html", contexto)
+
+
+@never_cache
+@require_GET
+@exige_admin_com(VER_RESULTADOS)
+def operacional(request, edicao_id):
+    """Emissões de token por estação da edição: total, primeira e última.
+    Uma consulta agregada para as estações; nada por token."""
+    edicao = get_object_or_404(Edicao, pk=edicao_id)
+    # Todas as estações da edição, inclusive as desativadas (emitiram tokens).
+    # Ordem alfabética como no resto do app, sem depender da collation.
+    estacoes = sorted(
+        Estacao.objects.filter(edicao=edicao)
+        .annotate(total=Count("tokens"), primeira=Min("tokens__criado_em"), ultima=Max("tokens__criado_em"))
+        .values("id", "nome", "total", "primeira", "ultima"),
+        key=lambda e: (chave_alfabetica(e["nome"]), e["id"]),
+    )
+    contexto = {"edicao": edicao, "estacoes": estacoes, "total": sum(e["total"] for e in estacoes)}
+    return render(request, "resultados/operacional.html", contexto)
+
+
+CABECALHO_CSV = ("nome", "email", "telefone", "consentimento_em")
+# Início de célula que o Excel/LibreOffice interpreta como fórmula (spec 04).
+INICIO_DE_FORMULA = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _celula(valor):
+    texto = "" if valor is None else str(valor)
+    # lstrip: valor com espaço na frente que chegue por fora do form (admin,
+    # shell) — defesa em profundidade (parecer do #57).
+    return "'" + texto if texto.lstrip().startswith(INICIO_DE_FORMULA) else texto
+
+
+def _telefone(digitos):
+    """Telefone legível no CSV, que o Excel lê como texto (sem virar 1,8E+10):
+    11 dígitos → (17) 99999-0003; 10 → (17) 3333-0003; outro tamanho sai como
+    veio; vazio sai vazio (spec 04, parecer do #57). O banco não muda."""
+    if not digitos:
+        return ""
+    if len(digitos) == 11:
+        return f"({digitos[:2]}) {digitos[2:7]}-{digitos[7:]}"
+    if len(digitos) == 10:
+        return f"({digitos[:2]}) {digitos[2:6]}-{digitos[6:]}"
+    return digitos
+
+
+@never_cache
+@require_GET
+@exige_admin_com(EXPORTAR_VISITANTES)
+def visitantes_csv(request, edicao_id):
+    """CSV dos visitantes da edição (UTF-8 com BOM, `;`), ordenado por nome.
+
+    Filtro só por `Visitante.edicao_id`, nunca por token ou estação (G6).
+    `consentimento_em` sai só com a data local; o banco não muda (G10). O
+    log tem só usuário, data/hora e número de linhas (G11).
+    """
+    edicao = get_object_or_404(Edicao, pk=edicao_id)
+    visitantes = sorted(
+        Visitante.objects.filter(edicao=edicao).values_list("nome", "email", "telefone", "consentimento_em"),
+        # Ordem alfabética sem distinguir acento e caixa, como o ranking;
+        # independe da collation do banco e não segue a ordem de cadastro.
+        key=lambda v: (chave_alfabetica(v[0]), v[1], v[2] or "", v[3]),
+    )
+    resposta = HttpResponse(content_type="text/csv; charset=utf-8")
+    resposta["Content-Disposition"] = f'attachment; filename="visitantes-edicao-{edicao.pk}.csv"'
+    resposta.write("\ufeff")
+    escritor = csv.writer(resposta, delimiter=";")
+    escritor.writerow(CABECALHO_CSV)
+    for nome, email, telefone, consentimento_em in visitantes:
+        data = timezone.localtime(consentimento_em).date().isoformat()
+        escritor.writerow([_celula(nome), _celula(email), _celula(_telefone(telefone)), _celula(data)])
+    logger.info(
+        "export de visitantes por %s em %s, %d linhas",
+        request.user.get_username(),
+        timezone.localtime().strftime("%Y-%m-%d %H:%M:%S"),
+        len(visitantes),
+    )
+    return resposta

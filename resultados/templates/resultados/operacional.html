@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% comment %}
+Relatório operacional (spec 04): emissões de token por estação da edição.
+Para impressão, sem JS. Só agregados por estação: nenhum id de token, IP ou
+dado de visitante.
+{% endcomment %}
+{% block titulo %}Relatório operacional — {{ edicao.nome }} — Vitrine CPS{% endblock %}
+{% block meta %}
+<style>
+  body { font-family: system-ui, sans-serif; color: #111; background: #fff; margin: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+  th, td { border: 1px solid #999; padding: .3rem .5rem; text-align: left; }
+  td.n, th.n { text-align: right; }
+  @media print { body { margin: 0; } }
+</style>
+{% endblock %}
+{% block conteudo %}
+<h1>Relatório operacional — {{ edicao.nome }}</h1>
+<h2>Emissões de token por estação</h2>
+{% if estacoes %}
+<table>
+  <thead><tr><th>Estação</th><th class="n">Tokens emitidos</th><th>Primeira emissão</th><th>Última emissão</th></tr></thead>
+  <tbody>
+  {% for estacao in estacoes %}
+    <tr>
+      <td>{{ estacao.nome }}</td>
+      <td class="n">{{ estacao.total }}</td>
+      <td>{% if estacao.primeira %}{{ estacao.primeira|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+      <td>{% if estacao.ultima %}{{ estacao.ultima|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+  <tfoot><tr><th>Total da edição</th><td class="n">{{ total }}</td><td></td><td></td></tr></tfoot>
+</table>
+{% else %}
+<p>Nenhuma estação cadastrada nesta edição.</p>
+{% endif %}
+{% endblock %}

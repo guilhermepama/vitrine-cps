@@ -154,7 +154,7 @@ def _decimal(fracao):
     return Decimal(fracao.numerator) / Decimal(fracao.denominator)
 
 
-def _chave_titulo(titulo):
+def chave_alfabetica(titulo):
     """Ordem alfabética sem distinguir acento e caixa ("Água" antes de "Barco")."""
     sem_acento = "".join(
         c for c in unicodedata.normalize("NFKD", titulo) if not unicodedata.combining(c)
@@ -170,7 +170,7 @@ def _so_publico(projetos, votos):
         LinhaRanking(projeto_id=pr.id, titulo=pr.titulo, votos=v, p=_decimal(p))
         for pr, v, p in zip(projetos, brutos, ps)
     ]
-    linhas.sort(key=lambda linha: (-linha.votos, _chave_titulo(linha.titulo), linha.projeto_id))
+    linhas.sort(key=lambda linha: (-linha.votos, chave_alfabetica(linha.titulo), linha.projeto_id))
     return linhas
 
 
@@ -186,7 +186,7 @@ def _oficial(projetos, votos, notas_banca, peso_banca, peso_publico):
         final = pb * b + pp * p
         # Chave de empate total: final, banca bruta (exata) e votos.
         itens.append(((final, nb, v), pr, v, notas_banca[pr.id], p, b, final))
-    itens.sort(key=lambda it: (-it[0][0], -it[0][1], -it[0][2], _chave_titulo(it[1].titulo), it[1].id))
+    itens.sort(key=lambda it: (-it[0][0], -it[0][1], -it[0][2], chave_alfabetica(it[1].titulo), it[1].id))
 
     contagem = {}
     for it in itens:
