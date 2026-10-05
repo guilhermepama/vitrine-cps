@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Votação — Vitrine CPS</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; color: #111; background: #fff; }
+    main { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1rem; }
+    h2 { margin-top: 2rem; font-size: 1.2rem; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { display: flex; gap: 1rem; align-items: center; justify-content: space-between; padding: .75rem 0; border-bottom: 1px solid #ddd; }
+    button { flex: none; padding: .6rem 1rem; font-size: 1rem; }
+    button:disabled { background: #e6f4ea; color: #1e6b34; border: 1px solid #1e6b34; }
+    .aviso { padding: .75rem; background: #fde8e8; border: 1px solid #c00; }
+  </style>
+</head>
+<body>
+  <main>
+    {% if encerrada %}
+      <h1>Votação encerrada</h1>
+    {% else %}
+      <h1>Vote nos projetos</h1>
+      <p>Um voto por projeto. Você pode votar em quantos projetos quiser.</p>
+      <p id="aviso" class="aviso" role="alert" hidden></p>
+      {% csrf_token %}
+      {# A turma é a categoria (spec 01). #}
+      {% regroup projetos by turma as turmas %}
+      {% for grupo in turmas %}
+        <h2>{{ grupo.grouper.rotulo }}</h2>
+        <ul>
+          {% for projeto in grupo.list %}
+            <li>
+              <span>{{ projeto.titulo }}</span>
+              {% if projeto.pk in votados %}
+                <button type="button" disabled>Votado</button>
+              {% else %}
+                <button type="button" data-projeto="{{ projeto.pk }}">Votar</button>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+      {% empty %}
+        <p>Nenhum projeto publicado nesta edição.</p>
+      {% endfor %}
+      <script>
+        (function () {
+          var rota = "{% url 'votacao:votos' %}";
+          var csrf = document.querySelector("input[name=csrfmiddlewaretoken]").value;
+          var aviso = document.getElementById("aviso");
+          function marcar(botao) {
+            botao.disabled = true;
+            botao.textContent = "Votado";
+          }
+          document.querySelectorAll("button[data-projeto]").forEach(function (botao) {
+            botao.addEventListener("click", function () {
+              botao.disabled = true;
+              aviso.hidden = true;
+              fetch(rota, {
+                method: "POST",
+                credentials: "same-origin",
+                headers: { "X-CSRFToken": csrf },
+                body: new URLSearchParams({ projeto_id: botao.dataset.projeto })
+              }).then(function (resposta) {
+                if (resposta.status === 201) {
+                  marcar(botao);
+                  return;
+                }
+                // 409 é a rejeição genérica (já votado, votação encerrada, cookie
+                // vencido...) e 403 é o CSRF (cookies limpos com a cédula
+                // aberta): recarrega e o servidor mostra o estado real, em vez
+                // de deixar o visitante preso no "Tente de novo".
+                if (resposta.status === 409 || resposta.status === 403) {
+                  location.reload();
+                  return;
+                }
+                throw new Error();
+              }).catch(function () {
+                botao.disabled = false;
+                aviso.textContent = "Não foi possível votar agora. Tente de novo.";
+                aviso.hidden = false;
+              });
+            });
+          });
+        })();
+      </script>
+    {% endif %}
+  </main>
+</body>
+</html>

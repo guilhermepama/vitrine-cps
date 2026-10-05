@@ -10,6 +10,7 @@ ligaria o cadastro ao token (P2).
 from django.db import transaction
 from django.http import HttpResponseRedirect
 from django.shortcuts import render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
@@ -20,11 +21,6 @@ from votacao.limite import cadastro_no_teto, liberar_cadastro
 from votacao.models import Visitante, truncar_para_hora
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
-
-# TODO(F6): trocar por reverse("votacao:votar") quando a cédula existir.
-# Caminho fixo da spec, sem rota provisória: um /votar de mentira na main
-# responderia sem as regras da cédula (guardrail 8).
-ROTA_CEDULA = "/votar"
 
 MENSAGEM_INVALIDO = "Não foi possível concluir o cadastro. Confira os campos."
 
@@ -44,7 +40,7 @@ def visitantes(request):
     if edicao is None:
         return qr_expirado()
     if cadastro_valido(request, edicao):
-        return HttpResponseRedirect(ROTA_CEDULA)
+        return HttpResponseRedirect(reverse("votacao:votar"))
     return _formulario(request, VisitanteForm())
 
 
@@ -70,7 +66,7 @@ def _cadastrar(request):
         # Já cadastrado nesta edição (aba antiga, reenvio): cédula, sem novo
         # registro — a mesma regra do GET (decisão 3 do PR #33).
         if cadastro_valido(request, edicao):
-            return HttpResponseRedirect(ROTA_CEDULA)
+            return HttpResponseRedirect(reverse("votacao:votar"))
         Visitante.objects.create(
             nome=dados["nome"],
             email=dados["email"],
@@ -79,6 +75,6 @@ def _cadastrar(request):
             consentimento_em=truncar_para_hora(timezone.localtime(timezone.now())),
             edicao=edicao,
         )
-    resposta = HttpResponseRedirect(ROTA_CEDULA)
+    resposta = HttpResponseRedirect(reverse("votacao:votar"))
     gravar_cookie(resposta, edicao)
     return resposta
