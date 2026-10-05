@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block titulo %}Guarde este link — Vitrine CPS{% endblock %}
+
+{% block conteudo %}
+<p>ÁREA DO GRUPO</p>
+<h1>Guarde este link!</h1>
+<p>
+  Ele é o único acesso de edição do projeto e aparece <strong>só esta vez</strong>.
+  Copie e salve antes de continuar.
+</p>
+
+<p><input id="link" type="text" value="{{ link }}" readonly size="60" onfocus="this.select()"></p>
+<p>
+  <button type="button" id="copiar" hidden>Copiar</button>
+  <a href="{{ link }}">Abrir edição do projeto</a>
+</p>
+<p>Perdeu o link? Só a coordenação pode gerar um novo.</p>
+
+<script>
+  // Opcional: sem JavaScript o link continua selecionável.
+  (function () {
+    var botao = document.getElementById("copiar");
+    if (!botao || !navigator.clipboard) return;
+    botao.hidden = false;
+    botao.addEventListener("click", function () {
+      navigator.clipboard.writeText(document.getElementById("link").value).then(function () {
+        botao.textContent = "Copiado!";
+      });
+    });
+  })();
+</script>
+{% endblock %}

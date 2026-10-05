@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block titulo %}Área do grupo — Vitrine CPS{% endblock %}
+
+{% block conteudo %}
+<p>ÁREA DO GRUPO</p>
+<h1>Publique o projeto do seu grupo</h1>
+<p>Digite o RA do representante informado pela coordenação. Só o representante acessa a edição.</p>
+
+{% if recusado %}
+<div class="erro" role="alert">
+  <strong>Não foi possível acessar com esse RA</strong>
+  <p>
+    Confira os números e tente de novo. Se o RA estiver certo, o link de edição do grupo pode já ter
+    sido retirado — use o link que foi guardado ou procure a coordenação.
+  </p>
+</div>
+{% endif %}
+
+<form method="post" autocomplete="off">
+  {% csrf_token %}
+  <label for="ra">RA do representante</label>
+  <input id="ra" name="ra" type="text" inputmode="numeric" maxlength="60" placeholder="Somente números" required>
+  <p>5 a 20 dígitos, sem pontos ou traços.</p>
+  <button type="submit">Acessar meu projeto</button>
+</form>
+{% endblock %}
