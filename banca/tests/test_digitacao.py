@@ -354,7 +354,7 @@ def test_sem_apagar_nota_nem_para_o_superusuario(admin_client, digitada):
 def test_salvar_sem_mudanca_nao_mexe_em_nada(digitacao, digitada):
     edicao, avaliacao = digitada
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     antes = Avaliacao.objects.values().get(pk=avaliacao.pk)
     notas = list(Nota.objects.values().order_by("pk"))
     resposta = digitacao.post(_change(avaliacao), _post_alteracao(avaliacao, ["7,0", "8", "9"]), follow=True)
@@ -369,7 +369,7 @@ def test_salvar_sem_mudanca_nao_mexe_em_nada(digitacao, digitada):
 def test_alterar_com_conferencia_desfaz_e_avisa(digitacao, digitada):
     edicao, avaliacao = digitada
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     resposta = digitacao.post(_change(avaliacao), _post_alteracao(avaliacao, ["7", "8", "2"]), follow=True)
     edicao.refresh_from_db()
     assert edicao.banca_conferida_em is None
@@ -381,7 +381,7 @@ def test_edicao_conferida_nao_recebe_ficha_nova(digitacao, digitada, ficha):
     edicao, _ = digitada
     jurado = ficha[1]
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     assert f'value="{jurado.pk}"' not in digitacao.get(ADD).content.decode()
     assert digitacao.get(_passo2(jurado))["Location"] == ADD
     resposta = digitacao.post(_passo2(jurado), _post(ficha[2][1], _criterios(edicao), ["5"] * 3))
@@ -428,7 +428,7 @@ def test_apagar_em_lote_de_outra_edicao_nao_avisa_nem_desfaz(admin_client, digit
     alheia = fabricas.avaliar(fabricas.jurado(outra, turma_o), projetos_o[0], [1, 2, 3])
     edicao.refresh_from_db()
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     dados = {"action": "delete_selected", "_selected_action": [alheia.pk], "post": "yes"}
     resposta = admin_client.post(reverse("admin:banca_avaliacao_changelist"), dados, follow=True)
     assert CONFERENCIA_DESFEITA not in resposta.content.decode()
@@ -460,7 +460,7 @@ def test_grupo_nao_apaga(digitacao, digitada):
 def test_superusuario_apaga_e_desfaz_a_conferencia(admin_client, digitada):
     edicao, avaliacao = digitada
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     url = reverse("admin:banca_avaliacao_delete", args=[avaliacao.pk])
     resposta = admin_client.post(url, {"post": "yes"}, follow=True)
     assert not Avaliacao.objects.exists() and not Nota.objects.exists()
@@ -472,7 +472,7 @@ def test_superusuario_apaga_e_desfaz_a_conferencia(admin_client, digitada):
 def test_superusuario_apaga_em_lote_e_desfaz_a_conferencia(admin_client, digitada):
     edicao, avaliacao = digitada
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     dados = {"action": "delete_selected", "_selected_action": [avaliacao.pk], "post": "yes"}
     resposta = admin_client.post(reverse("admin:banca_avaliacao_changelist"), dados, follow=True)
     assert not Avaliacao.objects.exists()
@@ -664,3 +664,10 @@ def test_formatos_de_ficha_aceitos(digitacao, ficha, valor, gravado):
     edicao, jurado, projetos = ficha
     assert digitacao.post(_passo2(jurado), _post(projetos[0], _criterios(edicao), [valor, "5", "5"])).status_code == 302
     assert Nota.objects.get(criterio__ordem=1).valor == Decimal(gravado)
+
+
+@pytest.mark.parametrize("valor", ["9" * 19, "9" * 5000])
+def test_jurado_com_numero_gigante_volta_ao_passo_1(admin_client, valor):
+    resposta = admin_client.get(ADD, {"jurado": valor})
+    assert resposta.status_code == 302 and resposta.url == ADD
+    assert [str(m) for m in get_messages(resposta.wsgi_request)] == ["Jurado inválido ou de edição sem votação aberta."]

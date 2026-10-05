@@ -24,7 +24,7 @@ def conferida():
     avaliacao = fabricas.avaliar(jurado, projetos[0], [7, 8])
     fabricas.avaliar(jurado, projetos[1], [5, 6])
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     return edicao, jurado, projetos, avaliacao
 
 
@@ -55,7 +55,7 @@ def test_criar_avaliacao_desfaz():
     jurado = fabricas.jurado(edicao, turma)
     fabricas.avaliar(jurado, projetos[0], [7, 8])
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
     fabricas.avaliar(jurado, projetos[1], [5, 6])
     assert not _conferida(edicao)
 
@@ -89,7 +89,7 @@ def test_sem_conferencia_nada_muda():
 
 def _conferir(edicao):
     edicao.banca_conferida_em = timezone.now()
-    edicao.save()
+    edicao.save(update_fields=["banca_conferida_em"])
 
 
 def test_criar_avaliacao_sem_notas_desfaz():

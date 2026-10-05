@@ -1,0 +1,75 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Conferência da banca (spec 06). Só no admin: notas por jurado nunca em página pública.
+{% endcomment %}
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+  <a href="{% url 'admin:index' %}">Início</a> ›
+  <a href="{% url 'admin:banca_jurado_changelist' %}">Jurados</a> › Conferência — {{ edicao.nome }}
+</div>
+{% endblock %}
+{% block content %}
+<p>
+  {% if edicao.banca_conferida_em %}<strong>Conferida em {{ edicao.banca_conferida_em|date:"d/m/Y H:i" }}.</strong>
+  {% else %}<strong>Conferência pendente.</strong>{% endif %}
+  {{ total_avaliacoes }} avaliaç{{ total_avaliacoes|pluralize:"ão,ões" }} digitada{{ total_avaliacoes|pluralize }}.
+</p>
+
+<h2>Cobertura por jurado</h2>
+<table>
+  <thead><tr><th>Jurado</th><th>Digitadas / publicados nas turmas dele</th></tr></thead>
+  <tbody>
+  {% for jurado, digitadas, publicados in cobertura_jurados %}
+    <tr class="cobertura-jurado"><td>{{ jurado.nome }}</td><td>{{ digitadas }} / {{ publicados }}</td></tr>
+  {% empty %}
+    <tr><td colspan="2">Nenhum jurado cadastrado nesta edição.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Cobertura por turma</h2>
+{% for item in cobertura_turmas %}
+<section class="cobertura-turma">
+  <h3>{{ item.turma.rotulo }} — {{ item.publicados }} publicado{{ item.publicados|pluralize }}, {{ item.jurados }} jurado{{ item.jurados|pluralize }}</h3>
+  {% if item.sem_avaliacao %}
+  <p>Sem nenhuma avaliação (banca pendente):</p>
+  <ul class="sem-avaliacao">{% for projeto in item.sem_avaliacao %}<li>#{{ projeto.pk }} — {{ projeto.titulo }}</li>{% endfor %}</ul>
+  {% endif %}
+  {% if item.incompletos %}
+  <p>Com menos jurados que os da turma:</p>
+  <ul class="incompletos">{% for projeto, n in item.incompletos %}<li>#{{ projeto.pk }} — {{ projeto.titulo }} ({{ n }} de {{ item.jurados }})</li>{% endfor %}</ul>
+  {% endif %}
+  {% if not item.sem_avaliacao and not item.incompletos %}<p>Completa.</p>{% endif %}
+</section>
+{% empty %}
+<p>Nenhuma turma nesta edição.</p>
+{% endfor %}
+
+<h2>{% if digitador is None %}Amostra a conferir ({{ linhas|length }} de {{ total_avaliacoes }}){% else %}Todas as avaliações do digitador ({{ linhas|length }}){% endif %}</h2>
+<p>Conferir por digitador:
+  {% for chave, n in digitadores %}<a href="?digitador={{ chave.0 }}">{{ chave.1 }} ({{ n }})</a>{% if not forloop.last %} · {% endif %}{% empty %}—{% endfor %}
+  {% if digitador is not None %} · <a href="?">voltar à amostra</a>{% endif %}
+</p>
+<table id="amostra">
+  <thead><tr><th>Jurado</th><th>Projeto</th><th>Digitado por</th>{% for criterio in criterios %}<th>{{ forloop.counter }}. {{ criterio.nome }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for avaliacao, notas in linhas %}
+    <tr class="avaliacao"><td>{{ avaliacao.jurado.nome }}</td><td>#{{ avaliacao.projeto_id }} — {{ avaliacao.projeto.titulo }}</td><td>{{ avaliacao.digitado_por.get_username }}</td>{% for valor in notas %}<td>{{ valor|default_if_none:"—" }}</td>{% endfor %}</tr>
+  {% empty %}
+    <tr><td colspan="{{ colunas }}">Nenhuma avaliação.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+{% if edicao.banca_conferida_em %}
+<form method="post">{% csrf_token %}
+  <p>Reabrir desfaz a conferência e devolve os jurados desta edição ao passo 1 da digitação.</p>
+  <button type="submit" name="acao" value="reabrir">Reabrir digitação</button>
+</form>
+{% else %}
+<form method="post">{% csrf_token %}
+  {% if total_sem_avaliacao %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} projeto{{ total_sem_avaliacao|pluralize }} publicado{{ total_sem_avaliacao|pluralize }} sem nenhuma avaliação. A turma fica com banca pendente no resultado.</p>{% endif %}
+  <button type="submit" name="acao" value="concluir">Concluir conferência</button>
+</form>
+{% endif %}
+{% endblock %}
