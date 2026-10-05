@@ -156,6 +156,11 @@ qualquer consulta aos dados de negócio:
 - Média de votos por token votante: com zero tokens votantes, mostra
   "—" (sem divisão por zero).
 - Visitantes: só a contagem total (os dados ficam no export).
+- Enquanto a votação não estiver encerrada, a participação **por turma**
+  (votos e tokens distintos de cada turma) não aparece — só os totais da
+  edição; numa turma com um projeto só, o total da turma seria o parcial do
+  projeto. Depois de encerrar, aparece (decisão do coordenador no parecer
+  do PR #54).
 - **Isolamento por edição** (decisão do coordenador no PR #14):
   - votos: via projeto → turma → edição;
   - tokens emitidos: via estação (`Estacao.edicao_id`, spec 03);

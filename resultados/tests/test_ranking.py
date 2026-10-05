@@ -78,9 +78,18 @@ def test_votacao_nao_encerrada_so_aviso_sem_voto_por_projeto(admin):
     assert "Resultado disponível após o encerramento da votação" in html
     assert resposta.context["ranking"] is None
     assert "Agenda" not in html and "Horta" not in html
-    # A participação continua disponível (agregada por turma).
+    # Os totais da edição continuam; a participação por turma só depois de
+    # encerrar (parecer do #54): numa turma de um projeto seria o parcial dele.
     assert resposta.context["participacao"]["total_votos"] == 7
-    assert resposta.context["participacao"]["turmas"][0]["votos"] == 7
+    assert resposta.context["participacao"]["turmas"] is None
+    assert "<th>Turma</th>" not in html and "DSM —" not in html
+
+
+def test_votacao_nao_configurada_sem_participacao_por_turma(admin):
+    ed, _ = cenario.edicao({"DSM": [("Agenda", 0, None)]}, estado="configurar")
+    resposta, html = abrir(admin, ed)
+    assert resposta.context["participacao"]["turmas"] is None
+    assert "<th>Turma</th>" not in html and "DSM —" not in html
 
 
 # --- Ranking oficial -------------------------------------------------------------
@@ -203,6 +212,10 @@ def test_participacao_agregada_da_edicao_e_por_turma(admin):
     assert p["media_por_token"] == 2
     assert {t["nome"][:4]: (t["votos"], t["tokens"]) for t in p["turmas"]} == {"DSM ": (5, 3), "GTUR": (1, 1)}
     assert "2,00" in html
+    # A tabela por turma aparece depois de encerrar, linha a linha.
+    tabela = compacto(html)
+    assert '<tr><td>DSM — 3º semestre</td><td class="n">5</td><td class="n">3</td></tr>' in tabela
+    assert '<tr><td>GTUR — 3º semestre</td><td class="n">1</td><td class="n">1</td></tr>' in tabela
 
 
 def test_zero_tokens_votantes_media_tracinho(admin):
@@ -238,6 +251,38 @@ def test_outra_edicao_nao_entra_no_ranking_nem_na_participacao(admin):
     _, por_titulo = linhas(resposta, "DSM")
     assert set(por_titulo) == {"Agenda", "Horta"} and por_titulo["Horta"].votos == 1
     assert "Do Ensaio" not in html
+
+
+def test_token_do_evento_em_projeto_de_outra_edicao_nao_conta(admin):
+    """Filtro "via projeto → turma → edição" (parecer do #54): um token do
+    evento votando em projeto do ensaio (gravado direto, sem a cédula) não
+    entra no evento nem no ensaio."""
+    ed, _ = cenario.edicao({"DSM": [("Agenda", 2, 8), ("Horta", 1, 7)]})
+    ensaio, ensaio_projetos = cenario.edicao({"DSM": [("Do Ensaio", 1, 10)]}, nome="Ensaio 2026/2")
+    intruso = votacao.token(ed.estacoes.get())
+    votacao.voto(intruso, ensaio_projetos["Do Ensaio"])
+    resposta, _ = abrir(admin, ed)
+    p = resposta.context["participacao"]
+    assert (p["tokens_emitidos"], p["tokens_votantes"], p["total_votos"]) == (3, 2, 3)
+    assert [t["votos"] for t in p["turmas"]] == [3]
+    resposta, _ = abrir(admin, ensaio)
+    p = resposta.context["participacao"]
+    assert (p["tokens_votantes"], p["total_votos"]) == (1, 1)
+    _, por_titulo = linhas(resposta, "DSM")
+    assert por_titulo["Do Ensaio"].votos == 1
+
+
+def test_titulo_do_projeto_sai_escapado(admin):
+    ed, _ = cenario.edicao(
+        {
+            "DSM": [("<b>Robô & Cia</b>", 2, 8), ("Horta", 1, 7)],
+            "GTUR": [("<i>Mapa</i>", 1, None), ("Roteiro", 0, 6)],  # turma pendente
+        }
+    )
+    _, html = abrir(admin, ed)
+    assert "<td>&lt;b&gt;Robô &amp; Cia&lt;/b&gt;</td>" in html
+    assert "<td>&lt;i&gt;Mapa&lt;/i&gt;</td>" in html
+    assert "<b>Robô" not in html and "<i>Mapa" not in html
 
 
 # --- Número de consultas -------------------------------------------------------------

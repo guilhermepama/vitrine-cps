@@ -17,8 +17,10 @@ from decimal import Decimal
 from functools import wraps
 
 from django.contrib.auth.views import redirect_to_login
+from django.core.handlers.exception import response_for_exception
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count
+from django.http import Http404
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -41,9 +43,14 @@ def exige_admin_com(permissao):
             usuario = request.user
             if not usuario.is_authenticated:
                 return redirect_to_login(request.get_full_path(), reverse("admin:login"))
-            if not (usuario.is_active and usuario.is_staff and usuario.has_perm(permissao)):
-                raise PermissionDenied
-            return view(request, *args, **kwargs)
+            try:
+                if not (usuario.is_active and usuario.is_staff and usuario.has_perm(permissao)):
+                    raise PermissionDenied
+                return view(request, *args, **kwargs)
+            except (PermissionDenied, Http404) as excecao:
+                # Resposta do handler padrão aqui dentro, para o never_cache
+                # de fora também marcar o 403/404 como no-store.
+                return response_for_exception(request, excecao)
 
         return protegida
 
@@ -78,16 +85,19 @@ def _turmas(edicao):
     return [TurmaEntrada(turma_id, nome, tuple(lista)) for turma_id, (nome, lista) in turmas.items()]
 
 
-def _participacao(edicao, turmas):
-    """Contagens agregadas da edição e por turma. Quatro consultas."""
+def _participacao(edicao, turmas, por_turma):
+    """Contagens agregadas da edição; por turma só com `por_turma` (votação
+    encerrada — parecer do #54). Até quatro consultas."""
     votos = _votos_da_edicao(edicao)
     geral = votos.aggregate(total=Count("id"), tokens=Count("token", distinct=True))
-    por_turma = {
-        linha["projeto__turma_id"]: linha
-        for linha in votos.values("projeto__turma_id").annotate(
-            total=Count("id"), tokens=Count("token", distinct=True)
-        )
-    }
+    contagens = {}
+    if por_turma:
+        contagens = {
+            linha["projeto__turma_id"]: linha
+            for linha in votos.values("projeto__turma_id").annotate(
+                total=Count("id"), tokens=Count("token", distinct=True)
+            )
+        }
     media = Decimal(geral["total"]) / Decimal(geral["tokens"]) if geral["tokens"] else None
     return {
         "tokens_emitidos": Token.objects.filter(estacao__edicao=edicao).count(),
@@ -96,14 +106,18 @@ def _participacao(edicao, turmas):
         "media_por_token": media,
         # Pela edição do visitante, nunca pelo token (G6, ADR-003).
         "visitantes": Visitante.objects.filter(edicao=edicao).count(),
+        # None antes de encerrar: numa turma de um projeto só, o total da
+        # turma seria o parcial do projeto (spec 04, "Participação").
         "turmas": [
             {
                 "nome": turma.nome,
-                "votos": por_turma.get(turma.id, {}).get("total", 0),
-                "tokens": por_turma.get(turma.id, {}).get("tokens", 0),
+                "votos": contagens.get(turma.id, {}).get("total", 0),
+                "tokens": contagens.get(turma.id, {}).get("tokens", 0),
             }
             for turma in turmas
-        ],
+        ]
+        if por_turma
+        else None,
     }
 
 
@@ -133,16 +147,17 @@ def _ranking(edicao, turmas):
 def ranking(request, edicao_id):
     edicao = get_object_or_404(Edicao, pk=edicao_id)
     turmas = _turmas(edicao)
+    encerrada = edicao.votacao_encerrada_em is not None
     contexto = {
         "edicao": edicao,
-        "participacao": _participacao(edicao, turmas),
+        "participacao": _participacao(edicao, turmas, por_turma=encerrada),
         "aviso": None,
         "erro": None,
         "ranking": None,
     }
     if edicao.votacao_aberta_em is None:
         contexto["aviso"] = "Votação desta edição não foi configurada"
-    elif edicao.votacao_encerrada_em is None:
+    elif not encerrada:
         contexto["aviso"] = "Resultado disponível após o encerramento da votação"
     else:
         contexto["ranking"], contexto["erro"] = _ranking(edicao, turmas)

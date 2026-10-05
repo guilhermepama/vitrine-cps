@@ -54,11 +54,13 @@ def test_inativo_nao_ve(client, edicao):
     assert client.get(url(edicao.pk)).status_code == 302
 
 
-def test_admin_do_grupo_digitacao_banca_recebe_403(client, edicao):
+def test_admin_do_grupo_digitacao_banca_recebe_403_sem_cache(client, edicao):
     u = cenario.usuario(perms=())
     u.groups.add(Group.objects.get(name=GRUPO_DIGITACAO))
     client.force_login(u)
-    assert client.get(url(edicao.pk)).status_code == 403
+    resposta = client.get(url(edicao.pk))
+    assert resposta.status_code == 403
+    assert "no-store" in resposta["Cache-Control"]
 
 
 def test_admin_so_com_exportar_visitantes_recebe_403(client, edicao):
@@ -93,7 +95,9 @@ def test_segmento_nao_inteiro_e_rota_inexistente(client, edicao, segmento):
 @pytest.mark.parametrize("edicao_id", [0, 999_999])
 def test_edicao_inexistente_404(client, edicao, edicao_id):
     client.force_login(cenario.usuario())
-    assert client.get(url(edicao_id)).status_code == 404
+    resposta = client.get(url(edicao_id))
+    assert resposta.status_code == 404
+    assert "no-store" in resposta["Cache-Control"]
 
 
 @pytest.mark.parametrize("metodo", ["post", "put", "delete"])
