@@ -234,7 +234,9 @@ máximo 1 voto por projeto por token.
 Uma das duas camadas da ADR-001 contra o link do QR repassado (ex:
 WhatsApp). Decisão do coordenador no PR #18.
 - **Ordem em `/entrar`**: validação de entrada → assinatura e janela →
-  transação com a trava da `Edicao` → rate limit → estação → token. Só a
+  pré-leitura dos contadores, sem trava e sem contar (quem já estourou é
+  recusado aqui) → transação com a trava da `Edicao` → rate limit →
+  estação → token. Só a
   requisição com entrada válida, assinatura correta, janela no prazo e
   edição em votação conta nos contadores (assinatura forjada não esgota a
   janela de uma estação); conta mesmo quando devolve o mesmo token
@@ -295,8 +297,9 @@ WhatsApp). Decisão do coordenador no PR #18.
   enfileira as emissões da edição: duas requisições simultâneas não leem
   a mesma contagem e o limite vale também sob rajada.
 - **Estourou** → a mesma página "QR expirado", **400, corpo idêntico** ao
-  da assinatura inválida; nada revela que foi o limite. Não emite token
-  nem conta nos contadores (decisão do coordenador no PR #34).
+  da assinatura inválida; o corpo não revela que foi o limite (a recusa
+  pela pré-leitura é mais rápida, ver decisão 8 do PR #34). Não emite
+  token nem conta nos contadores (decisão do coordenador no PR #34).
 - **Chaves vivas não somem**: o `DatabaseCache`, ao passar do
   `MAX_ENTRIES`, apaga cerca de 1/3 das chaves em ordem alfabética, vivas
   ou não, e `rl:entrar:estacao:*` vem antes de `rl:entrar:ip:*`. Com o
@@ -805,11 +808,15 @@ no PR #36).
    recarrega**, para o visitante não ficar preso no "Tente de novo". Ver
    "Cédula".
 5. **`django.template` em INFO no `LOGGING`** — entrou com o PR #38.
-6. **`/como-votar/`** nasce na fatia 1 da spec 02 (PR #23, 10/10). Até
-   ela estar na `main`, esta fatia não vai para ensaio nem deploy.
+6. **`/como-votar/`** nasce na fatia 1 da spec 02 (PR #44). Até ela
+   estar na `main`, esta fatia não vai para ensaio nem deploy.
 7. **Aceite P2 do fluxo completo** (`assertLogs` em `/entrar` →
    `/visitantes` → `/votar` → `/votos`) — fica na F8, o PR #37
    (`votacao/tests/test_fluxo_completo.py`).
+8. **403 persistente** (CSRF de origem mal configurado no deploy, ou 403
+   do proxy) faz a cédula só recarregar, sem mensagem. Não muda o código:
+   o roteiro do pré-ensaio (21/10) inclui um voto real pelo domínio e
+   pelo proxy de produção antes da medição (parecer do #42).
 
 ## Decisões do PR #34
 Parecer do coordenador sobre a emissão em `/entrar` (decisão do
@@ -831,6 +838,13 @@ coordenador no PR #34).
 6. **Wi-Fi da Fatec com IP único** — 300 por 10 min ≈ 30 tokens por minuto
    para o evento inteiro, re-scan incluso. Medir no pré-ensaio (21/10) e
    no ensaio (22/10); se apertar, o coordenador revê o número.
+7. **Aceite P2 do `GET /entrar`** (exceção forçada, sem dados no log) —
+   adiado para a F8 e fechado lá: `test_fluxo_completo.py` força a
+   exceção pelas views reais com o `LOGGING` real (PR #37).
+8. **Tempo de resposta da recusa** — aceito: a recusa pela pré-leitura
+   volta antes de travar a `Edicao`, então quem mede o tempo pode
+   distinguir "estourou" de "assinatura inválida". O corpo é idêntico
+   (G5); o tempo só diz a um script que ele já está barrado.
 
 ## Decisões do PR #33
 Parecer do coordenador sobre o cadastro do visitante (decisão do
