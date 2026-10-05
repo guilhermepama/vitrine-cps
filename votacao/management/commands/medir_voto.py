@@ -3,17 +3,23 @@
 Mede a trava por voto (spec 03, "Referência temporal" e "Decisões do PR #37"):
 simula visitantes contra a URL pública — `/entrar` → `/visitantes` → `/votar`
 → V votos em `POST /votos` — e imprime p50, p95 e máximo do `POST /votos`
-por nível de concorrência, com a contagem de 201/409/5xx.
+por nível de concorrência, com a contagem de 201/409/5xx. Antes dos votos,
+os mesmos visitantes fazem V `GET /votar` juntos: é a linha de base sem a
+trava da `Edicao`, no mesmo nível, que separa a fila do servidor (workers,
+conexão, banco) da espera pela trava.
 
 Roda no shell da plataforma: assina o QR com o segredo do ambiente onde
 roda, lido só do `settings` — nunca por argumento, nunca impresso (G3).
 Só roda com a edição em votação cujo nome começa por "Pré-ensaio" —
 conferida no início e antes de cada rodada — e com o host do `--url` em
 `ALLOWED_HOSTS` (o banco conferido é o do mesmo ambiente; `"*"` é recusado,
-porque aceitaria qualquer host). Antes dos votos, confere que a cédula
-devolvida pelo `--url` tem exatamente os projetos publicados da edição local:
-se o alvo for outro ambiente, para antes de votar. Cria tokens, cadastros e
-votos de mentira nessa edição, que ficam no banco (decisão do coordenador no
+porque aceitaria qualquer host). Antes da primeira rodada, uma sonda (1
+visitante, sem votar) confere que a cédula devolvida pelo `--url` tem
+exatamente os projetos publicados da edição local; cada visitante confere de
+novo antes de votar. Se o alvo for outro ambiente, nenhum voto sai e, no
+pior caso, fica lá 1 token e 1 cadastro da sonda. A conferência compara ids:
+é heurística, não prova que é o mesmo banco. Cria tokens, cadastros e votos
+de mentira nessa edição, que ficam no banco (decisão do coordenador no
 PR #37).
 
 Respeita o rate limit (G7): cada estação ativa emite no máximo 20 tokens por
@@ -103,6 +109,15 @@ class Visitante:
             raise RuntimeError(f"{caminho.split('?')[0]} respondeu {recebido}, esperado {status}")
         return corpo
 
+    def abrir_cedula(self):
+        """(status, segundos) de um `GET /votar` — a linha de base, sem trava."""
+        inicio = time.perf_counter()
+        try:
+            status, _ = self.pedir(reverse("votacao:votar"))
+        except (OSError, HTTPException):
+            status = 0
+        return status, time.perf_counter() - inicio
+
     def votar(self, projeto_id):
         """(status, segundos) de um `POST /votos`; status 0 = sem resposta."""
         inicio = time.perf_counter()
@@ -133,16 +148,18 @@ class Distribuidor:
             time.sleep(assinatura.ROTACAO_QR - assinatura.agora() % assinatura.ROTACAO_QR + 1)
 
 
-def resumo(nivel, resultados):
+def resumo(nivel, resultados, *, base=False):
+    """Uma linha por nível. `base=True`: a linha de base (`GET /votar`, sem trava)."""
     # Sem resposta (status 0) conta com o tempo que esperou: o timeout pesa no p95 e no máx.
     tempos = sorted(segundos * 1000 for _, segundos in resultados)
-    contagem = {rotulo: 0 for rotulo in ("201", "409", "5xx", "outros")}
+    esperados = (200,) if base else (201, 409)
+    contagem = {rotulo: 0 for rotulo in (*map(str, esperados), "5xx", "outros")}
     for status, _ in resultados:
-        rotulo = str(status) if status in (201, 409) else "5xx" if status >= 500 else "outros"
+        rotulo = str(status) if status in esperados else "5xx" if status >= 500 else "outros"
         contagem[rotulo] += 1
     p95 = statistics.quantiles(tempos, n=20, method="inclusive")[18] if len(tempos) > 1 else (tempos or [0])[0]
     return (
-        f"{nivel:>3} simultâneos | {len(resultados):>4} votos | "
+        f"{nivel:>3} simultâneos | {len(resultados):>4} {'cédulas' if base else 'votos'} | "
         f"p50 {statistics.median(tempos) if tempos else 0:7.1f} ms | p95 {p95:7.1f} ms | "
         f"máx {max(tempos, default=0):7.1f} ms | "
         + " ".join(f"{rotulo} {n}" for rotulo, n in contagem.items())
@@ -190,20 +207,40 @@ class Command(BaseCommand):
         )
         if votos > len(self.publicados):
             raise CommandError(f"--votos {votos} passa dos {len(self.publicados)} projeto(s) publicados da edição.")
-        emissoes = sum(niveis)
+        emissoes = sum(niveis) + 1  # + a sonda
         if emissoes > limite.LIMITE_IP:
             raise CommandError(f"{emissoes} emissões passam do limite de {limite.LIMITE_IP} por IP em 10 min.")
         self.stdout.write(f"Edição {edicao.nome}: {len(estacoes)} estação(ões), {emissoes} emissão(ões) no total.")
+        self.stdout.write(
+            "Linha 'cédulas' = GET /votar (sem trava), mesmo nível; linha 'votos' = POST /votos (com a trava)."
+        )
         distribuidor = Distribuidor(estacoes)
+        self._sondar(url, distribuidor)
         for nivel in niveis:
             if _pre_ensaio().pk != edicao.pk:
                 raise CommandError("A edição em votação mudou no meio da medição: parei antes da rodada seguinte.")
-            self.stdout.write(resumo(nivel, self._rodada(url, nivel, votos, distribuidor)))
+            base, resultados = self._rodada(url, nivel, votos, distribuidor)
+            self.stdout.write(resumo(nivel, base, base=True))
+            self.stdout.write(resumo(nivel, resultados))
+
+    def _sondar(self, url, distribuidor):
+        """Um visitante, sem votar: confere a cédula do --url antes de soltar a rodada.
+
+        Se o alvo for outro ambiente, o estrago fica em 1 token e 1 cadastro lá,
+        não em um por visitante da primeira rodada.
+        """
+        try:
+            projetos = Visitante(url).preparar(*distribuidor.proxima())
+        except (OSError, HTTPException, RuntimeError) as erro:
+            raise CommandError(f"A sonda falhou: {type(erro).__name__}: {erro}")
+        if set(projetos) != self.publicados:
+            raise CommandError("A cédula do --url não é a da edição local: outro ambiente? Nenhum voto enviado.")
 
     def _rodada(self, url, nivel, votos, distribuidor):
-        """Prepara `nivel` visitantes e só então solta todos votando juntos."""
+        """Prepara `nivel` visitantes; solta todos juntos abrindo a cédula (linha
+        de base) e depois, de novo juntos, votando. Devolve (base, votos)."""
         visitantes = [Visitante(url) for _ in range(nivel)]
-        largada = threading.Barrier(nivel)
+        largada, segunda = threading.Barrier(nivel), threading.Barrier(nivel)
 
         def visitar(visitante):
             try:
@@ -214,7 +251,9 @@ class Command(BaseCommand):
                 largada.abort()  # ninguém fica esperando quem não vai chegar
                 raise
             largada.wait(PRAZO * 4)
-            return [visitante.votar(projeto_id) for projeto_id in projetos[:votos]]
+            base = [visitante.abrir_cedula() for _ in range(votos)]
+            segunda.wait(PRAZO * 4 * votos)
+            return base, [visitante.votar(projeto_id) for projeto_id in projetos[:votos]]
 
         with ThreadPoolExecutor(max_workers=nivel) as executor:
             futuros = [executor.submit(visitar, v) for v in visitantes]
@@ -222,5 +261,6 @@ class Command(BaseCommand):
         # O erro de quem falhou, não o BrokenBarrierError de quem esperava por ele.
         erros.sort(key=lambda erro: isinstance(erro, threading.BrokenBarrierError))
         if erros:
-            raise CommandError(f"Falhou ao preparar os visitantes: {erros[0]}")
-        return [r for futuro in futuros for r in futuro.result()]
+            raise CommandError(f"Falhou ao preparar os visitantes: {type(erros[0]).__name__}: {erros[0]}")
+        base = [r for futuro in futuros for r in futuro.result()[0]]
+        return base, [r for futuro in futuros for r in futuro.result()[1]]

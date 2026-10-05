@@ -755,15 +755,21 @@ ferramenta, a medição seria gente clicando junto, sem número confiável.
    /votos` e imprime p50, p95 e máximo do voto por nível de concorrência.
    Respeita o rate limit (G7) em vez de desligá-lo, e o segredo do QR só
    vem do `settings` (G3).
-2. **Onde roda**: só no shell do ambiente publicado, **antes do
-   pré-ensaio de 21/10**, contra uma edição em votação cujo nome começa
-   por "Pré-ensaio". **Nunca** na edição do ensaio nem na do evento. O
+2. **Onde roda**: só no shell do ambiente publicado, **no pré-ensaio de
+   21/10** (com os celulares do roteiro votando ao mesmo tempo, e nunca
+   depois de abrir o ensaio de 22/10), contra uma edição em votação cujo
+   nome começa por "Pré-ensaio". **Nunca** na edição do ensaio nem na do evento. O
    comando recusa: outra edição em votação (conferida no início e antes
    de cada rodada); `--url` que não seja `http`/`https`; host fora do
    `ALLOWED_HOSTS` ou `ALLOWED_HOSTS` com `"*"`; `--votos` acima dos
    projetos publicados da edição (antes de emitir qualquer token); e
    cédula do `--url` diferente dos publicados da edição local (outro
-   ambiente), antes de qualquer voto.
+   ambiente). Essa última conferência é feita primeiro por uma **sonda**
+   de 1 visitante, sem votar, antes da primeira rodada: se o alvo for
+   outro ambiente, nenhum voto sai e lá fica no máximo 1 token e 1
+   cadastro. Ela compara ids, então é heurística (dois bancos com os
+   mesmos ids passam); no mesmo deploy, quem segura é o nome "Pré-ensaio"
+   e o isolamento por edição do servidor (token de outra edição → 409).
 3. **Dados fictícios ficam no banco**, na edição "Pré-ensaio": tokens,
    cadastros `medicao@example.com` e votos. É o mesmo princípio do
    ensaio (PR #14, resposta 8: outra edição, nada se apaga): apagar
@@ -773,9 +779,13 @@ ferramenta, a medição seria gente clicando junto, sem número confiável.
    em `/resultados/<edicao_id>/...`).
 4. **Leitura do resultado**: o p95 sozinho não decide o plano B. Com
    poucos workers síncronos, boa parte da espera é a fila do servidor, que
-   existiria sem a trava. O coordenador lê o resultado junto com o número
-   de workers e uma linha de base sem trava no mesmo nível (melhoria da
-   ferramenta, recomendado 3 do parecer — com o Renan).
+   existiria sem a trava. Por isso a ferramenta imprime, em cada nível,
+   uma **linha de base** (`GET /votar` dos mesmos visitantes, juntos, sem
+   a trava da `Edicao`) antes da linha dos votos; a diferença entre as
+   duas no mesmo nível é a espera pela trava. O coordenador anota o
+   número de workers do ambiente e olha as esperas por lock no Neon (C13)
+   durante a carga. Condição de merge do #37 (decisão do coordenador),
+   entregue no PR #43.
 
 ## Decisões do PR #36
 Parecer do coordenador sobre a cédula e o voto (decisão do coordenador
