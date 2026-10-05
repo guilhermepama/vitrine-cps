@@ -1,6 +1,6 @@
 """python manage.py medir_voto [--url https://<ambiente>] [--niveis 1,10,30] [--votos 10]
 
-Mede a trava por voto (spec 03, "Referência temporal"; nota N3 do plano):
+Mede a trava por voto (spec 03, "Referência temporal" e "Decisões do PR #37"):
 simula visitantes contra a URL pública — `/entrar` → `/visitantes` → `/votar`
 → V votos em `POST /votos` — e imprime p50, p95 e máximo do `POST /votos`
 por nível de concorrência, com a contagem de 201/409/5xx.
@@ -9,8 +9,12 @@ Roda no shell da plataforma: assina o QR com o segredo do ambiente onde
 roda, lido só do `settings` — nunca por argumento, nunca impresso (G3).
 Só roda com a edição em votação cujo nome começa por "Pré-ensaio" —
 conferida no início e antes de cada rodada — e com o host do `--url` em
-`ALLOWED_HOSTS` (o banco conferido é o do mesmo ambiente). Cria tokens,
-cadastros e votos de mentira nessa edição.
+`ALLOWED_HOSTS` (o banco conferido é o do mesmo ambiente; `"*"` é recusado,
+porque aceitaria qualquer host). Antes dos votos, confere que a cédula
+devolvida pelo `--url` tem exatamente os projetos publicados da edição local:
+se o alvo for outro ambiente, para antes de votar. Cria tokens, cadastros e
+votos de mentira nessa edição, que ficam no banco (decisão do coordenador no
+PR #37).
 
 Respeita o rate limit (G7): cada estação ativa emite no máximo 20 tokens por
 bloco de 45 s; com todas esgotadas, espera o bloco seguinte. O limite de
@@ -33,6 +37,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.http.request import validate_host
 from django.urls import reverse
 
+from cadastro.models import Projeto
 from votacao import assinatura, limite
 from votacao.models import Estacao
 from votacao.servicos import edicao_em_votacao
@@ -162,8 +167,12 @@ class Command(BaseCommand):
 
     def handle(self, *args, url, niveis, votos, **options):
         url = url or settings.URL_PUBLICA  # a origem pública deste mesmo ambiente (ADR-006)
-        host = urllib.parse.urlsplit(url).hostname or ""
-        if not validate_host(host, settings.ALLOWED_HOSTS):
+        partes = urllib.parse.urlsplit(url)
+        if partes.scheme not in ("http", "https") or not partes.hostname:
+            raise CommandError("--url precisa ser http:// ou https:// com um host.")
+        if "*" in settings.ALLOWED_HOSTS:
+            raise CommandError('ALLOWED_HOSTS com "*" não garante que o --url é este ambiente: recusado.')
+        if not validate_host(partes.hostname, settings.ALLOWED_HOSTS):
             raise CommandError("O host do --url não está em ALLOWED_HOSTS: rode no shell do próprio ambiente.")
         edicao = _pre_ensaio()
         try:
@@ -175,6 +184,12 @@ class Command(BaseCommand):
         estacoes = list(Estacao.objects.filter(edicao=edicao, ativa=True).order_by("pk").values_list("pk", flat=True))
         if not estacoes:
             raise CommandError("A edição não tem estação ativa.")
+        # Conferido antes de qualquer emissão: falhar aqui não gasta token nem cadastro.
+        self.publicados = set(
+            Projeto.objects.filter(status=Projeto.Status.PUBLICADO, turma__edicao=edicao).values_list("pk", flat=True)
+        )
+        if votos > len(self.publicados):
+            raise CommandError(f"--votos {votos} passa dos {len(self.publicados)} projeto(s) publicados da edição.")
         emissoes = sum(niveis)
         if emissoes > limite.LIMITE_IP:
             raise CommandError(f"{emissoes} emissões passam do limite de {limite.LIMITE_IP} por IP em 10 min.")
@@ -193,8 +208,8 @@ class Command(BaseCommand):
         def visitar(visitante):
             try:
                 projetos = visitante.preparar(*distribuidor.proxima())
-                if len(projetos) < votos:
-                    raise RuntimeError(f"A cédula tem {len(projetos)} projeto(s) para {votos} voto(s).")
+                if set(projetos) != self.publicados:
+                    raise RuntimeError("A cédula do --url não é a da edição local: outro ambiente? Nenhum voto enviado.")
             except BaseException:
                 largada.abort()  # ninguém fica esperando quem não vai chegar
                 raise
