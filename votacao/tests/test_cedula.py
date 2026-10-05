@@ -12,15 +12,17 @@ Critérios de aceite fechados aqui (citados em cada bloco):
 - Sem edição em votação: só o aviso "Votação encerrada".
 """
 
+import re
 import unittest
 import uuid
 
 import pytest
 from django.core.signing import Signer
+from django.test import Client
 
 from votacao.cookie_token import COOKIE_TOKEN
 from votacao.liberacao import COOKIE_CADASTRO
-from votacao.models import Visitante
+from votacao.models import Visitante, Voto
 from votacao.servicos import abrir_votacao, encerrar_votacao
 from votacao.tests import fabricas
 from votacao.tests.cenario import montar
@@ -57,16 +59,35 @@ def test_cedula_lista_so_publicados_da_edicao_em_votacao_por_turma(client, cenar
     assert "no-store" in resposta["Cache-Control"]
 
 
-def test_js_marca_votado_so_no_201_e_recarrega_no_409(client, cenario):
+def test_js_marca_votado_so_no_201_e_recarrega_no_409_e_no_403(client, cenario):
     """No 409 o botão não vira "Votado": a rejeição é genérica e pode ser
-    cookie vencido, sem voto gravado. Recarregar mostra o estado do servidor."""
+    cookie vencido, sem voto gravado. No 403 (CSRF, cookies limpos com a
+    cédula aberta) também recarrega, em vez de prender o visitante no
+    "Tente de novo" (parecer do #36). Recarregar mostra o estado do servidor."""
     html = cenario.votante(client).get(ROTA).content.decode()
     js = html[html.index("<script>") : html.index("</script>")]
     ramo_201 = js[js.index("resposta.status === 201") : js.index("resposta.status === 409")]
-    ramo_409 = js[js.index("resposta.status === 409") :]
+    ramo_recarga = js[js.index("resposta.status === 409") :]
+    condicao = ramo_recarga[: ramo_recarga.index("{")]
     assert "marcar(botao)" in ramo_201
-    assert "location.reload()" in ramo_409
-    assert "marcar(" not in ramo_409[: ramo_409.index("return;")]
+    assert "resposta.status === 403" in condicao
+    assert "location.reload()" in ramo_recarga[: ramo_recarga.index("return;")]
+    assert "marcar(" not in ramo_recarga[: ramo_recarga.index("return;")]
+
+
+def test_cookies_limpos_com_a_cedula_aberta_dao_403_e_a_recarga_sai_da_cedula(cenario):
+    """O caminho que o JS percorre no 403: sem cookies, o POST cai no CSRF e o
+    GET da recarga leva para /como-votar/ (sem token), sem voto gravado."""
+    votante = cenario.votante(Client(enforce_csrf_checks=True))
+    html = votante.get(ROTA).content.decode()
+    csrf = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', html)
+    assert csrf, "a cédula perdeu o csrfmiddlewaretoken"
+    votante.cookies.clear()
+    dados = {"projeto_id": cenario.publicado.pk}
+    assert votante.post("/votos", dados, HTTP_X_CSRFTOKEN=csrf[1]).status_code == 403
+    recarga = votante.get(ROTA)
+    assert recarga.status_code == 302 and recarga["Location"] == ROTA_COMO_VOTAR
+    assert not Voto.objects.exists()
 
 
 def test_cedula_nao_gera_log_de_template_nem_em_debug(client, cenario):

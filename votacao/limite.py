@@ -12,6 +12,7 @@ A2). Com o prazo no valor, cada `set` regrava o tempo que falta, e o contador
 do IP do Wi-Fi do evento zera 10 min depois da primeira emissão, não depois
 da última. Quem chama trava a linha da `Edicao` antes (`/entrar`): é essa
 trava que impede duas emissões simultâneas de lerem a mesma contagem.
+`esgotado` é a pré-leitura sem trava, só para recusar rápido.
 """
 
 from django.core.cache import caches
@@ -48,6 +49,31 @@ def _contar(cache, chave, validade, momento, valor):
     cache.set(chave, (contagem, expira_em), timeout=expira_em - momento)
 
 
+def _camadas(request, estacao_id, ts):
+    return [
+        (chave_estacao(estacao_id, ts), LIMITE_ESTACAO, EXPIRA_ESTACAO),
+        (chave_do_ip(request), LIMITE_IP, EXPIRA_IP),
+    ]
+
+
+def _algum_esgotado(lidos, camadas):
+    return any(valor is not None and valor[0] >= limite for valor, (_, limite, _) in zip(lidos, camadas))
+
+
+def esgotado(request, estacao_id, ts):
+    """True se alguma camada já está no limite. Só lê: não conta nem grava.
+
+    Pré-leitura **sem** a trava da `Edicao`, para recusar rápido quem já
+    estourou (um script repetindo a URL não enfileira na frente dos
+    `/votos`). Não substitui o `liberar`: entre esta leitura e a trava outra
+    emissão pode contar, e quem decide é a contagem sob a trava.
+    """
+    cache = caches["default"]
+    momento = assinatura.agora()
+    camadas = _camadas(request, estacao_id, ts)
+    return _algum_esgotado([_ler(cache, chave, momento) for chave, _, _ in camadas], camadas)
+
+
 def liberar(request, estacao_id, ts):
     """True se cabe nas duas camadas, e então conta a emissão nas duas.
 
@@ -56,12 +82,9 @@ def liberar(request, estacao_id, ts):
     """
     cache = caches["default"]
     momento = assinatura.agora()
-    camadas = [
-        (chave_estacao(estacao_id, ts), LIMITE_ESTACAO, EXPIRA_ESTACAO),
-        (chave_do_ip(request), LIMITE_IP, EXPIRA_IP),
-    ]
+    camadas = _camadas(request, estacao_id, ts)
     lidos = [_ler(cache, chave, momento) for chave, _, _ in camadas]
-    if any(valor is not None and valor[0] >= limite for valor, (_, limite, _) in zip(lidos, camadas)):
+    if _algum_esgotado(lidos, camadas):
         return False
     for valor, (chave, _, validade) in zip(lidos, camadas):
         _contar(cache, chave, validade, momento, valor)

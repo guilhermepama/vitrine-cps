@@ -1,4 +1,5 @@
-"""Ferramenta de medição da trava por voto — fatia F8 (nota N3 do plano).
+"""Ferramenta de medição da trava por voto — fatia F8 (spec 03, "Decisões do
+PR #37").
 
 Roda o comando contra o `live_server` do pytest-django (http local, sem rede
 externa), num nível de concorrência pequeno. A medição de verdade é no
@@ -6,6 +7,7 @@ pré-ensaio de 21/10, no ambiente publicado.
 """
 
 import http.client
+import time
 from datetime import date
 from io import StringIO
 from unittest import mock
@@ -24,6 +26,14 @@ from votacao.servicos import abrir_votacao, encerrar_votacao
 from votacao.tests import fabricas
 
 PUBLICADO = Projeto.Status.PUBLICADO
+
+
+@pytest.fixture(autouse=True)
+def _host_local(settings):
+    """Sem DJANGO_DEBUG (CI e produção) o ALLOWED_HOSTS fica vazio, e o
+    comando recusa o 127.0.0.1 do live_server antes de qualquer coisa
+    (bloqueante 1 do parecer do #37)."""
+    settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, "127.0.0.1"]
 
 
 def _edicao_em_votacao(nome, projetos=3, estacoes=2):
@@ -49,12 +59,15 @@ def test_mede_contra_o_servidor_e_respeita_o_fluxo(live_server):
     _edicao_em_votacao("Pré-ensaio 2026/2")
     saida = _medir("--url", live_server.url, "--niveis", "1,3", "--votos", "2")
     linhas = saida.splitlines()
-    assert "2 estação(ões), 4 emissão(ões)" in linhas[0]
-    assert "  1 simultâneos |    2 votos" in linhas[1] and "201 2 409 0 5xx 0 outros 0" in linhas[1]
-    assert "  3 simultâneos |    6 votos" in linhas[2] and "201 6 409 0 5xx 0 outros 0" in linhas[2]
-    assert "p50" in linhas[1] and "p95" in linhas[1] and "máx" in linhas[1]
-    # Um token e um cadastro por visitante simulado; votos em projetos diferentes.
-    assert (Token.objects.count(), Visitante.objects.count(), Voto.objects.count()) == (4, 4, 8)
+    assert "2 estação(ões), 5 emissão(ões)" in linhas[0]  # 1 + 3 + a sonda
+    # Por nível: a linha de base (GET /votar, sem trava) e a dos votos.
+    assert "  1 simultâneos |    2 cédulas" in linhas[2] and "200 2 5xx 0 outros 0" in linhas[2]
+    assert "  1 simultâneos |    2 votos" in linhas[3] and "201 2 409 0 5xx 0 outros 0" in linhas[3]
+    assert "  3 simultâneos |    6 cédulas" in linhas[4] and "200 6 5xx 0 outros 0" in linhas[4]
+    assert "  3 simultâneos |    6 votos" in linhas[5] and "201 6 409 0 5xx 0 outros 0" in linhas[5]
+    assert "p50" in linhas[3] and "p95" in linhas[3] and "máx" in linhas[3]
+    # Um token e um cadastro por visitante simulado (e pela sonda); votos em projetos diferentes.
+    assert (Token.objects.count(), Visitante.objects.count(), Voto.objects.count()) == (5, 5, 8)
     assert settings.QR_HMAC_SECRET not in saida
 
 
@@ -82,7 +95,6 @@ def test_nome_em_maiusculas_tambem_vale_e_recusa_sem_estacao():
         _medir("--url", "http://127.0.0.1:9")
 
 
-@pytest.mark.django_db
 @pytest.mark.django_db(transaction=True)
 def test_sem_url_mede_a_url_publica_do_ambiente(live_server, settings):
     call_command("createcachetable", verbosity=0)
@@ -123,11 +135,14 @@ def test_para_se_a_edicao_em_votacao_muda_entre_rodadas(nome, mensagem):
         rodadas.append(nivel)
         encerrar_votacao(pre_ensaio.pk)
         assert abrir_votacao(evento.pk) is None
-        return [(201, 0.01)]
+        return [(200, 0.01)], [(201, 0.01)]
 
-    with mock.patch.object(medir_voto.Command, "_rodada", side_effect=rodada_e_troca_de_edicao):
+    with (
+        mock.patch.object(medir_voto.Command, "_sondar"),
+        mock.patch.object(medir_voto.Command, "_rodada", side_effect=rodada_e_troca_de_edicao),
+    ):
         with pytest.raises(CommandError, match=mensagem):
-            _medir("--url", "http://127.0.0.1:9", "--niveis", "1,10")
+            _medir("--url", "http://127.0.0.1:9", "--niveis", "1,10", "--votos", "1")
     assert rodadas == [1]
 
 
@@ -135,7 +150,7 @@ def test_para_se_a_edicao_em_votacao_muda_entre_rodadas(nome, mensagem):
 def test_nao_passa_do_limite_por_ip():
     _edicao_em_votacao("Pré-ensaio 2026/2")
     with pytest.raises(CommandError, match="300"):
-        _medir("--url", "http://127.0.0.1:9", "--niveis", "200,101")
+        _medir("--url", "http://127.0.0.1:9", "--niveis", "200,101", "--votos", "1")
     assert Token.objects.count() == 0
 
 
@@ -183,6 +198,11 @@ def test_resumo_sem_timeout():
     assert "p50    25.0 ms" in linha and "p95    38.5 ms" in linha and "máx    40.0 ms" in linha
 
 
+def test_resumo_da_linha_de_base_conta_200():
+    linha = medir_voto.resumo(3, [(200, 0.010), (200, 0.030), (500, 0.020), (0, 30.0)], base=True)
+    assert "4 cédulas" in linha and "200 2 5xx 1 outros 1" in linha and "201" not in linha
+
+
 def test_voto_sem_resposta_completa_vira_status_0():
     """IncompleteRead/BadStatusLine não derrubam a rodada como erro de preparo."""
     navegador = medir_voto.Visitante("http://127.0.0.1:9")
@@ -191,3 +211,130 @@ def test_voto_sem_resposta_completa_vira_status_0():
         with mock.patch.object(medir_voto.Visitante, "pedir", side_effect=erro):
             status, segundos = navegador.votar(1)
         assert status == 0 and segundos >= 0
+
+
+# --- Proteções (recomendados 4 a 6 do parecer do #37) ---------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url", ["ftp://127.0.0.1/", "file:///etc/passwd", "javascript:alert(1)", "127.0.0.1:9"])
+def test_recusa_url_que_nao_e_http(url):
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="http"):
+        _medir("--url", url)
+    assert Token.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_recusa_allowed_hosts_curinga(settings):
+    settings.ALLOWED_HOSTS = ["*"]
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="ALLOWED_HOSTS"):
+        _medir("--url", "http://127.0.0.1:9")  # numa regressão, não sai para a rede
+    assert Token.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_votos_acima_da_cedula_recusa_antes_de_emitir(live_server):
+    """Contra um servidor que responde: se a recusa viesse depois da emissão,
+    sobraria token e cadastro."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2", projetos=3)
+    with pytest.raises(CommandError, match="--votos 4"):
+        _medir("--url", live_server.url, "--votos", "4")
+    assert (Token.objects.count(), Visitante.objects.count()) == (0, 0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cedula_de_outro_ambiente_para_antes_de_votar(live_server):
+    """O --url responde, mas com outra cédula (outro banco): nenhum voto sai."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with mock.patch.object(medir_voto.Visitante, "preparar", return_value=[999_998, 999_999]):
+        with pytest.raises(CommandError, match="não é a da edição local"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert Voto.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_sonda_para_outro_ambiente_com_um_visitante_so(live_server):
+    """A cédula diverge: só a sonda chega a gravar no alvo (1 token, 1
+    cadastro), não um por visitante da rodada (recomendado 2 do parecer do #43)."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    original = medir_voto.Visitante.preparar
+
+    def outra_cedula(self, *args):
+        return [*original(self, *args), 999_999]
+
+    with mock.patch.object(medir_voto.Visitante, "preparar", outra_cedula):
+        with pytest.raises(CommandError, match="não é a da edição local"):
+            _medir("--url", live_server.url, "--niveis", "10", "--votos", "1")
+    assert (Token.objects.count(), Visitante.objects.count(), Voto.objects.count()) == (1, 1, 0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_entrar_recusado_aborta_a_largada_sem_travar(live_server):
+    """O último visitante leva 400 no /entrar quando os outros dois já esperam
+    na barreira: eles são soltos na hora (sem o `abort()`, a rodada ficaria
+    120 s parada), nenhum voto sai e o erro mostrado é o do /entrar."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    original = medir_voto.Distribuidor.proxima
+    chamadas = []
+
+    def proxima(self):
+        chamadas.append(1)
+        if len(chamadas) == 4:  # 1 = a sonda; 2 e 3 já estão na barreira
+            time.sleep(0.5)
+            return (999_999, assinatura.agora())
+        return original(self)
+
+    inicio = time.monotonic()
+    with mock.patch.object(medir_voto.Distribuidor, "proxima", proxima):
+        with pytest.raises(CommandError, match="respondeu 400"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert time.monotonic() - inicio < 10
+    assert Voto.objects.count() == 0
+
+
+
+@pytest.mark.django_db(transaction=True)
+def test_falha_na_linha_de_base_solta_a_segunda_barreira(live_server):
+    """Um visitante quebra ao abrir a cédula (erro que não é de rede): os
+    outros, já na segunda barreira, são soltos na hora e nenhum voto sai."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    original = medir_voto.Visitante.abrir_cedula
+    chamadas = []
+
+    def abrir_cedula(self):
+        chamadas.append(1)
+        if len(chamadas) == 3:
+            time.sleep(0.5)  # os outros dois já estão na segunda barreira
+            raise ValueError("quebrou")
+        return original(self)
+
+    inicio = time.monotonic()
+    with mock.patch.object(medir_voto.Visitante, "abrir_cedula", abrir_cedula):
+        with pytest.raises(CommandError, match="ValueError: quebrou"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert time.monotonic() - inicio < 10
+    assert Voto.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_linha_de_base_nao_trava_a_edicao(client):
+    """Premissa da linha de base: o GET /votar não trava a `Edicao`; se um dia
+    travar, a linha 'cédulas' deixa de ser a referência sem trava."""
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    from votacao.tests.cenario import montar
+
+    cenario = montar()
+    votante = cenario.votante(client)
+    with CaptureQueriesContext(connection) as consultas:
+        assert votante.get("/votar").status_code == 200
+    assert consultas.captured_queries
+    assert not any("FOR UPDATE" in q["sql"] for q in consultas.captured_queries)

@@ -24,6 +24,7 @@ from django.contrib.sessions.models import Session
 from django.core.management import call_command
 from django.db import connection
 from django.test import Client
+from django.test.utils import CaptureQueriesContext
 
 from votacao import views_voto
 from votacao.cookie_token import COOKIE_TOKEN
@@ -197,30 +198,43 @@ def test_so_post(client, cenario):
 
 
 def test_trava_a_edicao_antes_de_conferir(client, cenario):
+    """A trava da `Edicao` vem antes de ler o token e de gravar o voto (a
+    ordem, não só a chamada — cosmético do parecer do #36)."""
+    votante = cenario.votante(client)
     with mock.patch.object(views_voto, "edicao_em_votacao", wraps=views_voto.edicao_em_votacao) as espia:
-        _votar(cenario.votante(client), cenario.publicado.pk)
+        with CaptureQueriesContext(connection) as consultas:
+            assert _votar(votante, cenario.publicado.pk).status_code == 201
     espia.assert_called_once_with(travar=True)
+    sqls = [q["sql"] for q in consultas.captured_queries]
+    trava = next(i for i, sql in enumerate(sqls) if "FOR UPDATE" in sql)
+    token = next(i for i, sql in enumerate(sqls) if 'FROM "tokens"' in sql)
+    voto = next(i for i, sql in enumerate(sqls) if 'INSERT INTO "votos"' in sql)
+    assert trava < token < voto
 
 
 # --- Fluxo sem sessão nem cache --------------------------------------------------------
 
 
-def _linhas_de_cache():
+def _chaves_de_cache():
     with connection.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM cache_django")
-        return cursor.fetchone()[0]
+        cursor.execute("SELECT cache_key FROM cache_django")
+        return {linha[0] for linha in cursor.fetchall()}
 
 
 def test_fluxo_cadastro_cedula_voto_nao_grava_sessao_nem_cache(client, cenario):
     call_command("createcachetable", verbosity=0)
     cenario.votante(client)
     del client.cookies[COOKIE_CADASTRO]
-    antes = (Session.objects.count(), _linhas_de_cache())
+    sessoes, chaves = Session.objects.count(), _chaves_de_cache()
     envio = {"nome": "Ana Souza", "email": "ana@example.com", "telefone": "", "consentimento": "on"}
     assert client.post("/visitantes", envio).status_code == 302
     assert client.get("/votar").status_code == 200
     assert _votar(client, cenario.publicado.pk).status_code == 201
-    assert (Session.objects.count(), _linhas_de_cache()) == antes
+    assert Session.objects.count() == sessoes
+    # Só os contadores do rate limit (o do cadastro entra com o #35) podem
+    # aparecer; nenhuma outra chave de cache nasce no fluxo.
+    novas = _chaves_de_cache() - chaves
+    assert all(chave.startswith(":1:rl:") for chave in novas), novas
 
 
 def test_voto_sem_logger():
