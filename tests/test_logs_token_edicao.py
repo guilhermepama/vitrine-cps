@@ -5,13 +5,16 @@ de CSRF em `django.security.csrf`. Em `/grupo/editar/<token>/...` o caminho
 leva o token: o filtro troca o segmento por `<token>`.
 
 Os testes de request exercitam o filtro de logger (configurado em LOGGING);
-o do handler `console` é a mesma classe.
+o do handler `console` é a mesma classe. Eles usam `tests.urls_logs_token`,
+para não depender das rotas do app `vitrine` (que mudam o status e consultam
+o banco).
 """
 
 import logging
 import sys
 from contextlib import contextmanager
 
+import pytest
 from django.test import RequestFactory
 
 from config.logs import FiltroTokenEdicao
@@ -37,6 +40,7 @@ def _captura(logger):
         logger.removeHandler(handler)
 
 
+@pytest.mark.urls("tests.urls_logs_token")
 def test_404_no_link_de_edicao_sai_sem_o_token(client):
     logger = logging.getLogger("django.request")
     with _captura(logger) as linhas:
@@ -48,6 +52,7 @@ def test_404_no_link_de_edicao_sai_sem_o_token(client):
     assert "/grupo/editar/<token>/imagem/" in texto
 
 
+@pytest.mark.urls("tests.urls_logs_token")
 def test_outras_rotas_nao_mudam(client):
     logger = logging.getLogger("django.request")
     with _captura(logger) as linhas:
