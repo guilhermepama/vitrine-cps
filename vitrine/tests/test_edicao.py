@@ -45,6 +45,7 @@ def test_get_mostra_o_formulario_sem_o_titulo_editavel(client):
     html = client.get(url(token)).content.decode()
     assert 'name="acao" value="salvar"' in html and 'name="acao" value="enviar"' in html
     assert 'name="titulo"' not in html
+    assert "Salve o texto antes de enviar imagens" in html
 
 
 @pytest.mark.django_db

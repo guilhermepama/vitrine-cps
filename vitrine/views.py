@@ -12,10 +12,11 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_http_methods, require_POST
 
+from cadastro.models import ImagemProjeto
 from vitrine import servicos
-from vitrine.forms import ProjetoGrupoForm, integrante_formset
+from vitrine.forms import ImagemUploadForm, ProjetoGrupoForm, integrante_formset
 
 
 def paginas_do_grupo(view):
@@ -70,15 +71,17 @@ def _403_com_estado_atual(request, token):
     return _tela_de_edicao(request, projeto, token, status=403)
 
 
-def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, status=200):
+def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, erro_imagem=None, status=200):
     motivo = servicos.motivo_somente_leitura(projeto)
     contexto = {
         "projeto": projeto,
         "token": token,
         "motivo_somente_leitura": motivo,
         "pendencias": projeto.pendencias_para_publicar() if pendencias is None else pendencias,
+        "erro_imagem": erro_imagem,
         "etec": projeto.turma.curso.unidade == "etec",
         "imagens": projeto.imagens.all(),
+        "maximo_imagens": ImagemProjeto.MAXIMO_POR_PROJETO,
         "integrantes": projeto.integrantes.all(),
     }
     if motivo is None:
@@ -132,4 +135,53 @@ def editar(request, token):
         return _tela_de_edicao(request, projeto, token, form, formset, status=400)
 
     messages.success(request, "Enviado para revisão da coordenação." if acao == "enviar" else "Rascunho salvo.")
+    return redirect("vitrine:editar", token=token)
+
+
+# --- Imagens, uma por requisição ----------------------------------------------
+
+
+@paginas_do_grupo
+@require_POST
+def imagem(request, token):
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:
+        return _link_invalido(request)
+    # Nenhuma requisição leva mais de uma imagem.
+    if sum(len(arquivos) for _, arquivos in request.FILES.lists()) != 1:
+        return _tela_de_edicao(request, projeto, token, erro_imagem="Envie uma imagem por vez.", status=400)
+    form = ImagemUploadForm(request.POST, request.FILES)
+    if not form.is_valid():
+        mensagem = " ".join(m for erros in form.errors.values() for m in erros)
+        return _tela_de_edicao(request, projeto, token, erro_imagem=mensagem, status=400)
+    dados = form.cleaned_data
+    try:
+        servicos.enviar_imagem(projeto.pk, token, dados["tipo"], dados["arquivo"], dados["legenda"])
+    except (servicos.EdicaoEncerrada, ValidationError):
+        return _403_com_estado_atual(request, token)
+    except servicos.LimiteDeImagens:
+        return _tela_de_edicao(
+            request,
+            projeto,
+            token,
+            erro_imagem=f"O projeto já tem o máximo de {ImagemProjeto.MAXIMO_POR_PROJETO} imagens na galeria.",
+            status=400,
+        )
+    messages.success(request, "Imagem enviada.")
+    return redirect("vitrine:editar", token=token)
+
+
+@paginas_do_grupo
+@require_POST
+def imagem_remover(request, token, imagem_id):
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:
+        return _link_invalido(request)
+    try:
+        servicos.remover_imagem(projeto.pk, token, imagem_id)
+    except servicos.EdicaoEncerrada:
+        return _403_com_estado_atual(request, token)
+    except servicos.ImagemInexistente:
+        return _link_invalido(request)
+    messages.success(request, "Imagem removida.")
     return redirect("vitrine:editar", token=token)

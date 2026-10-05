@@ -3,7 +3,9 @@
 from django import forms
 from django.forms import BaseInlineFormSet, inlineformset_factory
 
+from cadastro.imagens import validar_imagem
 from cadastro.models import Integrante, Projeto, somente_https
+from vitrine.servicos import TIPO_CAPA, TIPO_EXTRA
 
 
 def _campo_url(rotulo):
@@ -72,3 +74,15 @@ def integrante_formset(projeto, **kwargs):
         can_delete=True,
     )
     return classe(instance=projeto, **kwargs)
+
+
+class ImagemUploadForm(forms.Form):
+    tipo = forms.ChoiceField(
+        choices=[(TIPO_CAPA, "Capa"), (TIPO_EXTRA, "Imagem da galeria")],
+        error_messages={"invalid_choice": "Tipo de imagem inválido.", "required": "Tipo de imagem inválido."},
+    )
+    arquivo = forms.ImageField(
+        validators=[validar_imagem],
+        error_messages={"invalid_image": "Envie uma imagem JPG, PNG ou WebP.", "required": "Escolha uma imagem."},
+    )
+    legenda = forms.CharField(max_length=120, required=False)

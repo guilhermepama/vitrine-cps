@@ -71,5 +71,41 @@
   <p>A coordenação revisa e publica. Depois de publicado, o grupo não edita mais.</p>
 </form>
 
+<h2>Imagens</h2>
+<p class="aviso">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
+{% if etec %}<p>Não envie fotos de pessoas.</p>{% endif %}
+{% if erro_imagem %}<p class="erro" role="alert">{{ erro_imagem }}</p>{% endif %}
+
+<h3>Capa (obrigatória para publicar)</h3>
+{% if projeto.capa %}<img src="{{ projeto.capa.url }}" alt="Capa atual do projeto">{% endif %}
+<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="tipo" value="capa">
+  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
+  <p>JPG, PNG ou WebP, até 3 MB. Proporção ideal: 1,91:1 (por exemplo, 1200×630 px) para a prévia do WhatsApp.</p>
+  <button type="submit">{% if projeto.capa %}Trocar capa{% else %}Adicionar capa{% endif %}</button>
+</form>
+
+<h3>Galeria (até {{ maximo_imagens }} imagens)</h3>
+{% for imagem in imagens %}
+<figure>
+  <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
+  {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
+  <form method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
+    {% csrf_token %}
+    <button type="submit">Remover</button>
+  </form>
+</figure>
+{% endfor %}
+{% if imagens|length < maximo_imagens %}
+<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="tipo" value="extra">
+  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
+  <input type="text" name="legenda" maxlength="120" placeholder="Legenda (opcional)">
+  <button type="submit">Adicionar imagem</button>
+</form>
+{% endif %}
+
 {% endif %}
 {% endblock %}
