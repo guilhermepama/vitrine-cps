@@ -70,11 +70,13 @@ def _fichas(edicao, jurados):
 
 
 def _render(request, edicao, jurados, titulo):
+    criterios = list(Criterio.objects.filter(edicao=edicao).order_by("ordem"))
     contexto = {
         "titulo": titulo,
         "edicao": edicao,
         "provisoria": not edicao.votacao_foi_aberta(),
-        "criterios": list(Criterio.objects.filter(edicao=edicao).order_by("ordem")),
+        "criterios": criterios,
+        "colunas": len(criterios) + 2,  # Nº, Projeto e uma por critério
         "fichas": _fichas(edicao, jurados),
         "gerada_em": timezone.now(),
     }

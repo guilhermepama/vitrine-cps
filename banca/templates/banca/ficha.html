@@ -11,9 +11,15 @@ integrantes ou link de edição.
   body { font-family: system-ui, sans-serif; color: #000; background: #fff; margin: 1.5rem; font-size: 11pt; }
   h1 { font-size: 14pt; margin: 0 0 .3rem; }
   h2 { font-size: 12pt; margin: 1rem 0 .3rem; }
-  table { border-collapse: collapse; width: 100%; }
+  table { border-collapse: collapse; width: 100%; table-layout: fixed; margin-top: 1rem; }
   th, td { border: 1px solid #000; padding: .25rem .4rem; text-align: left; vertical-align: top; }
-  td.nota { min-width: 3.2rem; height: 1.6rem; }
+  col.numero { width: 3.2rem; }
+  col.projeto { width: 35%; }
+  th.criterio { font-size: 9pt; hyphens: auto; overflow-wrap: anywhere; }
+  td.titulo { overflow-wrap: anywhere; }
+  td.numero { white-space: nowrap; }
+  tr.ident th { border: 0; padding: 0 0 .3rem; font-size: 10pt; font-weight: normal; }
+  td.nota { height: 1.6rem; }
   tr { break-inside: avoid; page-break-inside: avoid; }
   .aviso { border: 2px solid #000; padding: .4rem; font-weight: bold; }
   .ficha + .ficha { break-before: page; page-break-before: always; }
@@ -40,12 +46,16 @@ integrantes ou link de edição.
   </ol>
 
   {% for turma, projetos in ficha.turmas %}
-  <h2>{{ turma.rotulo }}</h2>
+  {# A thead se repete em cada página impressa: folha solta continua identificável. #}
   <table>
-    <thead><tr><th>Nº</th><th>Projeto</th>{% for criterio in criterios %}<th>{{ forloop.counter }}. {{ criterio.nome }}</th>{% endfor %}</tr></thead>
+    <colgroup><col class="numero"><col class="projeto">{% for criterio in criterios %}<col>{% endfor %}</colgroup>
+    <thead>
+      <tr class="ident"><th colspan="{{ colunas }}">{{ edicao.nome }} · {{ ficha.jurado.nome }} · {{ turma.rotulo }}</th></tr>
+      <tr><th>Nº</th><th>Projeto</th>{% for criterio in criterios %}<th class="criterio">{{ forloop.counter }}. {{ criterio.nome }}</th>{% endfor %}</tr>
+    </thead>
     <tbody>
     {% for projeto in projetos %}
-      <tr><td>{{ projeto.pk }}</td><td>{{ projeto.titulo }}</td>{% for criterio in criterios %}<td class="nota"></td>{% endfor %}</tr>
+      <tr><td class="numero">#{{ projeto.pk }}</td><td class="titulo">{{ projeto.titulo }}</td>{% for criterio in criterios %}<td class="nota"></td>{% endfor %}</tr>
     {% endfor %}
     </tbody>
   </table>

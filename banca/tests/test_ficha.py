@@ -85,7 +85,7 @@ def test_lista_so_publicados_das_turmas_do_jurado_por_turma_e_titulo(impressor, 
     posicoes = [html.index(texto) for texto in ordem]
     assert posicoes == sorted(posicoes)
     for projeto in (projetos["abelha"], projetos["zebra"], projetos["turismo"]):
-        assert f"<td>{projeto.pk}</td><td>{projeto.titulo}</td>" in html
+        assert f'<td class="numero">#{projeto.pk}</td><td class="titulo">{projeto.titulo}</td>' in html
 
 
 def test_uma_coluna_em_branco_por_criterio_na_ordem(impressor, cenario):
@@ -93,8 +93,65 @@ def test_uma_coluna_em_branco_por_criterio_na_ordem(impressor, cenario):
     html = impressor.get(_ficha(jurado)).content.decode()
     assert html.index("1. Impacto social</th>") < html.index("2. Inovação</th>")
     assert html.index("Impacto social</strong> — Problema real?") < html.index("Inovação</strong> — A solução é nova?")
-    linha = re.search(rf"<tr><td>{projetos['abelha'].pk}</td>.*?</tr>", html).group(0)
+    linha = re.search(rf'<tr><td class="numero">#{projetos["abelha"].pk}</td>.*?</tr>', html).group(0)
     assert linha.count('<td class="nota"></td>') == 2
+
+
+def test_identificacao_no_thead_de_cada_tabela(impressor, cenario):
+    """O thead se repete em cada página impressa: folha solta diz de quem é."""
+    edicao, jurado, _ = cenario
+    Jurado.objects.create(edicao=edicao, nome="Bia Jurada").turmas.add(jurado.turmas.get(curso__sigla="GTUR"))
+    for url, esperadas in ((_ficha(jurado), 2), (_fichas(edicao), 3)):
+        html = impressor.get(url).content.decode()
+        theads = re.findall(r"<thead>.*?</thead>", html, re.S)
+        assert len(theads) == html.count("<table>") == esperadas
+        identificacoes = [re.search(r'<tr class="ident"><th colspan="4">(.*?)</th></tr>', t).group(1) for t in theads]
+        assert identificacoes[:2] == ["2026/2 · Ana Jurada · DSM — 3º semestre", "2026/2 · Ana Jurada · GTUR — 3º semestre"]
+        if esperadas == 3:
+            assert identificacoes[2] == "2026/2 · Bia Jurada · GTUR — 3º semestre"
+        assert "<h2>DSM" not in html  # turma só no thead: não fica órfã no pé da página
+
+
+def test_criterios_de_outra_edicao_nao_aparecem(impressor, cenario):
+    edicao, jurado, _ = cenario
+    ensaio = cadastro.edicao(nome="Ensaio 2026/2")
+    Criterio.objects.create(edicao=ensaio, nome="Critério do Ensaio", apoio="Apoio do ensaio", ordem=3)
+    for url in (_ficha(jurado), _fichas(edicao)):
+        html = impressor.get(url).content.decode()
+        assert "Critério do Ensaio" not in html and "Apoio do ensaio" not in html
+        assert "3. " not in html and 'colspan="4"' in html
+
+
+def test_edicao_sem_criterios(impressor):
+    edicao = cadastro.edicao()
+    turma = cadastro.turma(edicao)
+    projeto = cadastro.projeto(turma, titulo="Sem Critério", status=PUBLICADO)
+    jurado = fabricas.jurado(edicao, turma)
+    html = impressor.get(_ficha(jurado)).content.decode()
+    assert "Nenhum critério cadastrado nesta edição." in html
+    assert f'<tr><td class="numero">#{projeto.pk}</td><td class="titulo">Sem Critério</td></tr>' in html and 'colspan="2"' in html
+
+
+def test_projeto_de_turma_de_outra_edicao_nao_aparece(impressor, cenario):
+    _, jurado, _ = cenario
+    outra = cadastro.turma(cadastro.edicao(nome="Ensaio 2026/2"), cadastro.curso("ENS"))
+    cadastro.projeto(outra, titulo="Projeto do Ensaio", status=PUBLICADO)
+    jurado.turmas.add(outra)  # direto pelo ORM: o formulário do admin recusaria
+    html = impressor.get(_ficha(jurado)).content.decode()
+    assert "Projeto do Ensaio" not in html and "ENS —" not in html
+
+
+def test_titulo_e_nome_saem_escapados(impressor, cenario):
+    edicao, jurado, projetos = cenario
+    jurado.nome = "<i>Ana</i>"
+    jurado.save()
+    projeto = projetos["abelha"]
+    projeto.titulo = "<b>Abelha</b><script>alert(1)</script>"
+    projeto.save()
+    for url in (_ficha(jurado), _fichas(edicao)):
+        html = impressor.get(url).content.decode()
+        assert "&lt;b&gt;Abelha&lt;/b&gt;&lt;script&gt;" in html and "&lt;i&gt;Ana&lt;/i&gt;" in html
+        assert "<script" not in html and "<b>Abelha" not in html and "<i>Ana" not in html
 
 
 def test_assinatura_data_e_hora_de_geracao(impressor, cenario):
@@ -248,9 +305,11 @@ def test_staff_com_permissao_e_superusuario_abrem(client, impressor, cenario):
     assert client.get(_ficha(jurado)).status_code == 200
 
 
-def test_inexistente_404(impressor):
-    assert impressor.get(reverse("admin:banca_jurado_ficha", args=[999999])).status_code == 404
-    assert impressor.get(reverse("admin:banca_jurado_fichas_edicao", args=[999999])).status_code == 404
+def test_inexistente_404_sem_cache(impressor):
+    for nome in ("admin:banca_jurado_ficha", "admin:banca_jurado_fichas_edicao"):
+        url = reverse(nome, args=[999999])
+        resposta = impressor.get(url)
+        assert resposta.status_code == 404 and "no-store" in resposta["Cache-Control"]
 
 
 def test_rotas_so_aceitam_get(impressor, cenario):
