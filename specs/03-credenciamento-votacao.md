@@ -100,7 +100,8 @@ máximo 1 voto por projeto por token.
     votação fechada e é recusada como "votação fechada".
   Custo aceito: as operações de uma edição ficam serializadas nessa linha
   (transações curtas, volume de um evento presencial). A trava no voto
-  será **medida no pré-ensaio de 21/10**. Plano B, **não implementar
+  será **medida no pré-ensaio de 21/10**, com o comando `medir_voto`
+  (ver "Decisões do PR #37"). Plano B, **não implementar
   agora**: se ficar lento, o voto deixa de travar a `Edicao` e a spec 04
   conta só votos com `criado_em` antes de `votacao_encerrada_em`
   (decisão do coordenador no PR #18).
@@ -743,6 +744,38 @@ coordenador no PR #20).
    `DJANGO_IP_HEADER`, do coordenador. Ver "Rate limit da emissão".
 3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
    Ver "Formulário de visitante".
+
+## Decisões do PR #37
+Ferramenta de medição da trava por voto (decisão do coordenador no
+PR #37). A decisão 10 do PR #18 manda medir a trava no pré-ensaio; sem
+ferramenta, a medição seria gente clicando junto, sem número confiável.
+
+1. **Entra** o comando `python manage.py medir_voto` (fatia F8): simula
+   visitantes no fluxo `/entrar` → `/visitantes` → `/votar` → `POST
+   /votos` e imprime p50, p95 e máximo do voto por nível de concorrência.
+   Respeita o rate limit (G7) em vez de desligá-lo, e o segredo do QR só
+   vem do `settings` (G3).
+2. **Onde roda**: só no shell do ambiente publicado, **antes do
+   pré-ensaio de 21/10**, contra uma edição em votação cujo nome começa
+   por "Pré-ensaio". **Nunca** na edição do ensaio nem na do evento. O
+   comando recusa: outra edição em votação (conferida no início e antes
+   de cada rodada); `--url` que não seja `http`/`https`; host fora do
+   `ALLOWED_HOSTS` ou `ALLOWED_HOSTS` com `"*"`; `--votos` acima dos
+   projetos publicados da edição (antes de emitir qualquer token); e
+   cédula do `--url` diferente dos publicados da edição local (outro
+   ambiente), antes de qualquer voto.
+3. **Dados fictícios ficam no banco**, na edição "Pré-ensaio": tokens,
+   cadastros `medicao@example.com` e votos. É o mesmo princípio do
+   ensaio (PR #14, resposta 8: outra edição, nada se apaga): apagar
+   votos e tokens no banco de produção é mais arriscado que deixá-los
+   isolados. Consequência: **toda exportação e relatório filtra por
+   edição** (a spec 04 já é por edição: ranking e export de visitantes
+   em `/resultados/<edicao_id>/...`).
+4. **Leitura do resultado**: o p95 sozinho não decide o plano B. Com
+   poucos workers síncronos, boa parte da espera é a fila do servidor, que
+   existiria sem a trava. O coordenador lê o resultado junto com o número
+   de workers e uma linha de base sem trava no mesmo nível (melhoria da
+   ferramenta, recomendado 3 do parecer — com o Renan).
 
 ## Decisões do PR #36
 Parecer do coordenador sobre a cédula e o voto (decisão do coordenador
