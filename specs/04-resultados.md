@@ -1,8 +1,9 @@
 # Spec — Resultados e relatórios
 
-- **Responsável**: Renan (@ReCroffi)
-- **Status**: rascunho — revisão do coordenador aplicada (PR #14); falta
-  só o formato dos dados da banca, que sai na spec 06
+- **Responsável**: Guilherme (@guilhermepama), assumida do Renan
+  (@ReCroffi) em 05/10; o Renan revisa (ADR-010)
+- **Status**: pronta para implementar — revisão do coordenador aplicada
+  (PR #14) e formato da banca definido na spec 06 (PR #49)
 - **Depende de**: ADR-002 (stack), ADR-003 (visitantes desacoplados),
   ADR-006 (backup), ADR-007 (nota composta), ADR-008 (banca em ficha),
   spec 01 (edições, turmas, projetos, pesos e `banca_conferida_em`),
@@ -129,7 +130,12 @@ qualquer consulta aos dados de negócio:
   regra de banca pendente abaixo.
 - Turma sem projetos: não aparece.
 - Os cálculos usam `Decimal`; a tela mostra 2 casas decimais. Nenhum
-  arredondamento intermediário entra no cálculo.
+  arredondamento intermediário entra no cálculo. Por dentro, `p`, `b` e o
+  final são frações exatas (`Fraction`), convertidas para `Decimal` só na
+  saída; a nota da banca, que chega do `AVG` do Postgres já arredondada na
+  16ª casa, é reconstituída como fração exata (`limit_denominator`, as
+  notas têm uma casa decimal). Assim um resto de divisão nunca decide
+  desempate (PR #52).
 - **Banca pendente** (decisão do coordenador no PR #14):
   - Quando `Edicao.banca_conferida_em` está vazio, a conferência das
     notas (30/10) não terminou: **todas** as turmas mostram só a parte do
@@ -150,6 +156,11 @@ qualquer consulta aos dados de negócio:
 - Média de votos por token votante: com zero tokens votantes, mostra
   "—" (sem divisão por zero).
 - Visitantes: só a contagem total (os dados ficam no export).
+- Enquanto a votação não estiver encerrada, a participação **por turma**
+  (votos e tokens distintos de cada turma) não aparece — só os totais da
+  edição; numa turma com um projeto só, o total da turma seria o parcial do
+  projeto. Depois de encerrar, aparece (decisão do coordenador no parecer
+  do PR #54).
 - **Isolamento por edição** (decisão do coordenador no PR #14):
   - votos: via projeto → turma → edição;
   - tokens emitidos: via estação (`Estacao.edicao_id`, spec 03);
@@ -184,6 +195,11 @@ qualquer consulta aos dados de negócio:
 - O conteúdo do CSV nunca vai para log (guardrail 11); o log registra só
   "export de visitantes por <usuário> em <data/hora>, N linhas".
 - Edição sem visitantes: CSV só com o cabeçalho.
+- `telefone` sai formatado: 11 dígitos → `(17) 99999-0003`, 10 dígitos →
+  `(17) 3333-0003`; outro tamanho sai como veio (só dígitos); vazio sai
+  vazio. O Excel lê como texto (sem `1,8E+10`); o banco não muda — decisão
+  do coordenador no parecer do PR #57. O nível INFO do logger `resultados`
+  fica em `LOGGING` (`config/settings.py`), também pelo parecer do #57.
 
 ## Dados
 **Lê** (nomes conforme specs 01, 03 e 06 — o app não altera esses models):
@@ -198,8 +214,14 @@ qualquer consulta aos dados de negócio:
 - banca: só pela função `nota_banca_por_projeto(edicao) ->
   {projeto_id: Decimal}`, exposta pelo app `banca` — a regra da nota de
   banca (ADR-007) fica num lugar só (decisão do coordenador no PR #14).
-  O `resultados` não lê as notas cruas. Formato interno das notas:
-  **pendente da spec 06** (ver "Dependências pendentes").
+  O `resultados` não lê as notas cruas (`banca.Avaliacao`/`banca.Nota`,
+  spec 06). A função devolve `Decimal` **sem arredondamento**, só para
+  projetos `publicado` da edição com pelo menos uma avaliação; projeto
+  ausente = sem nota de banca (regra de banca pendente acima). Ela não
+  olha `banca_conferida_em`: essa decisão é desta spec.
+- `Edicao.banca_conferida_em` só é escrito pela conferência da spec 06
+  (somente leitura no admin de `Edicao`); qualquer correção de nota depois
+  disso o apaga, e o ranking volta a "banca pendente" sozinho.
 
 **Escreve**: nada nos dados de negócio.
 
@@ -342,10 +364,11 @@ do PR #14; as decisões já estão incorporadas nas seções acima.
     direto, preenchido a partir da edição em votação e nunca do token
     (G6) — decisão do coordenador no PR #14.
 
-## Dependências pendentes
-- **Spec 06**: formato dos dados da banca e assinatura final de
-  `nota_banca_por_projeto`. A spec 04 fica em `rascunho` até a spec 06
-  sair.
-- **Specs 01 e 03** precisam trazer os campos usados acima
-  (`Edicao.peso_banca`, `Edicao.peso_publico`, `Edicao.banca_conferida_em`,
-  `Estacao.edicao_id`, `Visitante.edicao_id`).
+## Dependências
+- **Spec 06** (PR #49): formato dos dados da banca e assinatura de
+  `nota_banca_por_projeto` — resolvido. A função chega na fatia 1 da
+  banca; até lá, os testes do `resultados` usam um dublê com a mesma
+  assinatura.
+- **Specs 01 e 03**: os campos usados acima (`Edicao.peso_banca`,
+  `Edicao.peso_publico`, `Edicao.banca_conferida_em`, `Estacao.edicao`,
+  `Visitante.edicao`) já estão na `main`.

@@ -9,6 +9,7 @@ estação inexistente.
 from urllib.parse import urlencode
 
 import qrcode
+from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
 from django.http import Http404, HttpResponse
 from django.shortcuts import render
@@ -20,9 +21,6 @@ from qrcode.image.svg import SvgPathImage
 
 from votacao.assinatura import ROTACAO_QR, nova_janela
 from votacao.models import Estacao
-
-# Rota da emissão (F4). Caminho fixo: é o que a spec define para o QR.
-ROTA_ENTRAR = "/entrar"
 
 
 def _estacao_autorizada(request, estacao_id):
@@ -50,8 +48,9 @@ def svg_do_qr(url):
 
 
 def _svg_da_estacao(request, estacao):
-    url = request.build_absolute_uri(ROTA_ENTRAR) + "?" + urlencode(nova_janela(estacao.pk), safe=":")
-    return svg_do_qr(url)
+    # Origem pública fixa (ADR-006, #32): não depende do Host nem do X-Forwarded-Proto.
+    entrar = settings.URL_PUBLICA + reverse("votacao:entrar")
+    return svg_do_qr(entrar + "?" + urlencode(nova_janela(estacao.pk), safe=":"))
 
 
 # never_cache por fora: até o 405 do require_GET sai com no-store.

@@ -25,13 +25,14 @@ from unittest import mock
 
 import pytest
 from django.contrib.sessions.models import Session
+from django.core.cache import caches
 from django.core.management import call_command
 from django.core.signing import Signer
 from django.db import connection
-from django.test import Client
+from django.test import Client, RequestFactory
 
 from cadastro.tests import fabricas as cadastro
-from votacao import views_visitante
+from votacao import limite, views_visitante
 from votacao.liberacao import cadastro_valido as _cadastro_valido_real
 from votacao.liberacao import COOKIE_CADASTRO, valor_do_cookie
 from votacao.models import Visitante
@@ -91,6 +92,11 @@ def _aceito(resposta):
     assert resposta["Location"] == "/votar"
     assert Visitante.objects.count() == 1
     return Visitante.objects.get()
+
+
+def _request_de_teste():
+    # O Client do Django manda REMOTE_ADDR=127.0.0.1.
+    return RequestFactory().post(ROTA)
 
 
 def _linhas_de_cache():
@@ -378,12 +384,21 @@ def test_cookie_de_cadastro_igual_para_toda_a_edicao(evento):
     assert valores[0] == valores[1] == Signer(salt="votacao.cadastro").sign(str(evento.pk))
 
 
-def test_post_nao_grava_sessao_nem_cache(client, evento):
+def test_post_nao_grava_sessao_e_no_cache_so_o_contador_do_ip(client, evento):
+    """No cache, só o contador do rate limit (F5b): chave com o HMAC do IP e
+    valor (contagem, expira_em) — nada do visitante."""
     call_command("createcachetable", verbosity=0)
     sessoes, cache = Session.objects.count(), _linhas_de_cache()
-    _aceito(_postar(client))
-    _postar(client, nome="A")
-    assert (Session.objects.count(), _linhas_de_cache()) == (sessoes, cache)
+    # Relógio fixo: a chave do cadastro leva o bloco de 10 min (PR #35).
+    with mock.patch("votacao.assinatura.agora", return_value=1_793_000_000):
+        _aceito(_postar(client))
+        _postar(client, nome="A")
+        chave = limite.chave_do_ip_cadastro(_request_de_teste())
+    assert (Session.objects.count(), _linhas_de_cache()) == (sessoes, cache + 1)
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT cache_key FROM cache_django")
+        assert [linha[0] for linha in cursor.fetchall()] == [":1:" + chave]
+    assert caches["default"].get(chave)[0] == 1
 
 
 def test_isolamento_ensaio_e_evento():

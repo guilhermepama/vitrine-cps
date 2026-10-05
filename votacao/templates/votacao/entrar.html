@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  {# Reserva sem JS: segue para o destino mesmo sem gravar o localStorage. #}
+  <noscript><meta http-equiv="refresh" content="0; url={{ destino }}"></noscript>
+  <title>Entrando — Vitrine CPS</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; color: #111; background: #fff; }
+    main { max-width: 32rem; margin: 0 auto; padding: 1.5rem 1rem; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>Entrando… <a href="{{ destino }}">Continuar</a></p>
+  </main>
+  {# json_script: o token nunca é interpolado em JS (armadilha A7). #}
+  {{ token|json_script:"token" }}
+  {{ destino|json_script:"destino" }}
+  <script>
+    (function () {
+      try {
+        localStorage.setItem("token", JSON.parse(document.getElementById("token").textContent));
+      } catch (e) {
+        // Sem localStorage (aba anônima, bloqueado): o cookie httpOnly basta.
+      }
+      location.replace(JSON.parse(document.getElementById("destino").textContent));
+    })();
+  </script>
+</body>
+</html>

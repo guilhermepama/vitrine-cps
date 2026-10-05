@@ -254,7 +254,52 @@ def test_encerrar_pela_primeira_vez_e_permitido():
 def test_outros_campos_da_edicao_continuam_editaveis_apos_abrir():
     e = _abrir_votacao(fabricas.edicao())
     e.banca_conferida_em = timezone.now()
-    e.save()
+    e.save(update_fields=["banca_conferida_em"])
+    e.refresh_from_db()
+    assert e.banca_conferida_em is not None
+
+
+def test_edicao_nova_nasce_sem_conferencia_da_banca():
+    e = fabricas.edicao(banca_conferida_em=timezone.now())
+    e.refresh_from_db()
+    assert e.banca_conferida_em is None
+
+
+def _conferir(edicao_id, valor):
+    """Como a conferência da spec 06: instância nova, update_fields."""
+    e = Edicao.objects.get(pk=edicao_id)
+    e.banca_conferida_em = valor
+    e.save(update_fields=["banca_conferida_em"])
+
+
+def test_save_completo_de_instancia_velha_nao_apaga_conferencia_nova():
+    velha = _abrir_votacao(fabricas.edicao())
+    conferida = timezone.now()
+    _conferir(velha.pk, conferida)
+    velha.ativa = True
+    velha.save()  # ex.: form.save() do admin do cadastro, com a instância de antes
+    velha.refresh_from_db()
+    assert velha.banca_conferida_em == conferida and velha.ativa
+
+
+def test_save_completo_de_instancia_velha_nao_regrava_conferencia_desfeita():
+    e = _abrir_votacao(fabricas.edicao())
+    _conferir(e.pk, timezone.now())
+    velha = Edicao.objects.get(pk=e.pk)
+    assert velha.banca_conferida_em is not None
+    _conferir(e.pk, None)  # correção de nota desfaz (spec 06)
+    velha.nome = "Outro nome"
+    velha.save()
+    velha.refresh_from_db()
+    assert velha.banca_conferida_em is None and velha.nome == "Outro nome"
+
+
+def test_update_fields_sem_o_campo_nao_o_escreve():
+    e = _abrir_votacao(fabricas.edicao())
+    e.banca_conferida_em = timezone.now()
+    e.save(update_fields=["nome"])
+    e.refresh_from_db()
+    assert e.banca_conferida_em is None
 
 
 def test_encerramento_exige_abertura_anterior():
@@ -433,7 +478,6 @@ def test_edicao_nasce_sem_banca_conferida():
 def test_pesos_atribuidos_como_texto_nao_disparam_a_trava():
     e = _abrir_votacao(fabricas.edicao())
     e.peso_banca, e.peso_publico = "0.70", "0.3"
-    e.banca_conferida_em = timezone.now()
     e.save()
 
 
