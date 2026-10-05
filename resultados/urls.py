@@ -8,4 +8,6 @@ app_name = "resultados"
 
 urlpatterns = [
     path("<int:edicao_id>/", views.ranking, name="ranking"),
+    path("<int:edicao_id>/operacional/", views.operacional, name="operacional"),
+    path("<int:edicao_id>/visitantes.csv", views.visitantes_csv, name="visitantes_csv"),
 ]
