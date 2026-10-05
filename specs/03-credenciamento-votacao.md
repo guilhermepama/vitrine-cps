@@ -780,7 +780,6 @@ coordenador no PR #20).
 3. **`GET /visitantes` com cadastro válido** — redirect para a cédula.
    Ver "Formulário de visitante".
 
-<<<<<<< HEAD
 ## Decisões do PR #36
 Parecer do coordenador sobre a cédula e o voto (decisão do coordenador
 no PR #36).
@@ -804,8 +803,6 @@ no PR #36).
    o roteiro do pré-ensaio (21/10) inclui um voto real pelo domínio e
    pelo proxy de produção antes da medição (parecer do #42).
 
-=======
->>>>>>> origin/main
 ## Decisões do PR #34
 Parecer do coordenador sobre a emissão em `/entrar` (decisão do
 coordenador no PR #34).
