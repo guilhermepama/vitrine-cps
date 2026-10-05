@@ -1,11 +1,14 @@
 # Spec — Vitrine pública e área do grupo
 
 - **Responsável**: Cleiton (@gustimmolp)
-- **Status**: pronta para implementar (parecer e respostas do coordenador
-  incorporados; aguardando a aprovação final no PR #23)
+- **Status**: pronta para implementar (pareceres de 03/10 e 04/10 e as
+  decisões do coordenador incorporados; aguardando a aprovação final no
+  PR #23)
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
-  `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto)
+  `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
+  do coordenador (`templates/base.html` mínimo, filtro de log do token de
+  edição e `MAX_ENTRIES` do cache)
 
 ## Objetivo
 Entregar as duas telas que ficam na frente do cadastro: a **área do grupo**,
@@ -54,8 +57,10 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   projeto** (blocos `titulo`, `meta` e `conteudo`; criado pelo coordenador,
   com as variáveis de CSS e o logo SVG em `static/` do projeto),
   mobile-first.
-- **Avatar do projeto = monograma gerado no template** (sigla do curso ou
-  inicial do título): o model não tem campo de logo, e esta spec não cria.
+- **Avatar do projeto = monograma gerado no template**, sempre com a
+  `Curso.sigla` (obrigatória no model; até 3 caracteres). Os integrantes
+  usam a inicial do nome. O model não tem campo de logo, e esta spec não
+  cria.
 - O topo mostra o **nome da edição** do projeto (`Edicao.nome` da turma),
   não um texto fixo: o link é permanente e os projetos antigos mantêm a
   edição deles.
@@ -99,17 +104,21 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 ### Reivindicar o projeto (`/grupo/`)
 - Quando o representante abre `/grupo/`, o sistema exibe o formulário (campo
   RA e a explicação de que o link aparece **uma vez** e deve ser guardado).
-- Quando envia o RA, o sistema: (1) valida o formato com
-  `cadastro.seguranca.hash_ra`, que recusa (`ValueError`) o que não tiver
-  5 a 20 dígitos depois de remover espaço, ponto, hífen e barra — formato
-  inválido recebe a **mesma resposta genérica** abaixo, conta como falha
-  no rate limit e **não consulta o banco**; (2) checa o
-  rate limit; (3) calcula o hash; (4) busca o projeto com esse `ra_hmac`,
+- Quando envia o RA, o sistema: (1) **checa o rate limit** e responde 429 se
+  estourou, antes de qualquer outra coisa; (2) calcula `hash_ra(ra)` **uma
+  única vez** — `cadastro.seguranca.hash_ra` recusa (`ValueError`) o que não
+  tiver 5 a 20 dígitos depois de remover espaço, ponto, hífen e barra, e
+  esse RA malformado recebe a **mesma resposta genérica** abaixo, conta como
+  falha e **não consulta `Projeto`** (o contador do rate limit vive no cache,
+  que é uma tabela do banco); (3) busca até 2 projetos com esse `ra_hmac`,
   `reivindicado_em` nulo, `status = pre_cadastrado` e
   `turma.edicao.ativa = true`, cuja edição ainda aceita edição
   (`Edicao.edicao_aberta()` verdadeiro e `votacao_foi_aberta()` falso).
-  Como o model garante um RA por projeto em cada edição, a busca devolve
-  no máximo um.
+- **RA duplicado.** A unicidade do RA por edição só é garantida em
+  `Projeto.clean()`, não no banco. Se a busca devolver mais de um projeto
+  (por exemplo, uma carga que pulou o `clean()`), **ninguém é
+  reivindicado**: a resposta é a genérica e o log registra um aviso com os
+  ids dos projetos, sem o RA. O admin corrige os dados.
 - Quando encontra, **numa transação com lock da linha** (`select_for_update`)
   e conferindo de novo que `reivindicado_em` continua nulo: grava
   `reivindicado_em` e gera o link com `Projeto.regerar_link()` (que grava o
@@ -130,7 +139,7 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   guardado ou procure a coordenação." Nunca diz qual regra barrou. O
   campo do RA volta **vazio** (a página de erro não repete o que foi
   digitado).
-- Quando o RA recarrega a página de resposta do POST (reenvio), cai na
+- Quando o representante recarrega a página de resposta do POST (reenvio), cai na
   resposta genérica, porque o projeto já foi reivindicado. A página avisa
   que link perdido só o admin regera.
 - Quando o limite de falhas estoura, responde 429 com "Muitas tentativas.
@@ -159,10 +168,19 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   código **nunca lê `REMOTE_ADDR` nem `X-Forwarded-For` diretamente**: o
   cabeçalho do IP real é a variável `DJANGO_IP_HEADER`, do coordenador. O
   IP em claro não vai para cache, log nem tabela de model; só a chave com
-  prefixo do app (`rl:grupo:ip:<chave>`, expiração de 10 min) entra no
-  cache. A chave global é `rl:grupo:global` (expiração de 1 h).
-- O `incr` do `DatabaseCache` não é atômico: o limite é barreira contra
-  abuso, não contagem exata.
+  prefixo do app (`rl:grupo:ip:<chave>`) entra no cache. A chave global é
+  `rl:grupo:global`.
+- **Janela fixa, sem `incr`.** O `BaseCache.incr` faz `get` + `set` sem
+  prazo e devolve a chave ao padrão de 300 s, então a expiração de 10 min e
+  de 1 h não valeria. Cada janela tem a **própria chave** (o nome termina no
+  número da janela de tempo) e a gravação usa **prazo explícito de duas
+  janelas**, para a chave da janela atual sobreviver até o fim dela. É o
+  mesmo princípio do contador com prazo da spec 03 (`votacao/limite.py`),
+  sem depender do app `votacao`; migrar para um utilitário compartilhado,
+  se houver, é troca localizada.
+- O `DatabaseCache` não é atômico e **descarta chaves vivas** ao passar do
+  `MAX_ENTRIES`: o PR #38 sobe o limite para 100.000 (dependência do
+  coordenador). O limite é barreira contra abuso, não contagem exata.
 - Os números ficam em constantes no módulo, não espalhados.
 
 ### Editar pelo link (`/grupo/editar/<token>/`)
@@ -214,8 +232,14 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Páginas do grupo respondem com `Referrer-Policy: no-referrer`,
   `X-Robots-Tag: noindex` e `Cache-Control: no-store`, para o token na URL
   não vazar por referência, buscador ou cache. O token fica na URL (não é
-  trocado por sessão); o coordenador inclui `/grupo/editar/` no critério
-  de logs da hospedagem (ADR-006).
+  trocado por sessão).
+- **O token não vai para o log da aplicação.** "Sem log de acesso"
+  (ADR-006) cobre o gunicorn e o Traefik, não o log da aplicação: o Django
+  registra todo 4xx em `django.request` com o caminho
+  (`Forbidden: /grupo/editar/<token>/`). O filtro
+  `config.logs.FiltroTokenEdicao` (PR #38, do coordenador) troca o
+  segmento por `<token>` nos loggers e no handler `console`. Esta spec
+  testa o resultado (critérios de aceite), sem filtro próprio no app.
 
 ### Imagens, uma por requisição
 - `POST .../imagem/` recebe **um** arquivo (`arquivo`), o `tipo` (`capa` ou
@@ -249,9 +273,30 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   o formulário. Confirmado no ambiente publicado (ver "Dependências do
   coordenador").
 
+### Validação de entrada (guardrail 12)
+Toda entrada é validada no servidor antes de gravar; erro de validação
+responde 400 com mensagem genérica por campo e nada é gravado.
+
+| Entrada | Regra |
+|---|---|
+| `ra` (POST `/grupo/`) | lido até 60 caracteres; depois do `hash_ra`, 5 a 20 dígitos; qualquer falha = resposta genérica |
+| `token` (URL) | até 200 caracteres; outro formato = 404 genérico, sem consultar o banco |
+| `acao` | `salvar` ou `enviar`; outro valor = 400 |
+| `resumo` | até 280 caracteres |
+| `descricao` | até 3.000 caracteres, texto simples |
+| `componente_origem` | até 120 caracteres |
+| `link_repositorio`, `link_demo`, `link_video` | URL `https://`, até 200 caracteres |
+| integrante: `nome`, `papel` | nome até 60 (Etec: uma palavra), papel até 60; 1 a 10 integrantes |
+| `tipo` (imagem) | `capa` ou `extra` |
+| `legenda` | até 120 caracteres |
+| `arquivo` | exatamente um por requisição; JPG, PNG ou WebP reais; até 3 MB |
+| `<id>` da imagem e `<slug>` | inteiro e slug pelo conversor da rota; inexistente = 404 |
+
 ### Página pública (`/projeto/<slug>/`)
 - Quando o `slug` não existe **ou** o projeto não está `publicado`, o sistema
-  responde o mesmo 404 (não revela projetos em revisão). A página 404
+  responde o mesmo 404 (não revela projetos em revisão), renderizando o
+  template `vitrine/projeto_404.html` **do app** com status 404 — o projeto
+  não tem `handler404` nem `templates/404.html`. A página 404
   tem o botão "Conhecer a Mostra", que leva a `/como-votar/` (não existe
   página inicial nesta edição).
 - Quando o projeto está `publicado`, a página mostra: capa, título, curso
@@ -263,13 +308,25 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - A página **não** depende da edição ativa: o link é permanente e continua
   valendo em edições seguintes.
 - Meta tags: `og:title` (título), `og:description` (resumo), `og:image`
-  (capa, URL absoluta `https`), `og:url` (URL canônica absoluta),
+  (capa, URL absoluta), `og:url` (URL canônica absoluta),
   `og:type=website`, `og:locale=pt_BR`, `twitter:card=summary_large_image`.
-  `<title>`: "Título — Vitrine CPS". Os links absolutos usam
-  `settings.URL_PUBLICA` (`DJANGO_URL_PUBLICA`), não o `Host` da requisição.
+  `<title>`: "Título — Vitrine CPS".
+- **Regra das URLs absolutas.** Com storage remoto (R2, domínio próprio),
+  `capa.url` **já é absoluta** e vai como está; com disco local
+  (desenvolvimento), é relativa e leva o prefixo `settings.URL_PUBLICA`.
+  Prefixar sempre duplicaria a origem. `og:url` e o link de edição que a
+  reivindicação mostra são `URL_PUBLICA` + `reverse(...)`; nada usa o
+  `Host` da requisição. Em produção a `URL_PUBLICA` é `https` (garantido
+  pelo `settings.py`); no CI e no desenvolvimento pode ser `http://localhost`.
 - Bloco de convite: "Conheça este projeto no evento — [data da `Edicao`]
   às 19h, no campus da Fatec Olímpia — [endereço]" e botão "Quero votar"
   que aponta **só** para `/como-votar/` (`vitrine:como_votar`).
+- **Convite em edição passada.** O link é permanente, então depois do
+  evento o convite não pode seguir pedindo presença. Quando
+  `Edicao.data_evento` é anterior a hoje, o bloco vira registro — "Este
+  projeto participou da Mostra de Projetos realizada em [data]." — sem
+  horário, endereço nem botão "Quero votar". No próprio dia do evento o
+  convite ainda aparece.
 - `/como-votar/`: página estática que explica que a votação é presencial,
   como funciona o credenciamento por QR nas estações e que o link público
   não vota. Nenhum formulário, nenhum botão de voto.
@@ -309,8 +366,6 @@ enviar para revisão, imagens, rate limit), fora das views, para ser
 testada sem HTTP.
 
 ## Endpoints / telas
-| Método | Rota | Entrada | Saída | Erros |
-|---|---|---|---|---|
 | Nome | Método | Rota | Entrada | Saída | Erros |
 |---|---|---|---|---|---|
 | `vitrine:projeto` | GET | `/projeto/<slug>/` | — | HTML da vitrine + Open Graph | 404 (inexistente ou não publicado) |
@@ -346,11 +401,13 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] 50 falhas do mesmo IP em 10 min passam; a 51ª → 429; sucesso não conta
 - [ ] 1.000 falhas somadas de IPs diferentes em 1 hora passam; a 1.001ª → 429 para qualquer IP
 - [ ] Dois endereços IPv6 do mesmo /64 contam como o mesmo IP
-- [ ] RA vazio, com letra ou fora de 5–20 dígitos → resposta genérica idêntica, conta como falha no rate limit e **não consulta** o banco; `123.456-7` e `1234567` reivindicam o mesmo projeto
+- [ ] RA vazio, com letra ou fora de 5–20 dígitos → resposta genérica idêntica, conta como falha no rate limit e **não consulta `Projeto`** (teste conta as queries); `123.456-7` e `1234567` reivindicam o mesmo projeto
+- [ ] Dois projetos pré-cadastrados com o mesmo RA na edição ativa (carga que pulou o `clean()`) → ninguém é reivindicado, resposta genérica e aviso no log com os ids, sem o RA
 - [ ] A página do link mostra o link completo uma vez, o botão "Copiar" e o botão "Abrir edição do projeto"
-- [ ] A chave do IP no cache vem de `chave_ip(ip_do_cliente(request))`, expira em 10 min e não contém o IP em claro; o IP não aparece em log nem em tabela de model; o app `vitrine` não lê `REMOTE_ADDR` nem `X-Forwarded-For` (revisão de código)
+- [ ] A chave do IP no cache vem de `chave_ip(ip_do_cliente(request))`, tem **prazo explícito** (maior que o padrão de 300 s do cache, de modo que a chave da janela de 10 min não expire antes do fim) e não contém o IP em claro; o IP não aparece em log nem em tabela de model; o app `vitrine` não lê `REMOTE_ADDR` nem `X-Forwarded-For` (revisão de código)
 - [ ] O RA em claro não aparece no log, na resposta de erro nem no banco (teste captura log e resposta)
 - [ ] Resposta do link tem `Cache-Control: no-store`
+- [ ] O link mostrado é `URL_PUBLICA` + `reverse("vitrine:editar")`, não o `Host` da requisição
 
 **Edição**
 - [ ] Token inexistente, revogado e regerado → mesmo 404; o link antigo para de valer após "regerar"
@@ -360,12 +417,15 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] "Enviar para revisão" com pendências (ex.: capa ausente, ou resumo apagado no mesmo envio) → 400, **nada gravado**, formulário volta com o digitado e a lista do que falta
 - [ ] Projeto `em_revisao` → `GET` somente leitura, `POST` 403, nada gravado
 - [ ] Prazo encerrado → `GET` somente leitura, `POST` 403, nada gravado
-- [ ] Projeto `publicado` → `POST` 403, nada gravado
+- [ ] Projeto `publicado` → `GET` somente leitura, `POST` 403, nada gravado
 - [ ] Votação da edição já aberta → `GET` somente leitura, `POST` 403, nada gravado; `ValidationError` do `save()` no meio do envio → transação desfeita, nada gravado
 - [ ] Em `ajustes`, o `motivo_ajustes` aparece ao grupo
 - [ ] Link com `http://` ou `javascript:` → recusado; integrante de projeto da Etec com duas palavras → recusado; o mesmo nome em projeto da Fatec → aceito; 11º integrante → recusado
 - [ ] Nenhum `update()` ou `bulk_update()` em `status`, `slug` ou `turma` no app `vitrine` (revisão de código)
+- [ ] Entradas conforme a tabela "Validação de entrada (guardrail 12)": resumo > 280, descrição > 3.000, componente > 120, link > 200, nome ou papel > 60, legenda > 120, `acao` e `tipo` desconhecidos, token > 200 caracteres (404 sem consultar o banco) e RA enorme → recusados, nada gravado
+- [ ] Nenhum SQL cru no app `vitrine` (`.raw(`, `.extra(`, `cursor`, `execute(`) — guardrail 13
 - [ ] Páginas do grupo respondem com `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e `Cache-Control: no-store`
+- [ ] Com a configuração real de `LOGGING`, um 400, um 403 e um 404 em `/grupo/editar/<token>/...` **com token válido** deixam a linha no log (`django.request`) com `<token>` no lugar do token, e o token não aparece (teste com captura de log)
 - [ ] A página de edição mostra, junto dos campos de imagem, o aviso "Salve o texto antes de enviar imagens" (teste de conteúdo)
 
 **Imagens**
@@ -384,14 +444,15 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 **Vitrine pública**
 - [ ] Projeto `publicado` → 200 com título, resumo, descrição, equipe, links e galeria
 - [ ] Slug inexistente e projeto `em_revisao`, `ajustes` ou `pre_cadastrado` → 404 idêntico
-- [ ] HTML contém `og:title`, `og:description`, `og:image` (URL absoluta https), `og:url` e `twitter:card`; os links absolutos usam `settings.URL_PUBLICA`, não o `Host` da requisição
+- [ ] HTML contém `og:title`, `og:description`, `og:image`, `og:url` e `twitter:card`; `og:image` é absoluta (com storage remoto, o endereço do bucket como está; com disco local, `URL_PUBLICA` + caminho); `og:url` é `URL_PUBLICA` + `reverse`; nenhum usa o `Host` da requisição; a origem não é duplicada quando `capa.url` já é absoluta
 - [ ] `reverse("vitrine:como_votar")` resolve para `/como-votar/` e a página responde 200
 - [ ] O topo mostra `Edicao.nome` da edição do projeto; um projeto de edição antiga mostra o nome da edição dele
-- [ ] O avatar é um monograma gerado (sigla do curso ou inicial do título), sem campo novo no model
+- [ ] O avatar é um monograma gerado com a `Curso.sigla` (até 3 caracteres), sem campo novo no model
 - [ ] A página 404 tem o botão "Conhecer a Mostra" apontando para `/como-votar/`
 - [ ] O partial `vitrine/_corpo_projeto.html` não contém link nem formulário de voto (o teste de G8 também o cobre)
 - [ ] A capa aparece recortada na página, e o `og:image` aponta para o arquivo original; a tela de upload mostra a proporção ideal (~1,91:1)
 - [ ] O convite mostra a data da `Edicao`, "19h" e o endereço do campus da Fatec Olímpia
+- [ ] Com `data_evento` anterior a hoje, o convite vira "participou da Mostra de Projetos realizada em [data]", sem horário, endereço nem botão "Quero votar"; no próprio dia do evento o convite ainda aparece
 - [ ] Descrição com `<script>` aparece escapada, sem executar
 - [ ] O HTML da vitrine e de `/como-votar/` não contém nenhum link ou formulário para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (teste automático, G8)
 - [ ] O HTML não contém `representante_nome`, RA nem token
@@ -402,10 +463,10 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] Testes do caminho crítico passando (`pytest`), CI verde
 
 **Fatiamento sugerido (PRs até ~300 linhas, sem migrations e testes)**
-1. `vitrine: reivindicação por RA` — serviço, rate limit, `/grupo/` (10/10)
+1. `vitrine: reivindicação por RA` — serviço, rate limit, `/grupo/` e a página `/como-votar/` (`vitrine:como_votar`), que a spec 03 (#36) já usa (10/10)
 2. `vitrine: edição pelo link` — formulário, Salvar e Enviar para revisão, equipe (10/10)
 3. `vitrine: imagens do projeto` — upload uma a uma e remoção (10/10)
-4. `vitrine: página pública e Open Graph` — `/projeto/<slug>/`, `/como-votar/`, partial do corpo do projeto e monograma (12/10; depende do `base.html` do projeto)
+4. `vitrine: página pública e Open Graph` — `/projeto/<slug>/`, 404 do app, partial do corpo do projeto, monograma e convite (12/10)
 
 ## Wireframes e decisões
 Referência: wireframes do projeto (artefato "Wireframe — Página de Projeto
@@ -415,12 +476,14 @@ RA, RA recusado, link único de edição e edição do projeto. As telas da
 estação, do visitante, da cédula e do admin são das specs 01, 03, 04 e 06.
 
 Onde o wireframe e esta spec divergem, vale a spec. Os wireframes devem ser
-atualizados para refletir o abaixo.
+atualizados para refletir o abaixo. O artefato é externo ao repositório; o
+export versionado em `docs/wireframes/` fica a cargo do coordenador (ver
+"Dependências do coordenador"), e esta spec cita o artefato até lá.
 
 | Wireframe | Decisão desta spec | Situação |
 |---|---|---|
 | Botão único "Salvar e enviar para revisão" | Dois botões: "Salvar" (mantém o status) e "Enviar para revisão" (só sem pendências), conforme o parecer do coordenador | Aplicado |
-| Título "travado (pedido)", com a nota de decidir e registrar | O grupo **não edita o título**; ele vem da lista das coordenações. O slug nunca muda | Aplicado como proposta — confirmar (pergunta 2) |
+| Título "travado (pedido)", com a nota de decidir e registrar | O grupo **não edita o título**; ele vem da lista das coordenações. O slug nunca muda | Confirmado pelo coordenador (04/10) |
 | Campo novo "o que o integrante fez" | Fora de escopo: exigiria mudar `Integrante` (spec 01). O campo `papel` ("Função") cobre | Adiado |
 | Capa e galeria com "+ Adicionar imagem" e um único salvar | Cada imagem é um envio próprio; aviso "salve o texto antes de enviar imagens" | Aplicado |
 | Tela de RA recusado repete o RA digitado | Não repete: o campo volta vazio (G11 por analogia) | Aplicado |
@@ -430,7 +493,7 @@ atualizados para refletir o abaixo.
 | Botão "Conhecer a Mostra" do 404 sem destino | Leva a `/como-votar/` | Aplicado |
 | "Mostra 2026/2" fixo no topo | `Edicao.nome` da edição do projeto | Aplicado |
 | "local · horário · como chegar" | Texto fixo definido pelo coordenador (19h, campus da Fatec Olímpia, endereço) | Aplicado |
-| Tela "Projeto em modo votação" reaproveita o corpo da página | Partial `vitrine/_corpo_projeto.html` reaproveitável, sem link de voto na página pública | Aplicado — combinar com o Renan (pergunta 3) |
+| Tela "Projeto em modo votação" reaproveita o corpo da página | Partial `vitrine/_corpo_projeto.html` reaproveitável, sem link de voto na página pública | Nota para o Renan; não bloqueia (decisão do coordenador, 04/10) |
 | Voto do público em notas de 1 a 5 por critério | Fora desta spec: muda as specs 03 e 04 e o cálculo 70/30; decisão do coordenador e do Renan. Só afeta aqui o partial acima | Não é desta spec |
 
 **Telas que faltam no wireframe para esta spec** (a desenhar):
@@ -447,38 +510,61 @@ inválido (404).
   uma miniatura da capa — hoje fora de escopo (spec 01 não redimensiona);
   nesse caso vira proposta em `docs/02-decisoes.md` e alteração coordenada
   com a spec 01.
-- **Prazo apertado**: as fatias 1 a 3 vencem em 10/10 e a 4 depende do
-  `templates/base.html` do coordenador.
+- **Prazo apertado**: as fatias 1 a 3 vencem em 10/10 e a 4 em 12/10.
 - **`base.html` e o CI das fatias 1 a 3**: os testes dessas fatias
-  renderizam templates que herdam `base.html`. Sem o arquivo na `main`, o
-  CI falharia (`TemplateDoesNotExist`). Ver pergunta 1.
+  renderizam templates que herdam `base.html`. O mínimo está no PR #38 e
+  precisa estar na `main` (até 07/10); sem ele o CI falharia
+  (`TemplateDoesNotExist`).
+- **Teste do #38 que assume rota inexistente**:
+  `tests/test_logs_token_edicao.py` faz um `GET` em
+  `/grupo/editar/<token>/imagem/` esperando 404 e um `GET` em
+  `/projeto/nao-existe/` sem `django_db`. Com as rotas do `vitrine` na
+  `main`, o primeiro vira 405 (a rota de imagem é só `POST`) e o segundo
+  passa a consultar o banco. Eles precisam de ajuste junto com as fatias 3
+  e 4 (arquivo do coordenador).
 
 ## Dependências do coordenador (com data)
-- **Até 08/10 — servidor aceita pelo menos 4 MB por requisição.** Já é
-  critério eliminatório na ADR-006 (o Traefik do Coolify não limita o corpo
-  por padrão); confirmar no deploy com um upload de imagem de 3 MB.
-- **Antes do PR 4 (12/10) — `templates/base.html`** com os blocos `titulo`,
-  `meta` e `conteudo`, as variáveis CSS e o logo SVG em `static/` do
-  projeto. Até lá, as fatias 1 a 3 usam um stub local **fora dos PRs**.
+- **Até 07/10 — PR #38 na `main`**: `templates/base.html` mínimo (blocos
+  `titulo`, `meta` e `conteudo`), filtro de log do token de edição
+  (`config/logs.py`) e `MAX_ENTRIES` do cache (para o rate limit não perder
+  contadores vivos). Sem o `base.html`, o CI das fatias 1 a 3 falha. A
+  identidade visual (variáveis CSS e logo SVG em `static/` da raiz) entra
+  depois, sem mudar o nome do arquivo nem os blocos.
+- **Até 08/10 — servidor aceita pelo menos 4 MB por requisição, com teto de
+  corpo de cerca de 5 MB no Traefik.** Já é critério eliminatório na
+  ADR-006 (o Traefik do Coolify não limita o corpo por padrão). O teto
+  importa porque o CSRF lê o corpo inteiro **antes** da view: sem ele, uma
+  requisição enorme é lida inteira antes de qualquer validação. Confirmar no
+  deploy com um upload de imagem de 3 MB.
+- **Junto das fatias 3 e 4 — ajuste dos dois testes do #38** descritos em
+  "Riscos" (arquivo `tests/test_logs_token_edicao.py`).
+- **Spec 01, tabela de status (linha de "grupo salva pelo link")**: hoje diz
+  que o grupo ao salvar vai para `em_revisao`. Com "Salvar" mantendo o
+  status e "Enviar para revisão" mudando, a linha precisa de atualização.
+- **Export do wireframe** em `docs/wireframes/` (o artefato é externo).
 
 ## Perguntas em aberto
-1. **`base.html` antes do PR 1.** Como os testes das fatias 1 a 3 (10/10)
-   renderizam as páginas, o `templates/base.html` precisa existir na `main`
-   antes delas, mesmo que mínimo. O coordenador pode colocar uma versão
-   mínima (só os três blocos) na `main` até 07/10, e a identidade visual
-   entra depois, sem mudar o nome nem os blocos? Se preferir, o PR 1 leva
-   esse arquivo mínimo e o coordenador o substitui depois.
+Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
+04/10 (abaixo).
 
-2. **Título travado para o grupo.** O wireframe traz o título travado, com a
-   nota de que foi um pedido do coordenador e de que a spec permitia editar.
-   Apliquei como proposta: o grupo não edita o título (vem da lista das
-   coordenações; o slug nunca muda). Confirma? Se a decisão for deixar o
-   grupo editar, volta o campo `titulo` ao formulário e o critério de aceite
-   original.
-3. **Partial do corpo do projeto.** Se a spec 03 mudar a tela de voto (notas
-   por critério), o Renan pode incluir `vitrine/_corpo_projeto.html` em vez
-   de duplicar a galeria e a equipe. O Renan e o coordenador concordam com
-   esse reaproveitamento?
+### Decisões do coordenador em 04/10 (PR #23)
+- **`base.html` antes do PR 1**: o mínimo (blocos `titulo`, `meta` e
+  `conteudo`) está no PR #38, para entrar na `main` até 07/10. Sem "stub
+  local fora dos PRs".
+- **Título travado para o grupo**: confirmado. O grupo não edita o título;
+  erro de digitação se corrige no admin.
+- **Partial `vitrine/_corpo_projeto.html`**: vira nota/proposta para o
+  Renan; não bloqueia esta spec.
+- **Filtro de log para `/grupo/editar/`**: está no PR #38
+  (`config.logs.FiltroTokenEdicao`); esta spec só testa o resultado.
+- **`/como-votar/` na fatia 1 (10/10)**: a spec 03 (#36) depende dela.
+- **Contador do rate limit**: prazo explícito, sem `incr` (janela fixa).
+- **URLs absolutas**: regra escrita em "Página pública".
+- **404 do app**: template `vitrine/projeto_404.html` com status 404.
+- **Convite em edição passada**: vira registro, sem botão de voto.
+- **G12 e G13**: tabela de validação de entrada e critério de SQL cru.
+- **Monograma**: sempre `Curso.sigla`.
+- **RA duplicado**: ninguém é reivindicado; aviso no log sem o RA.
 
 ### Respondidas pelo coordenador (PR #23)
 - **Editar em `em_revisao`**: não. "Salvar" mantém o status; "Enviar para
