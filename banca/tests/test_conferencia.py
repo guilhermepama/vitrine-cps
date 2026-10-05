@@ -4,6 +4,8 @@ import os
 import re
 import subprocess
 import sys
+import threading
+import time
 
 import pytest
 from django.contrib import admin
@@ -12,7 +14,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.messages import get_messages
-from django.db import connection
+from django.db import connection, connections, transaction
 from django.test import Client
 from django.test.client import RequestFactory
 from django.test.utils import CaptureQueriesContext
@@ -20,7 +22,7 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 
 from banca import conferencia as modulo
-from banca.models import Avaliacao
+from banca.models import Avaliacao, Jurado
 from banca.sinais import GRUPO_DIGITACAO
 from banca.tests import fabricas
 from cadastro.models import Edicao, Projeto
@@ -158,11 +160,24 @@ def test_filtro_por_digitador_lista_todas_dele(conferente):
     assert f'href="?digitador={carla.pk}">carla (12)</a>' in pagina
 
 
-def test_digitador_invalido_volta_com_mensagem(conferente):
+@pytest.mark.parametrize("valor", ["abc", "", "١", "9" * 19, "9" * 5000])
+def test_digitador_invalido_volta_com_mensagem(conferente, valor):
     edicao, *_ = _edicao()
-    resposta = conferente.get(_url(edicao, digitador="abc"))
+    resposta = conferente.get(_url(edicao), {"digitador": valor})
     assert resposta.status_code == 302 and resposta.url == _url(edicao)
     assert _mensagens(resposta)[-1:] == ["Digitador inválido."]
+
+
+def test_digitador_com_18_digitos_e_aceito_sem_linhas(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    _avaliar_todos(jurados, projetos)
+    resposta = conferente.get(_url(edicao), {"digitador": "9" * 18})
+    assert resposta.status_code == 200 and _linhas(resposta) == []
+
+
+def test_sem_avaliacoes_linha_vazia_ocupa_todas_as_colunas(conferente):
+    edicao, *_ = _edicao()  # 2 critérios
+    assert '<td colspan="5">Nenhuma avaliação.</td>' in conferente.get(_url(edicao)).content.decode()
 
 
 # --- Cobertura -----------------------------------------------------------------------------
@@ -387,8 +402,19 @@ def test_pagina_sem_cache(conferente):
     assert resposta.status_code == 200 and "no-store" in resposta["Cache-Control"]
 
 
-def test_rota_vem_antes_das_padrao():
-    assert resolve("/admin/banca/jurado/edicao/1/conferencia/").url_name == "banca_jurado_conferencia"
+def test_rota_vem_antes_das_padrao_e_usa_o_site_do_admin():
+    rota = resolve("/admin/banca/jurado/edicao/1/conferencia/")
+    assert rota.url_name == "banca_jurado_conferencia"
+    assert rota.kwargs["admin_site"] is admin.site._registry[Jurado].admin_site
+
+
+def test_outros_metodos_405_sem_cache(conferente):
+    edicao, *_ = _edicao()
+    for metodo in (conferente.put, conferente.delete, conferente.patch):
+        resposta = metodo(_url(edicao))
+        assert resposta.status_code == 405 and "no-store" in resposta["Cache-Control"]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
 
 
 def test_link_na_tela_do_jurado_so_com_a_permissao(client, renan):
@@ -426,5 +452,50 @@ def test_banca_conferida_em_somente_leitura_no_admin_de_edicao():
     form = form_class(dados, instance=edicao)
     assert form.is_valid(), form.errors
     form.save()
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+# --- Concorrência real (duas conexões) -------------------------------------------------------
+
+
+def _em_thread(alvo, *args):
+    """Roda `alvo` em outra thread, com conexão própria ao banco."""
+    resultado = {}
+
+    def rodar():
+        try:
+            resultado["valor"] = alvo(*args)
+        except Exception as erro:  # noqa: BLE001 — o teste confere
+            resultado["erro"] = erro
+        finally:
+            connections.close_all()
+
+    thread = threading.Thread(target=rodar)
+    thread.start()
+    return thread, resultado
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concluir_espera_a_ficha_em_gravacao_e_ve_a_avaliacao():
+    """Ficha gravada e ainda sem commit (o sinal já travou a Edicao): o concluir
+    espera a trava e, ao seguir, vê a avaliação, digitada pelo próprio
+    conferente → recusa. Sem a trava antes das verificações, concluiria."""
+    edicao, _, projetos, (ana, bia) = _edicao(projetos=2)
+    _avaliar_todos([ana], projetos)
+    renan = _staff("renan", "concluir_conferencia")
+    cliente = Client()
+    cliente.force_login(renan)
+
+    with transaction.atomic():
+        fabricas.avaliar(bia, projetos[0], [5, 5], renan)
+        thread, resultado = _em_thread(lambda: cliente.post(_url(edicao), {"acao": "concluir"}))
+        time.sleep(0.5)
+        assert thread.is_alive(), "o concluir deveria esperar a trava da Edicao"
+
+    thread.join(timeout=10)
+    assert not thread.is_alive() and "erro" not in resultado
+    resposta = resultado["valor"]
+    assert resposta.status_code == 302 and _mensagens(resposta)[-1:] == [modulo.QUEM_DIGITOU]
     edicao.refresh_from_db()
     assert edicao.banca_conferida_em is None

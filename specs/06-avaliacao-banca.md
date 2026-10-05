@@ -30,7 +30,9 @@ nota de banca de cada projeto.
   (`editable=False`, como `votacao_aberta_em`): nenhum formulário do admin
   o recebe, e o admin do cadastro, quando vier, o mostra em
   `readonly_fields`. Só a conferência, a reabertura e as correções desta
-  spec o escrevem.
+  spec o escrevem, sempre com `update_fields`; o `Edicao.save()` preserva
+  o valor do banco nos demais saves (decisão do coordenador no parecer do
+  #58: instância velha não regrava nem apaga a conferência).
 
 ## Fora de escopo
 - Login de jurado e tela de avaliação no celular (próxima edição, ADR-008).

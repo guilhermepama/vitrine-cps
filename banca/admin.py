@@ -127,6 +127,7 @@ class JuradoAdmin(admin.ModelAdmin):
             path(
                 "edicao/<int:id>/conferencia/",
                 protegida(conferencia.conferencia),
+                {"admin_site": self.admin_site},
                 name="banca_jurado_conferencia",
             ),
         ] + super().get_urls()
@@ -170,7 +171,7 @@ def _jurado_da_url(request):
     """Jurado do `?jurado=<id>`, se for válido; senão None (volta ao passo 1)."""
     if not hasattr(request, "_banca_jurado"):
         valor = request.GET.get("jurado", "")
-        valido = valor.isascii() and valor.isdigit()
+        valido = conferencia.id_valido(valor)
         request._banca_jurado = _jurados_digitaveis().filter(pk=valor).first() if valido else None
     return request._banca_jurado
 

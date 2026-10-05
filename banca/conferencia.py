@@ -54,24 +54,31 @@ def sortear_amostra(edicao_id, ids):
     return random.Random(semente).sample(ids, tamanho_da_amostra(len(ids)))
 
 
+def id_valido(valor):
+    """Só dígitos ASCII e no máximo 18 (cabe num bigint; `int()` de número
+    gigante estoura o limite de dígitos do Python e daria 500)."""
+    return valor.isascii() and valor.isdigit() and len(valor) <= 18
+
+
 def _url(edicao_id):
     return reverse("admin:banca_jurado_conferencia", args=[edicao_id])
 
 
 @require_http_methods(["GET", "POST"])
 @exige_permissao(CONCLUIR_CONFERENCIA)
-def conferencia(request, id):
+def conferencia(request, id, admin_site=admin.site):
     if request.method == "POST":
         return _executar(request, id)
     edicao = get_object_or_404(Edicao, pk=id)
     digitador = request.GET.get("digitador")
-    if digitador is not None and not (digitador.isascii() and digitador.isdigit()):
+    if digitador is not None and not id_valido(digitador):
         messages.error(request, "Digitador inválido.")
         return redirect(_url(edicao.pk))
-    return render(request, "banca/conferencia.html", _contexto(request, edicao, digitador and int(digitador)))
+    contexto = _contexto(edicao, digitador and int(digitador))
+    return render(request, "banca/conferencia.html", {**admin_site.each_context(request), **contexto})
 
 
-def _contexto(request, edicao, digitador):
+def _contexto(edicao, digitador):
     turmas = list(Turma.objects.filter(edicao=edicao).select_related("curso").order_by(*ORDEM_TURMA))
     jurados = list(Jurado.objects.filter(edicao=edicao).order_by("nome"))
     pares = Jurado.turmas.through.objects.filter(jurado__edicao=edicao, turma__edicao=edicao)
@@ -130,10 +137,10 @@ def _contexto(request, edicao, digitador):
         linhas.append((avaliacao, [valores.get(c.pk) for c in criterios]))
 
     return {
-        **admin.site.each_context(request),
         "title": f"Conferência da banca — {edicao.nome}",
         "edicao": edicao,
         "criterios": criterios,
+        "colunas": len(criterios) + 3,  # jurado, projeto, digitador e uma por critério
         "cobertura_jurados": cobertura_jurados,
         "cobertura_turmas": cobertura_turmas,
         "total_sem_avaliacao": sum(len(t["sem_avaliacao"]) for t in cobertura_turmas),

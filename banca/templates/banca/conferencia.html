@@ -56,7 +56,7 @@ Conferência da banca (spec 06). Só no admin: notas por jurado nunca em página
   {% for avaliacao, notas in linhas %}
     <tr class="avaliacao"><td>{{ avaliacao.jurado.nome }}</td><td>#{{ avaliacao.projeto_id }} — {{ avaliacao.projeto.titulo }}</td><td>{{ avaliacao.digitado_por.get_username }}</td>{% for valor in notas %}<td>{{ valor|default_if_none:"—" }}</td>{% endfor %}</tr>
   {% empty %}
-    <tr><td colspan="3">Nenhuma avaliação.</td></tr>
+    <tr><td colspan="{{ colunas }}">Nenhuma avaliação.</td></tr>
   {% endfor %}
   </tbody>
 </table>
