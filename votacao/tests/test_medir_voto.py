@@ -1,4 +1,5 @@
-"""Ferramenta de medição da trava por voto — fatia F8 (nota N3 do plano).
+"""Ferramenta de medição da trava por voto — fatia F8 (spec 03, "Decisões do
+PR #37").
 
 Roda o comando contra o `live_server` do pytest-django (http local, sem rede
 externa), num nível de concorrência pequeno. A medição de verdade é no
@@ -24,6 +25,14 @@ from votacao.servicos import abrir_votacao, encerrar_votacao
 from votacao.tests import fabricas
 
 PUBLICADO = Projeto.Status.PUBLICADO
+
+
+@pytest.fixture(autouse=True)
+def _host_local(settings):
+    """Sem DJANGO_DEBUG (CI e produção) o ALLOWED_HOSTS fica vazio, e o
+    comando recusa o 127.0.0.1 do live_server antes de qualquer coisa
+    (bloqueante 1 do parecer do #37)."""
+    settings.ALLOWED_HOSTS = [*settings.ALLOWED_HOSTS, "127.0.0.1"]
 
 
 def _edicao_em_votacao(nome, projetos=3, estacoes=2):
@@ -82,7 +91,6 @@ def test_nome_em_maiusculas_tambem_vale_e_recusa_sem_estacao():
         _medir("--url", "http://127.0.0.1:9")
 
 
-@pytest.mark.django_db
 @pytest.mark.django_db(transaction=True)
 def test_sem_url_mede_a_url_publica_do_ambiente(live_server, settings):
     call_command("createcachetable", verbosity=0)
@@ -127,7 +135,7 @@ def test_para_se_a_edicao_em_votacao_muda_entre_rodadas(nome, mensagem):
 
     with mock.patch.object(medir_voto.Command, "_rodada", side_effect=rodada_e_troca_de_edicao):
         with pytest.raises(CommandError, match=mensagem):
-            _medir("--url", "http://127.0.0.1:9", "--niveis", "1,10")
+            _medir("--url", "http://127.0.0.1:9", "--niveis", "1,10", "--votos", "1")
     assert rodadas == [1]
 
 
@@ -135,7 +143,7 @@ def test_para_se_a_edicao_em_votacao_muda_entre_rodadas(nome, mensagem):
 def test_nao_passa_do_limite_por_ip():
     _edicao_em_votacao("Pré-ensaio 2026/2")
     with pytest.raises(CommandError, match="300"):
-        _medir("--url", "http://127.0.0.1:9", "--niveis", "200,101")
+        _medir("--url", "http://127.0.0.1:9", "--niveis", "200,101", "--votos", "1")
     assert Token.objects.count() == 0
 
 
@@ -191,3 +199,56 @@ def test_voto_sem_resposta_completa_vira_status_0():
         with mock.patch.object(medir_voto.Visitante, "pedir", side_effect=erro):
             status, segundos = navegador.votar(1)
         assert status == 0 and segundos >= 0
+
+
+# --- Proteções (recomendados 4 a 6 do parecer do #37) ---------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("url", ["ftp://127.0.0.1/", "file:///etc/passwd", "javascript:alert(1)", "127.0.0.1:9"])
+def test_recusa_url_que_nao_e_http(url):
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="http"):
+        _medir("--url", url)
+    assert Token.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_recusa_allowed_hosts_curinga(settings):
+    settings.ALLOWED_HOSTS = ["*"]
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with pytest.raises(CommandError, match="ALLOWED_HOSTS"):
+        _medir("--url", "https://qualquer.exemplo")
+    assert Token.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_votos_acima_da_cedula_recusa_antes_de_emitir():
+    _edicao_em_votacao("Pré-ensaio 2026/2", projetos=3)
+    with pytest.raises(CommandError, match="--votos 4"):
+        _medir("--url", "http://127.0.0.1:9", "--votos", "4")
+    assert (Token.objects.count(), Visitante.objects.count()) == (0, 0)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_cedula_de_outro_ambiente_para_antes_de_votar(live_server):
+    """O --url responde, mas com outra cédula (outro banco): nenhum voto sai."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with mock.patch.object(medir_voto.Visitante, "preparar", return_value=[999_998, 999_999]):
+        with pytest.raises(CommandError, match="não é a da edição local"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert Voto.objects.count() == 0
+
+
+@pytest.mark.django_db(transaction=True)
+def test_entrar_recusado_aborta_a_largada_sem_travar(live_server):
+    """Um visitante leva 400 no /entrar: os outros não ficam presos na
+    barreira, e o erro mostrado é o do /entrar, não o da barreira quebrada."""
+    call_command("createcachetable", verbosity=0)
+    _edicao_em_votacao("Pré-ensaio 2026/2")
+    with mock.patch.object(medir_voto.Distribuidor, "proxima", return_value=(999_999, assinatura.agora())):
+        with pytest.raises(CommandError, match="respondeu 400"):
+            _medir("--url", live_server.url, "--niveis", "3", "--votos", "1")
+    assert (Token.objects.count(), Voto.objects.count()) == (0, 0)
+
