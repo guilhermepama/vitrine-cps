@@ -215,22 +215,26 @@ def test_trava_a_edicao_antes_de_conferir(client, cenario):
 # --- Fluxo sem sessão nem cache --------------------------------------------------------
 
 
-def _linhas_de_cache():
+def _chaves_de_cache():
     with connection.cursor() as cursor:
-        cursor.execute("SELECT COUNT(*) FROM cache_django")
-        return cursor.fetchone()[0]
+        cursor.execute("SELECT cache_key FROM cache_django")
+        return {linha[0] for linha in cursor.fetchall()}
 
 
 def test_fluxo_cadastro_cedula_voto_nao_grava_sessao_nem_cache(client, cenario):
     call_command("createcachetable", verbosity=0)
     cenario.votante(client)
     del client.cookies[COOKIE_CADASTRO]
-    antes = (Session.objects.count(), _linhas_de_cache())
+    sessoes, chaves = Session.objects.count(), _chaves_de_cache()
     envio = {"nome": "Ana Souza", "email": "ana@example.com", "telefone": "", "consentimento": "on"}
     assert client.post("/visitantes", envio).status_code == 302
     assert client.get("/votar").status_code == 200
     assert _votar(client, cenario.publicado.pk).status_code == 201
-    assert (Session.objects.count(), _linhas_de_cache()) == antes
+    assert Session.objects.count() == sessoes
+    # Só os contadores do rate limit (o do cadastro entra com o #35) podem
+    # aparecer; nenhuma outra chave de cache nasce no fluxo.
+    novas = _chaves_de_cache() - chaves
+    assert all(chave.startswith(":1:rl:") for chave in novas), novas
 
 
 def test_voto_sem_logger():
