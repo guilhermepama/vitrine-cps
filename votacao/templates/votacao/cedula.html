@@ -67,8 +67,10 @@
                   return;
                 }
                 // 409 é a rejeição genérica (já votado, votação encerrada, cookie
-                // vencido...): recarrega e o servidor mostra o estado real.
-                if (resposta.status === 409) {
+                // vencido...) e 403 é o CSRF (cookies limpos com a cédula
+                // aberta): recarrega e o servidor mostra o estado real, em vez
+                // de deixar o visitante preso no "Tente de novo".
+                if (resposta.status === 409 || resposta.status === 403) {
                   location.reload();
                   return;
                 }
