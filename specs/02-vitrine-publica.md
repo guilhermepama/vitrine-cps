@@ -118,7 +118,9 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   `Projeto.clean()`, não no banco. Se a busca devolver mais de um projeto
   (por exemplo, uma carga que pulou o `clean()`), **ninguém é
   reivindicado**: a resposta é a genérica e o log registra um aviso com os
-  ids dos projetos, sem o RA. O admin corrige os dados.
+  ids dos projetos, sem o RA. Essa resposta **conta como falha** no rate
+  limit: do lado de fora ela é igual à de qualquer RA recusado, e tratá-la
+  de outro jeito revelaria que o RA existe. O admin corrige os dados.
 - Quando encontra, **numa transação com lock da linha** (`select_for_update`)
   e conferindo de novo que `reivindicado_em` continua nulo: grava
   `reivindicado_em` e gera o link com `Projeto.regerar_link()` (que grava o
@@ -326,7 +328,10 @@ responde 400 com mensagem genérica por campo e nada é gravado.
   `Edicao.data_evento` é anterior a hoje, o bloco vira registro — "Este
   projeto participou da Mostra de Projetos realizada em [data]." — sem
   horário, endereço nem botão "Quero votar". No próprio dia do evento o
-  convite ainda aparece.
+  convite ainda aparece. "Hoje" é `timezone.localdate()`, no fuso
+  `America/Sao_Paulo` do `settings.py`, **não** a data em UTC: às 21h do dia
+  do evento já é o dia seguinte em UTC, e o convite não pode virar
+  "participou" antes da meia-noite local.
 - `/como-votar/`: página estática que explica que a votação é presencial,
   como funciona o credenciamento por QR nas estações e que o link público
   não vota. Nenhum formulário, nenhum botão de voto.
@@ -402,7 +407,7 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] 1.000 falhas somadas de IPs diferentes em 1 hora passam; a 1.001ª → 429 para qualquer IP
 - [ ] Dois endereços IPv6 do mesmo /64 contam como o mesmo IP
 - [ ] RA vazio, com letra ou fora de 5–20 dígitos → resposta genérica idêntica, conta como falha no rate limit e **não consulta `Projeto`** (teste conta as queries); `123.456-7` e `1234567` reivindicam o mesmo projeto
-- [ ] Dois projetos pré-cadastrados com o mesmo RA na edição ativa (carga que pulou o `clean()`) → ninguém é reivindicado, resposta genérica e aviso no log com os ids, sem o RA
+- [ ] Dois projetos pré-cadastrados com o mesmo RA na edição ativa (carga que pulou o `clean()`) → ninguém é reivindicado, resposta genérica **que conta como falha no rate limit** e aviso no log com os ids, sem o RA
 - [ ] A página do link mostra o link completo uma vez, o botão "Copiar" e o botão "Abrir edição do projeto"
 - [ ] A chave do IP no cache vem de `chave_ip(ip_do_cliente(request))`, tem **prazo explícito** (maior que o padrão de 300 s do cache, de modo que a chave da janela de 10 min não expire antes do fim) e não contém o IP em claro; o IP não aparece em log nem em tabela de model; o app `vitrine` não lê `REMOTE_ADDR` nem `X-Forwarded-For` (revisão de código)
 - [ ] O RA em claro não aparece no log, na resposta de erro nem no banco (teste captura log e resposta)
@@ -452,7 +457,7 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] O partial `vitrine/_corpo_projeto.html` não contém link nem formulário de voto (o teste de G8 também o cobre)
 - [ ] A capa aparece recortada na página, e o `og:image` aponta para o arquivo original; a tela de upload mostra a proporção ideal (~1,91:1)
 - [ ] O convite mostra a data da `Edicao`, "19h" e o endereço do campus da Fatec Olímpia
-- [ ] Com `data_evento` anterior a hoje, o convite vira "participou da Mostra de Projetos realizada em [data]", sem horário, endereço nem botão "Quero votar"; no próprio dia do evento o convite ainda aparece
+- [ ] Com `data_evento` anterior a hoje, o convite vira "participou da Mostra de Projetos realizada em [data]", sem horário, endereço nem botão "Quero votar"; no próprio dia do evento o convite ainda aparece, inclusive às 21h (ainda é o dia seguinte em UTC), e vira registro só depois da meia-noite em `America/Sao_Paulo` (`timezone.localdate()`)
 - [ ] Descrição com `<script>` aparece escapada, sem executar
 - [ ] O HTML da vitrine e de `/como-votar/` não contém nenhum link ou formulário para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (teste automático, G8)
 - [ ] O HTML não contém `representante_nome`, RA nem token
@@ -565,7 +570,7 @@ Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
 - **Convite em edição passada**: vira registro, sem botão de voto.
 - **G12 e G13**: tabela de validação de entrada e critério de SQL cru.
 - **Monograma**: sempre `Curso.sigla`.
-- **RA duplicado**: ninguém é reivindicado; aviso no log sem o RA.
+- **RA duplicado**: ninguém é reivindicado; aviso no log sem o RA; conta como falha no rate limit (recomendado do parecer de 05/10).
 
 ### Respondidas pelo coordenador (PR #23)
 - **Editar em `em_revisao`**: não. "Salvar" mantém o status; "Enviar para
