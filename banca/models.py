@@ -12,9 +12,14 @@ from django.db.models import Q
 from cadastro.models import Edicao, Projeto, Turma
 
 
-def _votacao_aberta(edicao_id, travar=False):
-    consulta = Edicao.objects.select_for_update() if travar else Edicao.objects
-    return consulta.filter(pk=edicao_id, votacao_aberta_em__isnull=False).exists()
+def _votacao_aberta(*edicao_ids, travar=False):
+    """Alguma das edições já abriu a votação? Com `travar`, trava as linhas
+    (em ordem de pk, sem deadlock) até o fim da transação."""
+    ids = sorted({i for i in edicao_ids if i is not None})
+    consulta = Edicao.objects.filter(pk__in=ids).order_by("pk")
+    if travar:
+        consulta = consulta.select_for_update()
+    return any(aberta is not None for aberta in consulta.values_list("votacao_aberta_em", flat=True))
 
 
 class Criterio(models.Model):
@@ -46,8 +51,11 @@ class Criterio(models.Model):
 
     def _verificar_trava(self, travar=False):
         """Critérios são divulgados antes do evento (ADR-007): travados depois
-        de aberta a votação, com a linha da `Edicao` travada no save()."""
-        if self.edicao_id and _votacao_aberta(self.edicao_id, travar):
+        de aberta a votação, com a linha da `Edicao` travada no save(). Vale
+        para a edição de destino e para a de origem (mover o critério tiraria
+        um critério de uma edição aberta)."""
+        antes = Criterio.objects.filter(pk=self.pk).values_list("edicao_id", flat=True).first() if self.pk else None
+        if _votacao_aberta(self.edicao_id, antes, travar=travar):
             raise ValidationError("Os critérios não mudam depois de aberta a votação (ADR-007).")
 
 
@@ -91,10 +99,6 @@ class Avaliacao(models.Model):
             )
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._chave_original = (self.jurado_id, self.projeto_id)
-
     def __str__(self):
         return f"{self.jurado.nome} → #{self.projeto_id}"
 
@@ -118,10 +122,6 @@ class Avaliacao(models.Model):
         # Atômico: o desfazer da conferência (sinais) entra na mesma transação.
         with transaction.atomic():
             super().save(*args, **kwargs)
-        self._chave_original = (self.jurado_id, self.projeto_id)
-
-    def mudou(self):
-        return self._chave_original != (self.jurado_id, self.projeto_id)
 
 
 class Nota(models.Model):
@@ -135,22 +135,19 @@ class Nota(models.Model):
             models.CheckConstraint(condition=Q(valor__gte=0) & Q(valor__lte=10), name="nota_entre_0_e_10"),
         ]
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._valor_original = self.valor
-
     def __str__(self):
         return f"{self.criterio}: {self.valor}"
 
     def clean(self):
         super().clean()
-        if self.avaliacao_id and self.criterio_id and self.criterio.edicao_id != self.avaliacao.jurado.edicao_id:
-            raise ValidationError("O critério é de outra edição.")
+        # A avaliação pode ainda não estar salva (inline do "Adicionar").
+        avaliacao = self._state.fields_cache.get("avaliacao") or (
+            Avaliacao.objects.filter(pk=self.avaliacao_id).first() if self.avaliacao_id else None
+        )
+        if avaliacao and avaliacao.jurado_id and self.criterio_id:
+            if self.criterio.edicao_id != avaliacao.jurado.edicao_id:
+                raise ValidationError("O critério é de outra edição.")
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
             super().save(*args, **kwargs)
-        self._valor_original = self.valor
-
-    def mudou(self):
-        return self._valor_original != self.valor

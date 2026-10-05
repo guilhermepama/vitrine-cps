@@ -137,3 +137,22 @@ def test_nota_de_criterio_de_outra_edicao(cenario):
     alheio = Criterio.objects.create(edicao=cadastro.edicao(nome="Outra"), nome="X", ordem=1)
     with pytest.raises(ValidationError, match="outra edição"):
         Nota(avaliacao=avaliacao, criterio=alheio, valor=5).full_clean()
+
+
+def test_mover_criterio_de_edicao_aberta_e_recusado(cenario):
+    edicao = cenario[0]
+    criterio = Criterio.objects.filter(edicao=edicao).first()
+    criterio.edicao = cadastro.edicao(nome="Fechada")
+    with pytest.raises(ValidationError):
+        criterio.full_clean()
+    with pytest.raises(ValidationError):
+        criterio.save()
+    assert Criterio.objects.filter(edicao=edicao).count() == 2
+
+
+def test_nota_de_criterio_de_outra_edicao_com_avaliacao_ainda_nao_salva(cenario):
+    _, _, projetos, jurado = cenario
+    avaliacao = Avaliacao(jurado=jurado, projeto=projetos[0], digitado_por=fabricas.digitador())
+    alheio = Criterio.objects.create(edicao=cadastro.edicao(nome="Outra"), nome="X", ordem=1)
+    with pytest.raises(ValidationError, match="outra edição"):
+        Nota(avaliacao=avaliacao, criterio=alheio, valor=5).clean()

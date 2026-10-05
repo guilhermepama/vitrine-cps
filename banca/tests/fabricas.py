@@ -16,10 +16,17 @@ def digitador(username="barbara"):
     return get_user_model().objects.get_or_create(username=username)[0]
 
 
-def cenario(criterios=2, projetos=2):
-    """Edição com critérios, uma turma com projetos publicados, votação aberta."""
-    edicao = cadastro.edicao()
-    turma = cadastro.turma(edicao)
+def cenario(criterios=2, projetos=2, nome="2026/2", sigla="DSM"):
+    """Edição com critérios, uma turma com projetos publicados, votação aberta.
+
+    Só uma edição fica com a votação aberta: a anterior é encerrada antes."""
+    from cadastro.models import Edicao
+    from votacao.servicos import encerrar_votacao
+
+    for aberta in Edicao.objects.filter(votacao_aberta_em__isnull=False, votacao_encerrada_em__isnull=True):
+        assert encerrar_votacao(aberta.pk) is None
+    edicao = cadastro.edicao(nome=nome)
+    turma = cadastro.turma(edicao, cadastro.curso(sigla))
     lista = [cadastro.projeto(turma, titulo=f"Projeto {i}", status=PUBLICADO) for i in range(projetos)]
     for i in range(criterios):
         Criterio.objects.create(edicao=edicao, nome=f"Critério {i + 1}", ordem=i + 1)

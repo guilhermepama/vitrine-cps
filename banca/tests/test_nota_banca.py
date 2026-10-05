@@ -68,13 +68,25 @@ def test_isolamento_por_edicao():
     assert nota_banca_por_projeto(ensaio) == {projeto_e.pk: Decimal("1")}
 
 
-def test_premissa_toda_avaliacao_tem_os_n_criterios():
-    edicao, turma, projetos = fabricas.cenario(criterios=3)
-    jurado = fabricas.jurado(edicao, turma)
-    for projeto in projetos:
-        fabricas.avaliar(jurado, projeto, [6, 7, 8])
-    n = Criterio.objects.filter(edicao=edicao).count()
-    assert all(a.notas.count() == n for a in Avaliacao.objects.filter(jurado__edicao=edicao))
+def test_avaliacao_incoerente_de_outra_edicao_nao_entra():
+    """Os dois filtros de edição: jurado de outra edição avaliando projeto
+    daqui, e jurado daqui com projeto de outra edição (gravados sem passar
+    pela validação) ficam de fora."""
+    edicao, turma, projetos = fabricas.cenario()
+    fabricas.avaliar(fabricas.jurado(edicao, turma), projetos[0], [5, 5])
+    outra, turma_o, projetos_o = fabricas.cenario(nome="Ensaio 2026/2", sigla="GTUR")
+    estranho = fabricas.jurado(outra, turma_o, "Estranho")
+    Avaliacao.objects.create(jurado=estranho, projeto=projetos[1], digitado_por=fabricas.digitador())
+    from banca.models import Nota
+
+    for criterio in Criterio.objects.filter(edicao=outra):
+        Nota.objects.create(avaliacao=Avaliacao.objects.get(jurado=estranho), criterio=criterio, valor=9)
+    daqui = fabricas.jurado(edicao, turma, "Daqui")
+    cruzada = Avaliacao.objects.create(jurado=daqui, projeto=projetos_o[0], digitado_por=fabricas.digitador())
+    for criterio in Criterio.objects.filter(edicao=edicao):
+        Nota.objects.create(avaliacao=cruzada, criterio=criterio, valor=1)
+    assert nota_banca_por_projeto(edicao) == {projetos[0].pk: Decimal("5")}
+    assert nota_banca_por_projeto(outra) == {}
 
 
 @pytest.mark.parametrize("quantidade", [2, 100])
