@@ -16,6 +16,7 @@ from django.views.decorators.http import require_http_methods
 
 from votacao.forms import VisitanteForm
 from votacao.liberacao import cadastro_valido, gravar_cookie
+from votacao.limite import cadastro_no_teto, liberar_cadastro
 from votacao.models import Visitante, truncar_para_hora
 from votacao.respostas import qr_expirado
 from votacao.servicos import edicao_em_votacao
@@ -52,11 +53,20 @@ def _cadastrar(request):
     form = VisitanteForm(request.POST)
     if not form.is_valid():
         return _formulario(request, form, status=400, mensagem=MENSAGEM_INVALIDO)
+    # Rate limit por IP (decisão 4 do PR #33), depois da validação porque o
+    # contador mora no banco (DatabaseCache, G12). Pré-checagem só de leitura,
+    # antes da trava: acima do teto, a enxurrada não disputa a Edicao com
+    # /entrar e /votos. Estouro = a mesma resposta do formulário inválido.
+    if cadastro_no_teto(request):
+        return _formulario(request, form, status=400, mensagem=MENSAGEM_INVALIDO)
     dados = form.cleaned_data
     with transaction.atomic():
         edicao = edicao_em_votacao(travar=True)
         if edicao is None:
             return qr_expirado()
+        # A contagem que vale, com a Edicao travada: teto exato sob rajada.
+        if not liberar_cadastro(request):
+            return _formulario(request, form, status=400, mensagem=MENSAGEM_INVALIDO)
         # Já cadastrado nesta edição (aba antiga, reenvio): cédula, sem novo
         # registro — a mesma regra do GET (decisão 3 do PR #33).
         if cadastro_valido(request, edicao):
