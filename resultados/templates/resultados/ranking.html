@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% comment %}
+Ranking por turma com participação (spec 04). Para impressão, sem JS.
+Só agregados: nenhum id de token, IP ou dado de visitante além da contagem.
+{% endcomment %}
+{% block titulo %}Resultados — {{ edicao.nome }} — Vitrine CPS{% endblock %}
+{% block meta %}
+<style>
+  body { font-family: system-ui, sans-serif; color: #111; background: #fff; margin: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin-bottom: 1.5rem; }
+  th, td { border: 1px solid #999; padding: .3rem .5rem; text-align: left; }
+  td.n, th.n { text-align: right; }
+  .aviso { border: 2px solid #111; padding: .5rem; font-weight: bold; }
+  section { break-inside: avoid; }
+  @media print { body { margin: 0; } }
+</style>
+{% endblock %}
+{% block conteudo %}
+<h1>Resultados — {{ edicao.nome }}</h1>
+
+<section id="participacao">
+  <h2>Participação</h2>
+  <table>
+    <tr><th>Tokens emitidos</th><td class="n">{{ participacao.tokens_emitidos }}</td></tr>
+    <tr><th>Tokens que votaram</th><td class="n">{{ participacao.tokens_votantes }}</td></tr>
+    <tr><th>Total de votos</th><td class="n">{{ participacao.total_votos }}</td></tr>
+    <tr><th>Média de votos por token votante</th><td class="n">{% if participacao.media_por_token is None %}—{% else %}{{ participacao.media_por_token|floatformat:2 }}{% endif %}</td></tr>
+    <tr><th>Visitantes cadastrados</th><td class="n">{{ participacao.visitantes }}</td></tr>
+  </table>
+  {% if participacao.turmas %}
+  <table>
+    <thead><tr><th>Turma</th><th class="n">Votos</th><th class="n">Tokens que votaram</th></tr></thead>
+    <tbody>
+    {% for turma in participacao.turmas %}
+      <tr><td>{{ turma.nome }}</td><td class="n">{{ turma.votos }}</td><td class="n">{{ turma.tokens }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</section>
+
+<h2>Ranking por turma</h2>
+{% if aviso %}
+  <p class="aviso">{{ aviso }}</p>
+{% elif erro %}
+  <p class="aviso" role="alert">{{ erro }}</p>
+{% else %}
+  {% for turma in ranking %}
+  <section class="turma">
+    <h3>{{ turma.nome }}</h3>
+    {% if turma.banca_pendente %}
+      <p class="aviso">Nota da banca pendente — este não é o resultado oficial</p>
+      <table>
+        <thead><tr><th>Projeto</th><th class="n">Votos</th><th class="n">p</th></tr></thead>
+        <tbody>
+        {% for linha in turma.linhas %}
+          <tr><td>{{ linha.titulo }}</td><td class="n">{{ linha.votos }}</td><td class="n">{{ linha.p|floatformat:2 }}</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <table>
+        <thead><tr><th class="n">Posição</th><th>Projeto</th><th class="n">Votos</th><th class="n">Banca</th><th class="n">p</th><th class="n">b</th><th class="n">Final</th><th></th></tr></thead>
+        <tbody>
+        {% for linha in turma.linhas %}
+          <tr>
+            <td class="n">{{ linha.posicao }}º</td>
+            <td>{{ linha.titulo }}</td>
+            <td class="n">{{ linha.votos }}</td>
+            <td class="n">{{ linha.banca|floatformat:2 }}</td>
+            <td class="n">{{ linha.p|floatformat:2 }}</td>
+            <td class="n">{{ linha.b|floatformat:2 }}</td>
+            <td class="n">{{ linha.final|floatformat:2 }}</td>
+            <td>{% if linha.empate %}empate{% endif %}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+  {% empty %}
+  <p>Nenhum projeto publicado nesta edição.</p>
+  {% endfor %}
+{% endif %}
+{% endblock %}
