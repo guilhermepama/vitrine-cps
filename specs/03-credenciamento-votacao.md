@@ -350,11 +350,17 @@ WhatsApp). Decisão do coordenador no PR #18.
   coordenador no PR #33). O toque duplo no botão não é coberto (os dois
   envios saem antes do cookie chegar); só o cliente evitaria.
 - **Rate limit** (decisão do coordenador no PR #33; fatia F5b, depois da
-  F4): no máximo **300 envios por 10 min por IP**, o mesmo teto do
-  `/entrar`, com **contador próprio** (chave
-  `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request))`, separada da do
-  `/entrar`, para o visitante do Wi-Fi não gastar duas vagas) no
-  `DatabaseCache`. **Ordem do `POST /visitantes`**: validação do
+  F4): no máximo **300 envios por bloco fixo de 10 min por IP**, o mesmo
+  teto do `/entrar`, com **contador próprio** (chave
+  `"rl:visitantes:ip:" + chave_ip(ip_do_cliente(request)) + ":" + str(agora // 600)`,
+  separada da do `/entrar`, para o visitante do Wi-Fi não gastar duas
+  vagas) no `DatabaseCache`. O contador **expira no fim do bloco**, não
+  em "primeiro envio + 600 s": assim a coluna `expires` e o `expira_em`
+  do valor não guardam o horário do cadastro com segundos, e o mesmo
+  HMAC do IP na chave do `/entrar` não liga, num `pg_dump`, o horário do
+  token ao do cadastro (B1; decisão do coordenador no PR #35). Na virada
+  do bloco passam até 2× o teto, aceito como na janela fixa do `/entrar`.
+  **Ordem do `POST /visitantes`**: validação do
   formulário (o contador mora no banco — G12) → **pré-checagem só de
   leitura, sem trava**: contador já no teto → recusa, sem contar e sem
   tocar na `Edicao` → transação com a trava da `Edicao` (sem edição em
@@ -515,7 +521,14 @@ restrito ao banco e aos dumps (ADR-006). A spec não promete anonimato
 absoluto contra quem tem o banco inteiro. As chaves por IP do rate limit
 ficam na tabela do `DatabaseCache` até expirarem e serem removidas pela
 limpeza do cache; guardam o HMAC do IP (nunca o IP em claro) e não têm
-token nem visitante.
+token nem visitante. O **mesmo HMAC** aparece na chave do `/entrar`
+(`rl:entrar:ip:<H>`, que expira 10 min depois da primeira emissão) e na
+do cadastro (`rl:visitantes:ip:<H>:<bloco>`, que expira no fim do bloco
+de 10 min): no dump, as duas dizem só que o mesmo IP emitiu um token e
+fez cadastros naquele bloco — a mesma resolução do horário truncado, e
+no Wi-Fi do evento o IP é de todos. Com expiração "primeiro cadastro +
+600 s", o horário do cadastro ficaria com segundos e ligaria o celular
+em 4G ao token (decisão do coordenador no PR #35).
 
 **Aceites:**
 - [ ] Revisão de schema: `visitantes.id` é UUID com `default=uuid4`; a migration não cria sequência para `visitantes`
@@ -572,6 +585,8 @@ a spec 04 e o G6 citam:
 - 7: rate limit em `/entrar` em duas camadas — 20 tokens por janela de
   45s por estação e 300 emissões por 10 min por IP; estouro = página "QR
   expirado" idêntica; IP só como HMAC na chave de cache, com expiração.
+  Em `POST /visitantes`, 300 envios por bloco fixo de 10 min por IP, com
+  contador próprio; estouro = formulário com a mensagem genérica.
 - 8: `GET /votar` sem token válido redireciona para `/como-votar/`
   (`vitrine:como_votar`, spec 02), nunca mostra a cédula; a página e o
   botão da vitrine são da spec 02.
@@ -645,7 +660,7 @@ a spec 04 e o G6 citam:
 - [ ] `nome` com 1 e 121 caracteres, ausente ou com caractere de controle → 400; com 2 e 120 → aceito
 - [ ] `nome` com U+200B, U+202E, U+FEFF ou U+2028, ou só com 2×NBSP ou 2×U+3000 → 400; NBSP entre letras e acentos → aceito
 - [ ] `POST /visitantes` válido com cookie de cadastro válido da edição em votação → 302 para `/votar`, nenhum registro novo, o mesmo cookie (não regravado); conferido dentro da transação com a `Edicao` travada; formulário inválido com cadastro válido → 400 com o formulário
-- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao` (pré-checagem); envios simultâneos com o contador perto do teto nunca passam do teto (contagem com a `Edicao` travada); a chave no cache é a de `chave_ip`, sem o IP em claro
+- [ ] (F5b) 300 envios de `POST /visitantes` do mesmo IP em 10 min passam; o 301º → 400 com o formulário e a mensagem genérica, nada gravado, sem travar a `Edicao` (pré-checagem); envios simultâneos com o contador perto do teto nunca passam do teto (contagem com a `Edicao` travada); a chave no cache é a de `chave_ip`, sem o IP em claro; a chave termina no número do bloco de 10 min e o contador expira no fim do bloco: dois cadastros em segundos diferentes do mesmo bloco têm o mesmo `expira_em`, e um segundo envio não empurra a expiração
 - [ ] `email` inválido, ausente ou com 255 caracteres → 400; com 254 válido → aceito
 - [ ] `telefone` com 9 dígitos, 14 dígitos, letras, 21 caracteres ou `+` fora do começo (`1+7 99999-9999`) → 400; vazio, `(17) 99999-9999` e `+55 17 99999-9999` → aceitos e gravados só com dígitos
 - [ ] Consentimento ausente ou desmarcado → 400, nada gravado, sem cookie de cadastro, `/votar` não libera a cédula
@@ -791,5 +806,8 @@ coordenador no PR #33).
    Implementado na fatia F5b, depois da F4, que cria a infraestrutura do
    rate limit: o "antes da trava" é uma pré-checagem só de leitura (acima
    do teto, nada encosta na `Edicao`), e a contagem acontece com a
-   `Edicao` travada, para o teto valer também sob rajada (revisão da
-   F5b). Ver "Cadastro do visitante".
+   `Edicao` travada, para o teto valer também sob rajada. Contador
+   próprio, pré-checagem sem trava e contagem sob a trava aprovados pelo
+   coordenador no PR #35, junto com o **bloco fixo de 10 min** (chave com
+   o número do bloco, expiração no fim dele) contra a correlação pelo
+   horário. Ver "Cadastro do visitante" e "Risco residual".
