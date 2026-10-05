@@ -14,7 +14,6 @@ from unittest import mock
 
 import pytest
 from django.contrib.auth.models import Group, Permission, User
-from django.test import override_settings
 from django.urls import reverse
 
 from votacao.assinatura import assinar
@@ -211,9 +210,9 @@ def test_operador_ve_o_qr_da_janela_assinada(operador, estacao):
 
 
 @pytest.mark.parametrize("rota", [_pagina, _renovacao])
-@override_settings(URL_PUBLICA="https://vitrine.exemplo.com.br")
 def test_qr_sai_com_https_atras_do_proxy(operador, estacao, rota, settings):
     """O QR usa a URL_PUBLICA seja qual for o Host e o X-Forwarded-Proto."""
+    settings.URL_PUBLICA = "https://vitrine.exemplo.com.br"
     # Valor do config/settings.py com DEBUG desligado (produção e CI); fixado
     # aqui para o teste não depender do DJANGO_DEBUG do .env local.
     settings.SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")

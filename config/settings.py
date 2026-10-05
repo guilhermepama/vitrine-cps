@@ -137,11 +137,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Compartilhado entre os workers do gunicorn: o rate limit (guardrail 7) conta
 # requisições no cache, e um cache por processo (LocMem) deixaria cada worker
 # com o próprio contador. No deploy: `python manage.py createcachetable`.
+#
+# MAX_ENTRIES: o padrão do Django (300) faz o cache, ao passar de 300 linhas,
+# apagar ~1/3 das chaves VIVAS em ordem alfabética — os contadores do rate
+# limit somem e quem estava barrado volta a passar (parecer do PR #34). Com
+# ~300 IPs distintos em 10 min (4G, IPv6) isso já acontece. As expiradas
+# saem primeiro; o teto alto só evita crescer sem fim.
 
 CACHES = {
     "default": {
         "BACKEND": "django.core.cache.backends.db.DatabaseCache",
         "LOCATION": "cache_django",
+        "OPTIONS": {"MAX_ENTRIES": 100_000},
     }
 }
 
@@ -221,20 +228,32 @@ if not DEBUG:
 # DJANGO_LOG_LEVEL=DEBUG só em máquina local: com DEBUG=True o
 # django.db.backends loga o SQL com os parâmetros (nome e email do visitante),
 # e esse registro não tem `request` — o filtro não o alcança.
+#
+# Link de edição do grupo (spec 02): em /grupo/editar/<token>/ o caminho leva o
+# token. O filtro `token_edicao` (config/logs.py) troca o segmento por
+# "<token>", nos mesmos lugares do filtro do visitante.
+#
+# django.template fica em INFO mesmo com DJANGO_LOG_LEVEL=DEBUG: em DEBUG ele
+# loga a variável que falta no contexto, e o contexto da cédula e do cadastro
+# tem dado do visitante (parecer do PR #36).
 
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {"rotas_visitante": {"()": "votacao.logs.FiltroRotasVisitante"}},
+    "filters": {
+        "rotas_visitante": {"()": "votacao.logs.FiltroRotasVisitante"},
+        "token_edicao": {"()": "config.logs.FiltroTokenEdicao"},
+    },
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "filters": ["rotas_visitante"]},
+        "console": {"class": "logging.StreamHandler", "filters": ["rotas_visitante", "token_edicao"]},
     },
     "root": {"handlers": ["console"], "level": "WARNING"},
     "loggers": {
         "django": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", "INFO"), "propagate": False},
-        "django.request": {"filters": ["rotas_visitante"]},
-        "django.security": {"filters": ["rotas_visitante"]},
-        "django.security.csrf": {"filters": ["rotas_visitante"]},
+        "django.request": {"filters": ["rotas_visitante", "token_edicao"]},
+        "django.security": {"filters": ["rotas_visitante", "token_edicao"]},
+        "django.security.csrf": {"filters": ["rotas_visitante", "token_edicao"]},
+        "django.template": {"level": "INFO"},
         "votacao": {"filters": ["rotas_visitante"]},
     },
 }
