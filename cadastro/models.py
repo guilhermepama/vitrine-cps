@@ -355,8 +355,12 @@ class Integrante(models.Model):
 
     def clean(self):
         # Regra provisória (ADR-009): Etec mostra só o primeiro nome.
+        # `self.projeto`, não `projeto_id`: no admin, o projeto novo ainda não tem pk
+        # quando o formset dos integrantes valida, e a regra não pode ser pulada.
         nome = self.nome.strip()
-        if self.projeto_id and self.projeto.turma.curso.unidade == Curso.Unidade.ETEC and len(nome.split()) > 1:
+        projeto = getattr(self, "projeto", None)
+        turma = getattr(projeto, "turma", None) if projeto is not None else None
+        if turma is not None and turma.curso.unidade == Curso.Unidade.ETEC and len(nome.split()) > 1:
             raise ValidationError({"nome": "Para cursos da Etec, informe só o primeiro nome."})
 
 
