@@ -19,7 +19,9 @@ import uuid
 import pytest
 from django.core.signing import Signer
 from django.test import Client
+from django.urls import clear_url_caches, resolve
 
+from vitrine.views import como_votar
 from votacao.cookie_token import COOKIE_TOKEN
 from votacao.liberacao import COOKIE_CADASTRO
 from votacao.models import Visitante, Voto
@@ -86,7 +88,7 @@ def test_cookies_limpos_com_a_cedula_aberta_dao_403_e_a_recarga_sai_da_cedula(ce
     dados = {"projeto_id": cenario.publicado.pk}
     assert votante.post("/votos", dados, HTTP_X_CSRFTOKEN=csrf[1]).status_code == 403
     recarga = votante.get(ROTA)
-    assert recarga.status_code == 302 and recarga["Location"] == ROTA_COMO_VOTAR
+    assert recarga.status_code == 302 and recarga["Location"] == str(ROTA_COMO_VOTAR)
     assert not Voto.objects.exists()
 
 
@@ -131,15 +133,22 @@ def test_sem_token_valido_vai_para_como_votar(client, cenario, valor):
         del client.cookies[COOKIE_TOKEN]
     else:
         client.cookies[COOKIE_TOKEN] = valor
-    _redirect(client.get(ROTA), ROTA_COMO_VOTAR)
+    _redirect(client.get(ROTA), str(ROTA_COMO_VOTAR))
 
 
 def test_token_de_outra_edicao_vai_para_como_votar(client, cenario):
-    _redirect(cenario.votante(client, cenario.token_ensaio).get(ROTA), ROTA_COMO_VOTAR)
+    _redirect(cenario.votante(client, cenario.token_ensaio).get(ROTA), str(ROTA_COMO_VOTAR))
 
 
 def test_caminho_da_instrucao_e_o_da_spec():
-    assert ROTA_COMO_VOTAR == "/como-votar/"
+    assert str(ROTA_COMO_VOTAR) == "/como-votar/"
+    assert resolve("/como-votar/").func is como_votar
+
+
+def test_redirect_sem_token_leva_a_pagina_do_vitrine(client, cenario):
+    resposta = client.get(ROTA, follow=True)
+    assert resposta.redirect_chain == [(str(ROTA_COMO_VOTAR), 302)]
+    assert resposta.status_code == 200
 
 
 def test_token_recem_emitido_sem_cadastro_vai_para_o_formulario(client, cenario):
@@ -192,8 +201,22 @@ def test_sem_edicao_em_votacao_mostra_so_o_aviso(client, cenario):
 
 def test_votacao_encerrada_sem_token_vai_para_como_votar(client, cenario):
     encerrar_votacao(cenario.evento.pk)
-    _redirect(client.get(ROTA), ROTA_COMO_VOTAR)
+    _redirect(client.get(ROTA), str(ROTA_COMO_VOTAR))
 
 
 def test_so_get(client, cenario):
     assert cenario.votante(client).post(ROTA).status_code == 405
+
+
+def test_redirect_usa_a_rota_nomeada_e_nao_um_caminho_fixo(client, cenario, settings):
+    """Com `vitrine:como_votar` montada em /ajuda/como-votar/, o redirect
+    acompanha; uma constante "/como-votar/" fixa falharia aqui."""
+    settings.ROOT_URLCONF = "votacao.tests.urls_como_votar_alt"
+    clear_url_caches()
+    try:
+        resposta = client.get(ROTA)
+        assert resposta.status_code == 302
+        assert resposta["Location"] == "/ajuda/como-votar/"
+        assert client.get(resposta["Location"]).status_code == 200
+    finally:
+        clear_url_caches()
