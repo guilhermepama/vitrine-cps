@@ -5,13 +5,19 @@
 > coordenador (Guilherme). Demais membros: status da tarefa vai na
 > descrição do PR (evita conflito de merge neste arquivo).
 >
-> **Última atualização**: 2026-10-02 (noite) — Guilherme
+> **Última atualização**: 2026-10-06 — Guilherme
 
 ## Fase atual
 
-**Código em andamento.** Esqueleto e models do cadastro na `main`; specs
-01 e 03 prontas; 04 em rascunho até a 06. Próximo: importação da lista
-(cadastro 2/3), admin e moderação (3/3), specs 02 e 06 até 06/10.
+**Votação, banca e resultados na `main`; vitrine em revisão.** Specs 03
+(F1–F8), 04 (fatias 1–3) e 06 (fatias 1–5) estão implementadas e com CI
+verde (`d93b242`, 970 testes). Em 05/10, com o Renan ausente, o
+coordenador fechou as frentes dele (ajustes dos pareceres #40–#43 e a
+spec 04 inteira) — esses PRs entraram **sem a aprovação da ADR-010** e
+ficam para a revisão posterior do Renan (ver "Em andamento"). Spec 02
+(Cleiton) está nos PRs encadeados #44 → #45 → #46 → #47, aguardando
+revisão do coordenador. Falta o cadastro 3/3 (admin e moderação), que
+trava o cadastro aberto de 10/10.
 
 **Evento: quinta, 2026-10-29.** Tudo abaixo é planejado de trás para frente
 a partir dessa data.
@@ -80,18 +86,52 @@ em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
       travas após abrir a votação (PR #17)
 - [x] Spec 03 pronta para implementar, com rate limit (PR #18)
 - [x] Spec 04 em rascunho, aguardando a spec 06 (PR #14)
+- [x] Cadastro 2/3: importação da lista, slug imutável (PR #19)
+- [x] `ip_do_cliente`/`chave_ip` compartilhados (#25); segredos da votação
+      obrigatórios (#24); filtro de log P2 ligado (#26, #27)
+- [x] ADR-010: aprovação em pares nos PRs do coordenador (#28, #29)
+- [x] Servidor decidido: VPS com Coolify, IP real por `X-Real-Ip`
+      (ADR-006, #30); `URL_PUBLICA` obrigatória em produção (#32)
+- [x] **Spec 03 implementada (Renan)**: F1 models (#21), F2 abrir/encerrar
+      e estações (#22), F3 QR e página da estação (#31), F4 emissão em
+      `/entrar` com rate limit (#34), F5 cadastro do visitante (#33),
+      F5b rate limit do cadastro (#35), F6 cédula e voto (#36), F7 filtro
+      P2 (#26), F8 `medir_voto` e teste ponta a ponta (#37); ajustes dos
+      pareceres (#40–#43)
+- [x] Spec 02 completa (Cleiton, #23); spec 06 completa (#49); spec 04
+      pronta com o formato da banca (#50)
+- [x] **Spec 06 implementada**: models e `nota_banca_por_projeto` (#51),
+      admin de critérios e jurados (#53), digitação em dois passos (#55),
+      ficha para imprimir (#56), conferência e reabrir digitação (#58)
+- [x] **Spec 04 implementada**: cálculo puro (#52), ranking com
+      participação e permissões (#54), operacional e export (#57)
+- [x] Config: `MAX_ENTRIES` do cache, filtro do token de edição no log,
+      `base.html` mínimo (#38, #39); imagens sem metadados (#48)
 
 ## Em andamento
 
-- [x] Equipe e frentes definidas (`TAREFAS.md`): Guilherme, Renan,
-      Cleiton; Barbara na operação do evento e no ensaio
+- [ ] **Revisão posterior da ADR-010 (Renan, até 07/10)**: PRs do
+      coordenador mergeados em 05–06/10 sem aprovação — #38, #39, #40,
+      #41, #42, #43, #48, #49, #50, #51, #52, #53, #54, #55, #56, #57,
+      #58. Prioridade: #40–#43 (votação, commit por commit — roteiro no
+      #40), depois #52/#54/#57 (resultados) e #51–#58 (banca). Violação
+      de guardrail → correção antes do próximo merge do coordenador.
+- [ ] Marcador `Merge sem aprovação (ADR-010): …` nas descrições desses
+      PRs (coordenador)
+- [ ] Revisão dos PRs #44 → #45 → #46 → #47 (spec 02, Cleiton) — nessa
+      ordem; o #47 depende também do #39 (já na `main`)
+- [ ] **Cadastro 3/3** (admin: moderação em lote, formsets, regerar/
+      revogar link, pesos só leitura) — trava o cadastro aberto de 10/10
+- [ ] Identidade visual (`static/css/base.css` ainda não está no repo)
+- [ ] Publicar o ambiente no VPS (Coolify) e confirmar o cabeçalho do IP
+      real — até 08/10
 - [ ] Listas das coordenações (até 08/10)
+- [ ] Votação em ensaio/deploy só depois do `/como-votar/` (#44) entrar
+- [ ] Pré-ensaio 21/10: `medir_voto` na edição "Pré-ensaio", voto real
+      pelo domínio e pelo proxy; medir o teto de 300/10 min por IP
 - [ ] Coordenação: regra para alunos da Etec menores em página pública
-- [ ] Cadastro 2/3 (importação da lista) e 3/3 (admin e moderação)
-- [ ] Specs 02 (Cleiton) e 06 (Guilherme) até 06/10
-- [ ] Identidade visual (05/10) e servidor (08/10 — critério: tirar o log
-      de acesso das rotas do visitante; informar o cabeçalho do IP real)
 - [ ] Levantamento dos cursos e turnos da Etec (Guilherme)
+- [ ] Texto LGPD final (coordenação, 20/10)
 
 ## Turmas desta edição
 
@@ -110,10 +150,11 @@ Fatec: DSM 1º, 2º, 3º · GTUR 2º, 3º (5 turmas). Etec: a levantar.
   24h, principalmente entre 05/10 e 20/10. Limite de ~300 linhas por PR;
   agente faz a checagem mecânica (`/revisar-pr`), o coordenador roda o
   código e responde pela aprovação. Votação: leitura linha a linha.
-- **Revisão dos PRs do coordenador (ADR-010)**: o Renan aprova, e de
-  05 a 20/10 ele está fechando a votação (spec 03). O prazo de 24h (12h
-  de 18/10 a 29/10) continua; para pedir menos, agrupar os PRs de
-  documentação e processo num só sempre que der.
+- **Revisão dos PRs do coordenador (ADR-010)**: 17 PRs entraram em
+  05–06/10 sem a aprovação do Renan e sem o marcador. A revisão posterior
+  é o que valida esse código; enquanto não acontecer, nada dele vai para
+  ensaio. Daqui em diante, voltar ao fluxo normal: parecer → aprovação →
+  merge.
 - Pesos e critérios da banca precisam ser **divulgados antes do evento**
   (ADR-007). Confirmar com a coordenação se "impacto comercial" entra.
 - Texto do consentimento LGPD depende da coordenação (fora do nosso controle)
@@ -141,3 +182,5 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-02 Guilherme: abertura/encerramento da votação viraram campos da Edicao (sem config_votacao); ensaio de 22/10 é edição separada.
 - 2026-10-02 Guilherme: ADR-003 complementada — consentimento truncado para a hora, id UUID, sem log nas rotas do visitante.
 - 2026-10-03 Guilherme: PRs do coordenador passam a ter a aprovação do Renan (ADR-010, #28).
+- 2026-10-05 Guilherme: Renan ausente; coordenador fechou votação (ajustes #40–#43) e resultados (#52, #54, #57) e a banca (#51–#58).
+- 2026-10-06 Guilherme: Renan de volta; specs 03, 04 e 06 na `main` com CI verde; pendente a revisão posterior da ADR-010 e o cadastro 3/3.
