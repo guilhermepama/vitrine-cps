@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vitrine CPS — conferência do base.css</title>
+<link rel="stylesheet" href="base.css">
+</head>
+<body>
+<div class="container" style="padding-top: 32px; padding-bottom: 48px">
+  <h1 style="font-size: var(--texto-26); color: var(--cor-texto-titulo)">Conferência dos componentes</h1>
+  <p class="ajuda">Abra este arquivo no navegador. Quando a identidade visual entrar nos tokens do base.css, tudo aqui muda junto. (Os style= desta página são só do exemplo.)</p>
+
+  <div class="secao"><div class="secao__titulo">Botões</div>
+    <a class="botao" href="#">Primário</a>
+    <button class="botao botao--secundario">Secundário</button>
+    <button class="botao botao--perigo">Perigo</button>
+  </div>
+
+  <div class="secao"><div class="secao__titulo">Chips e selos</div>
+    <button class="chip chip--ativo">Todos</button>
+    <button class="chip">DSM</button>
+    <button class="chip">GTUR</button>
+    <span class="selo">Em revisão</span>
+    <span class="selo selo--publicado">Publicado</span>
+    <span class="selo selo--pre-cadastrado">Pré-cadastrado</span>
+    <span class="selo selo--ajustes">Ajustes</span>
+  </div>
+
+  <div class="secao"><div class="secao__titulo">Formulário</div>
+    <div class="cartao" style="max-width: 420px">
+      <label class="rotulo" for="n">Nome</label>
+      <input class="campo" id="n" placeholder="Seu nome">
+      <div class="ajuda">Texto de ajuda do campo.</div>
+      <label class="rotulo" for="e" style="margin-top: 16px">Campo com erro</label>
+      <input class="campo campo--erro" id="e" value="valor inválido">
+      <div class="aviso aviso--erro" style="margin-top: 16px">Mensagem de erro genérica.</div>
+      <button class="botao botao--bloco" style="margin-top: 16px">Enviar</button>
+    </div>
+  </div>
+
+  <div class="secao"><div class="secao__titulo">Tabela e monograma</div>
+    <span class="monograma monograma--m">AN</span>
+    <table class="tabela" style="margin-top: 12px">
+      <thead><tr><th>Projeto</th><th>Turma</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td>Título do Projeto</td><td>DSM — 3º sem</td><td><span class="selo">Em revisão</span></td></tr>
+        <tr><td>Projeto da Etec</td><td>Etec ADM — 2º ano (tarde)</td><td><span class="selo selo--publicado">Publicado</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</body>
+</html>

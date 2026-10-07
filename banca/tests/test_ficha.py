@@ -173,8 +173,10 @@ def test_sem_dados_pessoais_nem_links(impressor, cenario):
     html = impressor.get(_ficha(jurado)).content.decode()
     assert projeto.titulo in html
     for proibido in ("Fulana Representante", "Maria Teste", "9876543210987", projeto.ra_hmac, "f" * 64,
-                     "Beltrano Integrante", "Designer", projeto.slug, "<a ", "href"):
+                     "Beltrano Integrante", "Designer", projeto.slug, "<a "):
         assert proibido not in html
+    # O único href é o CSS da identidade (base.html): nenhum link sai no papel.
+    assert re.findall(r'href="([^"]*)"', html) == ["/static/css/base.css"]
 
 
 def test_aviso_de_lista_provisoria_so_antes_de_abrir(impressor, cenario):
