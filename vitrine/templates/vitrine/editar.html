@@ -26,6 +26,15 @@
 
 {% if projeto.resumo %}<h2>Resumo</h2><p>{{ projeto.resumo }}</p>{% endif %}
 {% if projeto.descricao %}<h2>Descrição</h2>{{ projeto.descricao|linebreaks }}{% endif %}
+{% if projeto.componente_origem %}<h2>Componente de origem</h2><p>{{ projeto.componente_origem }}</p>{% endif %}
+{% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+<h2>Links</h2>
+<ul>
+  {% if projeto.link_repositorio %}<li>Repositório: {{ projeto.link_repositorio }}</li>{% endif %}
+  {% if projeto.link_demo %}<li>Demonstração: {{ projeto.link_demo }}</li>{% endif %}
+  {% if projeto.link_video %}<li>Vídeo: {{ projeto.link_video }}</li>{% endif %}
+</ul>
+{% endif %}
 {% if projeto.capa %}<h2>Capa</h2><img src="{{ projeto.capa.url }}" alt="Capa do projeto">{% endif %}
 {% if imagens %}<h2>Galeria</h2>{% for imagem in imagens %}<img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">{% endfor %}{% endif %}
 {% if integrantes %}<h2>Equipe</h2><ul>{% for integrante in integrantes %}<li>{{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}</li>{% endfor %}</ul>{% endif %}
@@ -47,7 +56,7 @@
 
   <h2>Equipe (1 a 10 integrantes{% if etec %} — só o primeiro nome{% endif %})</h2>
   {{ formset.management_form }}
-  {% if formset.non_form_errors %}<p class="erro">{{ formset.non_form_errors }}</p>{% endif %}
+  {% if formset.non_form_errors %}<div class="erro">{{ formset.non_form_errors }}</div>{% endif %}
   {% for form_integrante in formset %}
   <fieldset>
     <legend>Integrante {{ forloop.counter }}</legend>

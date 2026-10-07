@@ -36,6 +36,7 @@ def test_nome_e_papel_do_integrante_acima_de_60_sao_recusados(client):
 
 
 @pytest.mark.django_db
-def test_token_gigante_da_404_sem_consultar_o_banco(client, django_assert_num_queries):
+@pytest.mark.parametrize("token", ["x" * 201, "x" * 500, "!!!" * 10, "a b", "ç" * 5])
+def test_token_fora_do_formato_da_404_sem_consultar_o_banco(client, django_assert_num_queries, token):
     with django_assert_num_queries(0):
-        assert client.get(url("x" * 500)).status_code == 404
+        assert client.get(url(token)).status_code == 404

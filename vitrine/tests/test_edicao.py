@@ -134,6 +134,115 @@ def test_acao_desconhecida_da_400(client):
 
 
 @pytest.mark.django_db
+def test_acao_desconhecida_em_projeto_nao_editavel_da_403(client):
+    p, token = aux.projeto_com_link(status=Projeto.Status.EM_REVISAO)
+    assert client.post(url(token), aux.dados_de_edicao(acao="xyz")).status_code == 403
+
+
+@pytest.mark.django_db
+def test_salvar_em_ajustes_mantem_o_status(client):
+    p, token = aux.projeto_com_link(status=Projeto.Status.AJUSTES, motivo_ajustes="Melhore o resumo.")
+    assert client.post(url(token), aux.dados_de_edicao(resumo="Novo resumo")).status_code == 302
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.AJUSTES and p.resumo == "Novo resumo"
+
+
+@pytest.mark.django_db
+def test_enviar_a_partir_de_ajustes_vai_para_revisao(client):
+    p, token = aux.projeto_com_link(status=Projeto.Status.AJUSTES, motivo_ajustes="Melhore o resumo.")
+    aux.com_capa(p)
+    assert client.post(url(token), aux.dados_de_edicao(acao="enviar")).status_code == 302
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.EM_REVISAO
+
+
+@pytest.mark.django_db
+def test_salvar_regrava_so_os_campos_do_grupo(client):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    p, token = aux.projeto_com_link()
+    with CaptureQueriesContext(connection) as consultas:
+        client.post(url(token), aux.dados_de_edicao())
+    updates = [c["sql"] for c in consultas.captured_queries if c["sql"].startswith('UPDATE "cadastro_projeto"')]
+    assert updates
+    for sql in updates:
+        for coluna in ("status", "slug", "titulo", "ra_hmac", "token_edicao_hash", "turma_id", "publicado_em"):
+            assert f'"{coluna}"' not in sql.split(" WHERE ")[0], (coluna, sql)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_votacao_aberta_no_meio_do_envio_da_403_explicada_e_nao_grava(client, monkeypatch):
+    import threading
+
+    from django.db import connection
+
+    p, token = aux.projeto_com_link()
+    aux.com_capa(p)
+    original = servicos.travar_para_edicao
+
+    def abrir_em_outra_conexao():
+        try:
+            aux.votacao_aberta(p)
+        finally:
+            connection.close()
+
+    def travar_e_abrir_a_votacao(pk, tok):
+        travado = original(pk, tok)
+        # A votação abre (em outra conexão, já confirmada) depois da trava e antes da gravação.
+        outra = threading.Thread(target=abrir_em_outra_conexao)
+        outra.start()
+        outra.join()
+        return travado
+
+    monkeypatch.setattr(servicos, "travar_para_edicao", travar_e_abrir_a_votacao)
+    r = client.post(url(token), aux.dados_de_edicao(acao="enviar"))
+    assert r.status_code == 403
+    html = r.content.decode()
+    assert "Fale com a coordenação" in html and 'name="acao"' not in html
+    p.refresh_from_db()
+    assert p.status == Projeto.Status.PRE_CADASTRADO and p.resumo == ""
+
+
+@pytest.mark.django_db(transaction=True)
+def test_link_regerado_entre_a_leitura_e_a_gravacao_nao_grava(client, monkeypatch):
+    import threading
+
+    from django.db import connection
+
+    p, token = aux.projeto_com_link()
+    original = servicos.travar_para_edicao
+
+    def regerar_em_outra_conexao():
+        try:
+            Projeto.objects.get(pk=p.pk).regerar_link()
+        finally:
+            connection.close()
+
+    def regerar_antes(pk, tok):
+        outra = threading.Thread(target=regerar_em_outra_conexao)
+        outra.start()
+        outra.join()
+        return original(pk, tok)
+
+    monkeypatch.setattr(servicos, "travar_para_edicao", regerar_antes)
+    assert client.post(url(token), aux.dados_de_edicao()).status_code == 404
+    p.refresh_from_db()
+    assert p.resumo == "" and p.integrantes.count() == 0
+
+
+@pytest.mark.django_db
+def test_tela_somente_leitura_mostra_componente_e_links(client):
+    p, token = aux.projeto_com_link(
+        status=Projeto.Status.EM_REVISAO,
+        componente_origem="PI II",
+        link_repositorio="https://github.com/grupo/projeto",
+    )
+    html = client.get(url(token)).content.decode()
+    assert "PI II" in html and "https://github.com/grupo/projeto" in html
+
+
+@pytest.mark.django_db
 def test_titulo_e_slug_nao_mudam_nem_com_campo_titulo_no_post(client):
     p, token = aux.projeto_com_link(titulo="Agenda Escolar")
     client.post(url(token), aux.dados_de_edicao(titulo="Outro nome", slug="outro"))
@@ -216,7 +325,7 @@ def test_validation_error_do_save_no_meio_do_envio_desfaz_e_da_403(client, monke
     def recusar(_projeto):
         raise ValidationError("A votação desta edição já foi aberta.")
 
-    monkeypatch.setattr(servicos, "enviar_para_revisao", recusar)
+    monkeypatch.setattr(servicos, "enviar_para_revisao", recusar)  # ver também o teste da votação real
     r = client.post(url(token), aux.dados_de_edicao(acao="enviar"))
     assert r.status_code == 403
     p.refresh_from_db()

@@ -6,6 +6,7 @@ pelos métodos do model — nunca por `update()` em lote.
 """
 
 import logging
+import re
 import time
 
 from django.conf import settings
@@ -124,8 +125,12 @@ def reivindicar(ra):
 # --- Edição pelo link ---------------------------------------------------------
 
 
+FORMATO_DO_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,200}")
+
+
 def projeto_do_token(token):
-    if not token or len(token) > 200:
+    # Formato fora do que `token_urlsafe` gera: 404 sem consultar o banco (G12).
+    if not token or not FORMATO_DO_TOKEN.fullmatch(token):
         return None
     projeto = (
         Projeto.objects.select_related("turma__curso", "turma__edicao")
@@ -154,14 +159,18 @@ def pode_editar(projeto):
     return motivo_somente_leitura(projeto) is None
 
 
-def travar_para_edicao(projeto_pk):
-    """Trava a linha do projeto (dentro de uma transação) e confere se ainda é editável."""
+def travar_para_edicao(projeto_pk, token):
+    """Trava a linha do projeto (dentro de uma transação) e confere se ainda é editável.
+
+    Confere o token de novo já sob a trava: se a coordenação regerou o link
+    entre a leitura e a gravação, o link antigo não grava.
+    """
     projeto = (
         Projeto.objects.select_for_update(of=("self",))
         .select_related("turma__curso", "turma__edicao")
         .get(pk=projeto_pk)
     )
-    if not pode_editar(projeto):
+    if not token_confere(token, projeto.token_edicao_hash) or not pode_editar(projeto):
         raise EdicaoEncerrada
     return projeto
 

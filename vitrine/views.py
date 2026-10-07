@@ -62,6 +62,14 @@ def _link_invalido(request):
     return render(request, "vitrine/link_invalido.html", status=404)
 
 
+def _403_com_estado_atual(request, token):
+    """Recarrega o projeto: o que o POST leu antes da trava pode estar velho (corrida)."""
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:  # o link foi substituído no meio do envio
+        return _link_invalido(request)
+    return _tela_de_edicao(request, projeto, token, status=403)
+
+
 def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, status=200):
     motivo = servicos.motivo_somente_leitura(projeto)
     contexto = {
@@ -89,6 +97,8 @@ def editar(request, token):
     if request.method == "GET":
         return _tela_de_edicao(request, projeto, token)
 
+    if not servicos.pode_editar(projeto):
+        return _tela_de_edicao(request, projeto, token, status=403)
     acao = request.POST.get("acao")
     if acao not in ("salvar", "enviar"):
         return _tela_de_edicao(request, projeto, token, status=400)
@@ -96,19 +106,21 @@ def editar(request, token):
     form = formset = None
     try:
         with transaction.atomic():
-            travado = servicos.travar_para_edicao(projeto.pk)
+            travado = servicos.travar_para_edicao(projeto.pk, token)
             form = ProjetoGrupoForm(request.POST, instance=travado)
             formset = integrante_formset(travado, data=request.POST)
             if not (form.is_valid() and formset.is_valid()):
                 transaction.set_rollback(True)
             else:
-                form.save()
+                # Só os campos que o grupo edita (a spec proíbe regravar a linha inteira).
+                travado = form.save(commit=False)
+                travado.save(update_fields=[*ProjetoGrupoForm.Meta.fields, "atualizado_em"])
                 formset.save()
                 if acao == "enviar":
                     servicos.enviar_para_revisao(travado)
     except (servicos.EdicaoEncerrada, ValidationError):
         # ValidationError: as travas da spec 01 vivem no save() (a votação abriu no meio do envio).
-        return _tela_de_edicao(request, projeto, token, status=403)
+        return _403_com_estado_atual(request, token)
     except servicos.PendenciasParaEnviar as erro:
         # A transação foi desfeita: remonta os formulários só com o que o grupo
         # digitou (os objetos antigos já carregam ids de linhas que não existem).
