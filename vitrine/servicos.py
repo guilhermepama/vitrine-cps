@@ -2,7 +2,7 @@
 
 Fica fora das views para ser testada sem HTTP. Regra da spec 01 para quem usa
 os models: `status`, `slug` e `turma` mudam só por `save()` na instância ou
-pelos métodos do model — nunca por `QuerySet.update()`.
+pelos métodos do model — nunca por `update()` em lote.
 """
 
 import logging

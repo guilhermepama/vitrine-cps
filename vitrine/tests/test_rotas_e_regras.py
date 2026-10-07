@@ -41,8 +41,8 @@ def test_nenhum_update_em_lote_no_app():
     for arquivo in PASTA_DO_APP.glob("*.py"):
         codigo = arquivo.read_text(encoding="utf-8")
         assert "bulk_update" not in codigo, arquivo.name
-        assert not re.search(r"\.objects[^\n]*\.update\(", codigo), arquivo.name
-        assert not re.search(r"\.filter\([^\n]*\)\.update\(", codigo), arquivo.name
+        # Em qualquer parte (inclusive `.update(` numa linha seguinte ou numa variável).
+        assert not re.search(r"\.update\(", codigo), arquivo.name
 
 
 def test_o_app_nao_le_o_ip_direto():

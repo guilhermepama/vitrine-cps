@@ -2,8 +2,7 @@
 
 - **Responsável**: Cleiton (@gustimmolp)
 - **Status**: pronta para implementar (pareceres de 03/10 e 04/10 e as
-  decisões do coordenador incorporados; aguardando a aprovação final no
-  PR #23)
+  decisões do coordenador incorporados; aprovada e na `main` pelo PR #23)
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
@@ -540,8 +539,9 @@ inválido (404).
   importa porque o CSRF lê o corpo inteiro **antes** da view: sem ele, uma
   requisição enorme é lida inteira antes de qualquer validação. Confirmar no
   deploy com um upload de imagem de 3 MB.
-- **Junto das fatias 3 e 4 — ajuste dos dois testes do #38** descritos em
-  "Riscos" (arquivo `tests/test_logs_token_edicao.py`).
+- **Ajuste dos dois testes do #38** descritos em "Riscos" (arquivo
+  `tests/test_logs_token_edicao.py`): feito pelo coordenador no #39, já na
+  `main`.
 - **Spec 01, tabela de status (linha de "grupo salva pelo link")**: hoje diz
   que o grupo ao salvar vai para `em_revisao`. Com "Salvar" mantendo o
   status e "Enviar para revisão" mudando, a linha precisa de atualização.

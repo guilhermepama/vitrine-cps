@@ -22,6 +22,15 @@ def _recusado(client, ra, **extra):
     return client.post(URL, {"ra": ra}, **extra)
 
 
+def _contadores(client):
+    """(falhas do IP do cliente de teste, falhas globais) na janela atual."""
+    request = client.get(URL).wsgi_request
+    return (
+        cache.get(servicos.chave_falhas_ip(request), 0),
+        cache.get(servicos.chave_falhas_global(), 0),
+    )
+
+
 @pytest.mark.django_db
 def test_ra_valido_mostra_o_link_e_grava_so_o_hash(client):
     p = aux.projeto_reivindicavel()
@@ -33,8 +42,26 @@ def test_ra_valido_mostra_o_link_e_grava_so_o_hash(client):
     assert p.reivindicado_em is not None and p.token_edicao_gerado_em is not None
     token = html.split("/grupo/editar/")[1].split('"')[0].strip("/")
     assert p.token_edicao_hash == hash_token(token)
-    assert token not in (p.token_edicao_hash,)  # o token em claro não está no banco
     assert "no-store" in r["Cache-Control"]
+
+
+@pytest.mark.django_db
+def test_formulario_avisa_que_o_link_aparece_uma_vez(client):
+    html = client.get(URL).content.decode()
+    assert "uma única vez" in html
+
+
+@pytest.mark.django_db
+def test_pagina_do_link_tem_link_completo_copiar_e_abrir(client, settings):
+    settings.URL_PUBLICA = "https://vitrine.exemplo.com.br"
+    aux.projeto_reivindicavel()
+    html = client.post(URL, {"ra": aux.RA}).content.decode()
+    link = "https://vitrine.exemplo.com.br/grupo/editar/"
+    assert f'value="{link}' in html
+    assert f'href="{link}' in html
+    assert 'id="copiar"' in html
+    assert "Abrir edição do projeto" in html
+    assert "só esta vez" in html
 
 
 @pytest.mark.django_db
@@ -135,19 +162,32 @@ def test_depois_de_50_falhas_do_mesmo_ip_a_proxima_e_429(client):
 
 
 @pytest.mark.django_db
-def test_sucesso_nao_consome_o_limite(client, django_assert_num_queries):
+def test_sucesso_nao_consome_o_limite(client):
     aux.projeto_reivindicavel()
     for _ in range(5):
         _recusado(client, "9999999")
-    antes = cache.get(servicos.chave_falhas_global())
+    ip, glob = _contadores(client)
+    assert ip == glob == 5
     assert client.post(URL, {"ra": aux.RA}).status_code == 200
-    assert cache.get(servicos.chave_falhas_global()) == antes
+    assert _contadores(client) == (ip, glob)
 
 
 @pytest.mark.django_db
 def test_limite_global_vale_para_qualquer_ip(client):
     cache.set(servicos.chave_falhas_global(), servicos.LIMITE_FALHAS_GLOBAL, 60)
     assert _recusado(client, "9999999", REMOTE_ADDR="198.51.100.7").status_code == 429
+
+
+@pytest.mark.django_db
+def test_falhas_de_ips_diferentes_somam_na_chave_global(client):
+    cache.set(servicos.chave_falhas_global(), servicos.LIMITE_FALHAS_GLOBAL - 2, 60)
+    # A 999ª e a 1.000ª falhas (IPs distintos) ainda são processadas (400)...
+    assert _recusado(client, "9999999", REMOTE_ADDR="198.51.100.1").status_code == 400
+    assert cache.get(servicos.chave_falhas_global()) == servicos.LIMITE_FALHAS_GLOBAL - 1
+    assert _recusado(client, "9999999", REMOTE_ADDR="198.51.100.2").status_code == 400
+    assert cache.get(servicos.chave_falhas_global()) == servicos.LIMITE_FALHAS_GLOBAL
+    # ... e a próxima, de um IP novo, já esbarra no limite global.
+    assert _recusado(client, "9999999", REMOTE_ADDR="198.51.100.3").status_code == 429
 
 
 @pytest.mark.django_db
@@ -182,6 +222,23 @@ def test_ra_nao_aparece_no_log_nem_na_resposta_de_erro(client, caplog):
 
 
 @pytest.mark.django_db
+def test_ra_em_claro_nao_fica_no_banco(client):
+    p = aux.projeto_reivindicavel()
+    _recusado(client, "7654321")
+    client.post(URL, {"ra": aux.RA})
+    textos = [
+        str(valor)
+        for valor in Projeto.objects.filter(pk=p.pk).values().get().values()
+        if valor is not None
+    ]
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT cache_key, value FROM cache_django")
+        textos += [f"{chave} {valor}" for chave, valor in cursor.fetchall()]
+    assert textos
+    assert not any(aux.RA in t or "7654321" in t for t in textos)
+
+
+@pytest.mark.django_db
 def test_projeto_so_e_reivindicado_uma_vez_e_fica_com_status_pre_cadastrado(client):
     p = aux.projeto_reivindicavel()
     client.post(URL, {"ra": aux.RA})
@@ -210,6 +267,7 @@ def test_dois_projetos_com_o_mesmo_ra_na_edicao_nao_sao_reivindicados(client, ca
     assert r.status_code == 400
     assert Projeto.objects.filter(reivindicado_em__isnull=False).count() == 0
     assert "Mais de um projeto" in caplog.text and aux.RA not in caplog.text
+    assert cache.get(servicos.chave_falhas_global(), 0) == 1  # conta como falha
 
 
 @pytest.mark.django_db

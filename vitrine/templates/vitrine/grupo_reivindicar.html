@@ -6,6 +6,10 @@
 <p>ÁREA DO GRUPO</p>
 <h1>Publique o projeto do seu grupo</h1>
 <p>Digite o RA do representante informado pela coordenação. Só o representante acessa a edição.</p>
+<p>
+  Ao acessar, você verá o link de edição do projeto <strong>uma única vez</strong>. Guarde esse link:
+  ele é o único acesso de edição e só a coordenação pode gerar outro.
+</p>
 
 {% if recusado %}
 <div class="erro" role="alert">
@@ -21,7 +25,7 @@
   {% csrf_token %}
   <label for="ra">RA do representante</label>
   <input id="ra" name="ra" type="text" inputmode="numeric" maxlength="60" placeholder="Somente números" required>
-  <p>5 a 20 dígitos, sem pontos ou traços.</p>
+  <p>De 5 a 20 dígitos. Pode digitar com ou sem pontos e traços.</p>
   <button type="submit">Acessar meu projeto</button>
 </form>
 {% endblock %}
