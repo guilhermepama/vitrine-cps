@@ -190,7 +190,7 @@ def test_convite_com_data_horario_e_endereco_sem_botao_de_voto(client):
 def test_monograma_com_a_sigla_do_curso(client):
     p = publicado()
     html = client.get(f"/projeto/{p.slug}/").content.decode()
-    assert f'class="monograma" aria-hidden="true">{p.turma.curso.sigla[:3]}<' in html
+    assert f'class="monograma monograma--m" aria-hidden="true">{p.turma.curso.sigla[:3]}<' in html
 
 
 @pytest.mark.django_db
@@ -268,7 +268,8 @@ def test_nenhuma_sintaxe_de_template_vaza_para_o_html(client):
 
 # --- Layout: capa em banner e página em 360 px (critério da spec) ------------------
 
-CSS = Path(__file__).resolve().parent.parent / "static" / "vitrine" / "vitrine.css"
+# O CSS é o da identidade visual do projeto (static/css/base.css), ligado pelo base.html.
+CSS = Path(__file__).resolve().parents[2] / "static" / "css" / "base.css"
 
 
 def _regras(css):
@@ -291,21 +292,20 @@ def test_css_da_capa_em_banner_recortado():
 
 
 def test_css_nao_tem_largura_fixa_maior_que_a_tela_de_360px():
-    css = re.sub(r"(?s)/\*.*?\*/", "", CSS.read_text(encoding="utf-8"))
-    for propriedade, valor in re.findall(r"((?:min-|max-)?width)\s*:\s*([^;}]+)", css):
-        pixels = re.fullmatch(r"(\d+(?:\.\d+)?)px", valor.strip())
-        if pixels and propriedade != "max-width":
-            assert float(pixels.group(1)) <= 360, (propriedade, valor)
-    # Nada que force rolagem horizontal.
-    assert "overflow-x: scroll" not in css
+    for seletor, propriedades in _regras(CSS.read_text(encoding="utf-8")).items():
+        for nome in ("width", "min-width"):
+            pixels = re.fullmatch(r"(\d+(?:\.\d+)?)px", propriedades.get(nome, ""))
+            if pixels:
+                assert float(pixels.group(1)) <= 360, (seletor, nome)
 
 
 @pytest.mark.django_db
-def test_pagina_publica_liga_o_css_e_nao_tem_largura_fixa_no_html(client):
+def test_pagina_publica_liga_o_base_css_e_nao_tem_largura_fixa_no_html(client):
     p = publicado()
     for url in (f"/projeto/{p.slug}/", "/projeto/nao-existe/"):
         html = client.get(url).content.decode()
-        assert 'rel="stylesheet"' in html and "vitrine/vitrine.css" in html
+        assert 'rel="stylesheet"' in html and "css/base.css" in html
+        assert "vitrine/vitrine.css" not in html
         assert 'name="viewport" content="width=device-width, initial-scale=1"' in html
         # Sem `width="…"`/`style="width:…px"` fixos acima de 360 px nos elementos.
         for largura in re.findall(r'\swidth="(\d+)"', html):

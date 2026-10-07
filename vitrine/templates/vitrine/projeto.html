@@ -1,10 +1,8 @@
 {% extends "base.html" %}
-{% load static %}
 
 {% block titulo %}{{ projeto.titulo }} — Vitrine CPS{% endblock %}
 
 {% block meta %}
-  <link rel="stylesheet" href="{% static 'vitrine/vitrine.css' %}">
   <meta property="og:title" content="{{ projeto.titulo }}">
   <meta property="og:description" content="{{ projeto.resumo }}">
   {% if og_imagem %}<meta property="og:image" content="{{ og_imagem }}">{% endif %}
@@ -15,7 +13,7 @@
 {% endblock %}
 
 {% block conteudo %}
-<p>Mostra de Projetos {{ edicao.nome }} · Fatec &amp; Etec Olímpia</p>
+<p>Edição {{ edicao.nome }}</p>
 
 {% include "vitrine/_corpo_projeto.html" %}
 

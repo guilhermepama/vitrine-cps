@@ -5,7 +5,7 @@
 {% if projeto.capa %}<img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">{% endif %}
 
 <p>
-  <span class="monograma" aria-hidden="true">{{ projeto.turma.curso.sigla|slice:":3" }}</span>
+  <span class="monograma monograma--m" aria-hidden="true">{{ projeto.turma.curso.sigla|slice:":3" }}</span>
   {{ projeto.turma.rotulo }}{% if projeto.componente_origem %} · {{ projeto.componente_origem }}{% endif %}
 </p>
 
@@ -41,7 +41,7 @@
 <ul>
   {% for integrante in projeto.integrantes.all %}
   <li>
-    <span class="monograma" aria-hidden="true">{{ integrante.nome|slice:":1"|upper }}</span>
+    <span class="monograma monograma--m" aria-hidden="true">{{ integrante.nome|slice:":1"|upper }}</span>
     {{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}
   </li>
   {% endfor %}
