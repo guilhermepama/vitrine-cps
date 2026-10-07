@@ -4,6 +4,7 @@ Ficha da banca para imprimir em A4 (spec 06). Sem JavaScript.
 Do projeto só saem número (id) e título: nada de RA, representante,
 integrantes ou link de edição.
 {% endcomment %}
+{% block classe_main %}{% endblock %}{# a ficha controla a própria paginação #}
 {% block titulo %}{{ titulo }} — {{ edicao.nome }} — Vitrine CPS{% endblock %}
 {% block meta %}
 <style>
