@@ -1,7 +1,8 @@
-"""Validação de entrada da edição (G12) — specs/02-vitrine-publica.md."""
+"""Validação de entrada da edição e das imagens (G12) — specs/02-vitrine-publica.md."""
 
 import pytest
 
+from cadastro.tests import fabricas
 from vitrine.tests import auxiliares as aux
 
 
@@ -40,3 +41,19 @@ def test_nome_e_papel_do_integrante_acima_de_60_sao_recusados(client):
 def test_token_fora_do_formato_da_404_sem_consultar_o_banco(client, django_assert_num_queries, token):
     with django_assert_num_queries(0):
         assert client.get(url(token)).status_code == 404
+
+
+@pytest.mark.django_db
+def test_legenda_acima_de_120_e_recusada(client):
+    p, token = aux.projeto_com_link()
+    r = client.post(
+        f"/grupo/editar/{token}/imagem/", {"tipo": "extra", "arquivo": fabricas.imagem(), "legenda": "l" * 121}
+    )
+    assert r.status_code == 400
+    assert p.imagens.count() == 0
+
+
+@pytest.mark.django_db
+def test_id_de_imagem_que_nao_e_inteiro_da_404(client):
+    _, token = aux.projeto_com_link()
+    assert client.post(f"/grupo/editar/{token}/imagem/abc/remover/").status_code == 404
