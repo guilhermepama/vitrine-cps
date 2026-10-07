@@ -4,6 +4,9 @@ As páginas das specs herdam este arquivo pelos blocos `titulo`, `meta` e
 `conteudo`. A identidade visual entra depois sem mudar o nome nem os blocos.
 """
 
+import re
+
+from django.contrib.staticfiles import finders
 from django.template import engines
 
 FILHO = (
@@ -26,3 +29,41 @@ def test_blocos_titulo_meta_e_conteudo():
 def test_titulo_padrao():
     html = engines["django"].from_string('{% extends "base.html" %}').render()
     assert "<title>Vitrine CPS</title>" in html
+
+
+def _pagina(filho='{% extends "base.html" %}'):
+    return engines["django"].from_string(filho).render()
+
+
+def test_carrega_o_css_da_identidade():
+    assert '<link rel="stylesheet" href="/static/css/base.css">' in _pagina()
+    assert finders.find("css/base.css"), "static/css/base.css precisa ser achado pelo staticfiles"
+
+
+def test_meta_vem_depois_do_css_base():
+    """O CSS de um app (bloco meta) entra depois do base.css e pode sobrescrevê-lo."""
+    html = engines["django"].from_string(FILHO).render()
+    assert html.index("css/base.css") < html.index('property="og:title"')
+
+
+def test_cabecalho_e_rodape_sem_links_nem_formulario():
+    """G8: nada no esqueleto comum leva ao voto; não há página inicial para linkar."""
+    html = _pagina()
+    assert "<a " not in html and "<form" not in html
+
+
+def test_cabecalho_e_rodape_nao_saem_na_impressao():
+    """A ficha da banca herda base.html: o cabeçalho não pode ir para o papel."""
+    html = _pagina()
+    assert re.search(r'<header class="[^"]*nao-imprime', html)
+    assert re.search(r'<footer class="[^"]*nao-imprime', html)
+
+
+def test_cabecalho_e_rodape_podem_ser_trocados():
+    html = _pagina('{% extends "base.html" %}{% block topo %}{% endblock %}{% block rodape %}{% endblock %}')
+    assert "<header" not in html and "<footer" not in html
+
+
+def test_pagina_pode_tirar_o_layout_do_main():
+    """A ficha da banca controla a própria paginação e zera as classes do <main>."""
+    assert "<main class=\"\">" in _pagina('{% extends "base.html" %}{% block classe_main %}{% endblock %}')
