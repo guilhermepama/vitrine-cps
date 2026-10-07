@@ -142,6 +142,12 @@ def test_404_com_barra_dupla_sai_sem_o_token(client):
         f"/grupo/editar/{TOKEN}/../",
         f"/grupo/editar/{TOKEN}/../../outra/",
         f"/grupo/editar/{TOKEN}/x/../../../",
+        f"/grupo/editar/x/../{TOKEN}/",
+        f"/grupo/editar/../editar/{TOKEN}/",
+        f"/grupo/editar/a/b/../../{TOKEN}/",
+        f"/grupo/editar/x/../../grupo/editar/{TOKEN}/",
+        f"/grupo/editar/x/../{TOKEN}/../",
+        f"/a/b/../../grupo/x/../editar/{TOKEN}/x/../../../",
     ],
 )
 def test_ponto_ponto_depois_do_token_nao_tira_o_token_da_deteccao(caminho):
@@ -160,7 +166,7 @@ def test_ponto_ponto_depois_do_token_nao_tira_o_token_da_deteccao(caminho):
     assert registro.exc_info is None
     texto = logging.Formatter().format(registro)
     assert TOKEN not in texto
-    assert f"/grupo/editar/{MASCARA_ESPERADA}/" in texto
+    assert MASCARA_ESPERADA in texto
     assert "ValueError: falhou em" in texto
 
 

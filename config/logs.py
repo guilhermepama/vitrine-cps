@@ -18,38 +18,33 @@ herda o filtro do handler.
 """
 
 import logging
-import posixpath
 import re
 
 PREFIXO = "/grupo/editar/"
 MASCARA = "<token>"
 # O caminho do log é o pedido como chegou: barra dupla, maiúsculas e "../"
-# também caem no 404 e levam o token. A detecção procura primeiro no caminho
-# como chegou (o normpath resolveria "<token>/../" e apagaria o token da rota)
-# e usa o caminho normalizado só para "/grupo/x/../editar/<token>". A troca no
-# texto aceita barras repetidas e qualquer caixa.
-_NO_CAMINHO = re.compile(r"/+grupo/+editar/+([^/\s'\"]+)", re.IGNORECASE)
-_ROTA = re.compile(r"^/grupo/editar/([^/]+)", re.IGNORECASE)
+# também caem no 404 e levam o token, e o token pode estar em qualquer
+# segmento ("/grupo/editar/x/../<token>/../"). Em vez de adivinhar a posição,
+# todo caminho com um segmento "editar" (qualquer caixa) tem cada segmento
+# longo tratado como token. Mascarar a mais não faz mal; a menos vaza o link.
+_SEGMENTOS_DA_ROTA = {"grupo", "editar", "imagem", "remover", ".", ".."}
 _NO_TEXTO = re.compile(r"(/+grupo/+editar/+)[^/\s'\"]+", re.IGNORECASE)
 
 
-def _normalizado(caminho):
-    # Junta as barras depois do "/" inicial: normpath preserva "//" no começo.
-    return posixpath.normpath(re.sub(r"/+", "/", "/" + caminho))
-
-
-def _token(record):
+def _tokens(record):
     caminho = getattr(getattr(record, "request", None), "path_info", None)
     if not isinstance(caminho, str):
-        return None
-    achado = _NO_CAMINHO.search(caminho) or _ROTA.match(_normalizado(caminho))
-    return achado.group(1) if achado else None
+        return []
+    segmentos = [s for s in caminho.split("/") if s]
+    if not any(s.lower() == "editar" for s in segmentos):
+        return []
+    return [s for s in segmentos if s.lower() not in _SEGMENTOS_DA_ROTA]
 
 
 class FiltroTokenEdicao(logging.Filter):
     def filter(self, record):
-        token = _token(record)
-        if token is None:
+        tokens = _tokens(record)
+        if not tokens:
             return True
         texto = record.getMessage()
         if record.exc_info and record.exc_info[0] is not None:
@@ -58,8 +53,9 @@ class FiltroTokenEdicao(logging.Filter):
         # caminho (mensagem da exceção), só troca um texto que pareça token,
         # para não desfigurar a linha trocando uma letra solta.
         texto = _NO_TEXTO.sub(lambda m: m.group(1) + MASCARA, texto)
-        if len(token) >= 8:
-            texto = texto.replace(token, MASCARA)
+        for token in sorted(set(tokens), key=len, reverse=True):
+            if len(token) >= 8:
+                texto = texto.replace(token, MASCARA)
         record.msg = texto
         record.args = ()
         record.exc_info = None
