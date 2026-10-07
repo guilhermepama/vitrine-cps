@@ -48,9 +48,10 @@ body {
   color: var(--cor-texto);
   background: var(--cor-fundo);
   line-height: 1.5;
+  overflow-wrap: break-word; /* URL ou palavra longa não estoura a tela de 360 px */
 }
-img { max-width: 100%; display: block; }
-h1, h2, h3, p { margin: 0; }
+img { max-width: 100%; height: auto; display: block; }
+h1, h2, h3, p, figure { margin: 0; }
 h1, h2, h3 { line-height: 1.2; }
 
 /* ---------- LAYOUT ---------- */
@@ -137,6 +138,10 @@ h1, h2, h3 { line-height: 1.2; }
   border-radius: 12px; padding: var(--esp-5);
 }
 .cartao--tracejado { border-style: dashed; border-color: var(--cor-borda-forte); }
+
+/* ---------- CAPA DO PROJETO (vitrine, spec 02) ---------- */
+/* Recorta qualquer capa na proporção do Open Graph (~1,91:1), sem distorcer. */
+.banner { display: block; width: 100%; aspect-ratio: 1.91 / 1; object-fit: cover; }
 
 /* ---------- FORMULÁRIOS ---------- */
 .rotulo { display: block; font: 700 13px/1.5 var(--fonte); color: var(--cor-texto); margin-bottom: var(--esp-1); }
