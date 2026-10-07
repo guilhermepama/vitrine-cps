@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 import pytest
+from django.contrib.admin.models import LogEntry
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
@@ -291,6 +292,83 @@ def test_revogar_link_apaga_o_hash(admin_client):
     p.refresh_from_db()
     assert p.token_edicao_hash is None
     assert p.token_edicao_gerado_em is None
+
+
+def test_revogar_link_exige_um_projeto_so(admin_client):
+    turma = fabricas.turma()
+    a = fabricas.projeto(turma, titulo="A")
+    b = fabricas.projeto(turma, titulo="B", ra_hmac=hash_ra("55555"))
+    a.regerar_link()
+    b.regerar_link()
+    resposta = _acao(admin_client, "acao_revogar_link", a, b)
+    assert "Selecione exatamente um projeto" in _mensagens(resposta)
+    assert Projeto.objects.filter(token_edicao_hash__isnull=False).count() == 2
+
+
+# --- Histórico das ações ----------------------------------------------------------------
+
+
+def _historico(projeto):
+    return list(
+        LogEntry.objects.filter(object_id=str(projeto.pk)).values_list("change_message", flat=True)
+    )
+
+
+def test_acoes_de_moderacao_ficam_no_historico(admin_client, midia):
+    turma = fabricas.turma()
+    publicado = _completo(turma, titulo="Pub")
+    devolvido = fabricas.projeto(
+        turma, titulo="Dev", status="em_revisao", motivo_ajustes="Capa borrada", ra_hmac=hash_ra("66666")
+    )
+    _acao(admin_client, "acao_publicar", publicado)
+    _acao(admin_client, "acao_devolver", devolvido)
+    assert _historico(publicado) == ["Publicado"]
+    assert _historico(devolvido) == ["Devolvido para ajustes: Capa borrada"]
+
+
+def test_link_regerado_e_revogado_ficam_no_historico_sem_o_token(admin_client):
+    p = fabricas.projeto()
+    resposta = _acao(admin_client, "acao_regerar_link", p)
+    token = _mensagens(resposta).split("/grupo/editar/")[1].split("/")[0]
+    _acao(admin_client, "acao_revogar_link", p)
+    historico = _historico(p)
+    assert sorted(historico) == ["Link de edição regerado", "Link de edição revogado"]
+    assert not any(token in m for m in historico)
+
+
+def test_acao_que_nao_muda_nada_nao_entra_no_historico(admin_client):
+    p = fabricas.projeto(status="em_revisao")  # sem motivo: não devolve
+    _acao(admin_client, "acao_devolver", p)
+    assert _historico(p) == []
+
+
+# --- Exclusão ---------------------------------------------------------------------------
+
+
+def test_lista_nao_oferece_apagar_em_lote(admin_client):
+    p = fabricas.projeto()
+    resposta = admin_client.post(LISTA, {"action": "delete_selected", "_selected_action": [p.pk]})
+    assert Projeto.objects.filter(pk=p.pk).exists()
+    assert b'value="delete_selected"' not in admin_client.get(LISTA).content
+    assert resposta.status_code in (200, 302)
+
+
+def test_com_a_votacao_aberta_o_projeto_nao_pode_ser_apagado(admin_client):
+    edicao = fabricas.edicao()
+    p = fabricas.projeto(fabricas.turma(edicao))
+    edicao.votacao_aberta_em = timezone.now() - timedelta(minutes=1)
+    edicao.save()
+    apagar = reverse("admin:cadastro_projeto_delete", args=[p.pk])
+    assert admin_client.get(apagar).status_code == 403
+    assert admin_client.post(apagar, {"post": "yes"}).status_code == 403
+    assert Projeto.objects.filter(pk=p.pk).exists()
+
+
+def test_antes_da_votacao_o_projeto_pode_ser_apagado(admin_client):
+    p = fabricas.projeto()
+    apagar = reverse("admin:cadastro_projeto_delete", args=[p.pk])
+    admin_client.post(apagar, {"post": "yes"})
+    assert not Projeto.objects.filter(pk=p.pk).exists()
 
 
 # --- Edição -----------------------------------------------------------------------------

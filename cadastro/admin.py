@@ -196,6 +196,18 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     readonly_fields = ["status", "slug", "publicado_em", "reivindicado_em", "link_ativo"]
     actions = ["acao_publicar", "acao_devolver", "acao_regerar_link", "acao_revogar_link"]
 
+    def get_actions(self, request):
+        # Sem "apagar selecionados": a exclusão em lote não passa pela trava abaixo.
+        acoes = super().get_actions(request)
+        acoes.pop("delete_selected", None)
+        return acoes
+
+    def has_delete_permission(self, request, obj=None):
+        # Votação aberta: apagar tiraria o projeto da cédula (não há retirada nesta edição).
+        if obj is not None and obj.turma.edicao.votacao_aberta_em is not None:
+            return False
+        return super().has_delete_permission(request, obj)
+
     @admin.display(description="reivindicado", boolean=True)
     def reivindicado(self, projeto):
         return projeto.reivindicado_em is not None
@@ -221,6 +233,7 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
                 de_fora.append(f"{projeto} (falta: {', '.join(pendencias)})")
             else:
                 publicados += 1
+                self.log_change(request, projeto, "Publicado")
         self._resumo(request, f"{publicados} projeto(s) publicado(s).", de_fora)
 
     @admin.action(description="Devolver para ajustes")
@@ -234,6 +247,7 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
                 continue
             if devolveu:
                 devolvidos += 1
+                self.log_change(request, projeto, f"Devolvido para ajustes: {projeto.motivo_ajustes}")
             elif projeto.status not in (Projeto.Status.EM_REVISAO, Projeto.Status.PUBLICADO):
                 de_fora.append(f"{projeto} (status {projeto.get_status_display()})")
             else:
@@ -255,6 +269,7 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
             return
         projeto = projetos[0]
         token = projeto.regerar_link()
+        self.log_change(request, projeto, "Link de edição regerado")  # nunca o token
         # Mostrado uma vez: o token em claro não é gravado em lugar nenhum.
         self.message_user(
             request,
@@ -263,9 +278,14 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
             messages.SUCCESS,
         )
 
-    @admin.action(description="Revogar link de edição")
+    @admin.action(description="Revogar link de edição (um projeto)")
     def acao_revogar_link(self, request, queryset):
-        projetos = list(queryset)
-        for projeto in projetos:
-            projeto.revogar_link()
-        self.message_user(request, f"Link revogado em {len(projetos)} projeto(s).", messages.SUCCESS)
+        # Um por vez: revogar em lote derrubaria o link de todos os grupos num clique.
+        projetos = list(queryset[:2])
+        if len(projetos) != 1:
+            self.message_user(request, "Selecione exatamente um projeto para revogar o link.", messages.ERROR)
+            return
+        projeto = projetos[0]
+        projeto.revogar_link()
+        self.log_change(request, projeto, "Link de edição revogado")
+        self.message_user(request, f"Link de edição de “{projeto}” revogado.", messages.SUCCESS)

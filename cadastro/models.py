@@ -295,14 +295,16 @@ class Projeto(models.Model):
         faltando = self.pendencias_para_publicar()
         if faltando:
             return faltando
-        anterior = (self.status, self.publicado_em)
+        anterior = (self.status, self.publicado_em, self.motivo_ajustes)
         self.status = self.Status.PUBLICADO
         if self.publicado_em is None:
             self.publicado_em = timezone.now()
+        # O motivo é da rodada que terminou: uma devolução futura exige motivo novo.
+        self.motivo_ajustes = ""
         try:
-            self.save(update_fields=["status", "publicado_em", "atualizado_em"])
+            self.save(update_fields=["status", "publicado_em", "motivo_ajustes", "atualizado_em"])
         except ValidationError:
-            self.status, self.publicado_em = anterior  # objeto volta a refletir o banco
+            self.status, self.publicado_em, self.motivo_ajustes = anterior  # objeto volta a refletir o banco
             raise
         return []
 
