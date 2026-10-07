@@ -12,7 +12,7 @@ import re
 from django.db import IntegrityError, transaction
 from django.http import HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
-from django.urls import reverse
+from django.urls import reverse, reverse_lazy
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET, require_POST
 
@@ -22,9 +22,8 @@ from votacao.liberacao import cadastro_valido
 from votacao.models import Voto
 from votacao.servicos import edicao_em_votacao
 
-# TODO(#23): trocar por reverse("vitrine:como_votar") quando a spec 02 entrar.
-# Caminho fixo da spec, sem rota provisória: a página é do app vitrine.
-ROTA_COMO_VOTAR = "/como-votar/"
+# Preguiçoso: o reverse no import quebraria a ordem de carga das URLs.
+ROTA_COMO_VOTAR = reverse_lazy("vitrine:como_votar")
 
 MAX_PROJETO = 2147483647
 _PROJETO_ID = re.compile(r"[0-9]{1,10}")
