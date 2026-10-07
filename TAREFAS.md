@@ -38,7 +38,7 @@ Barbara atua na operação do evento e no ensaio (em horário de aula).
 | Área do grupo (RA + link de edição) e vitrine pública | 02 | `vitrine/` | Cleiton | @gustimmolp | 10/10 e 12/10 |
 | Credenciamento + votação | 03 | `votacao/` | Renan | @ReCroffi | 20/10 |
 | Banca — sistema (ficha para imprimir, digitação, conferência) | 06 | `banca/` | Guilherme | @guilhermepama | 20/10 |
-| Resultados (nota composta 70/30) | 04 | `resultados/` | Renan | @ReCroffi | 27/10 |
+| Resultados (nota composta 70/30) | 04 | `resultados/` | Guilherme (assumida do Renan em 05/10) | @guilhermepama | 27/10 |
 | Roteiro do staff (escrito no ensaio geral) | — | `docs/` | Barbara | (a confirmar) | 22/10 |
 | Banca — operação (fichas no evento, digitação depois) | — | — | Barbara | — | 29 e 30/10 |
 

@@ -36,7 +36,8 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 - Estações, tokens, votos, visitantes, abrir/encerrar votação (spec 03).
 - Jurados, critérios e notas da banca (spec 06). Ranking (spec 04).
 - Login de aluno, envio de link por e-mail, painel próprio.
-- Redimensionar ou converter imagens; leitura direta de `.xlsx` (só CSV).
+- Redimensionar ou converter imagens (a regravação sem metadados, em
+  "Imagens", mantém tamanho e formato); leitura direta de `.xlsx` (só CSV).
 - Grupos e permissões de admin além do superusuário (o grupo
   `digitacao-banca` é da spec 06).
 - Identidade visual e templates públicos.
@@ -66,8 +67,14 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   alteraria o resultado em silêncio.
 - `prazo_edicao`: depois dele, o link de edição do grupo só mostra o
   conteúdo (a tela é da spec 02; a regra é `Edicao.edicao_aberta()`).
-- `banca_conferida_em`: preenchido pelo coordenador após a conferência das
-  fichas (30/10). Vazio = resultado da banca pendente (spec 04).
+- `banca_conferida_em`: escrito **só** pela conferência da spec 06
+  (concluir, reabrir digitação e correção de nota que desfaz), sempre com
+  `save(update_fields=["banca_conferida_em"])` e a `Edicao` travada. Fora
+  disso o campo é somente leitura: `editable=False` (nenhum formulário do
+  admin o recebe) e o `Edicao.save()` **preserva o valor do banco** quando
+  `update_fields` não o inclui (save completo de instância carregada antes
+  não regrava conferência antiga nem apaga uma nova); edição nova nasce
+  vazia. Vazio = resultado da banca pendente (spec 04).
 
 ### Curso e turma
 - Curso é estável entre edições: sigla única (`DSM`, `GTUR`), nome,
@@ -160,6 +167,24 @@ desproporcional para esta edição (revisão do Renan no #17).
   extensão nem no `content_type` enviado.
 - Nome do arquivo gerado pelo servidor: `projetos/<uuid4>.<ext>`, com a
   extensão do formato detectado. O nome original nunca é usado.
+- Resolução até **25 megapixels** (lida do cabeçalho, sem decodificar):
+  acima disso, recusa com mensagem genérica. A limpeza abaixo decodifica a
+  imagem inteira na memória.
+- **Sem metadados** (decisão do coordenador no parecer do PR #46): ao
+  gravar uma imagem nova (`Projeto.save()` e `ImagemProjeto.save()`), o
+  servidor a regrava sem EXIF (GPS, data, aparelho), comentário do JPEG
+  nem textos do PNG; só a orientação fica. O bucket é público, e a foto de celular traz o
+  GPS de onde foi tirada — muitas vezes a casa do aluno, menor de idade
+  na Etec. Mesmo tamanho e formato: JPEG com as mesmas tabelas de
+  quantização, MPO vira JPEG (primeira imagem), WebP em qualidade 90.
+  Efeitos aceitos: imagem animada (APNG, WebP) fica só com o 1º quadro;
+  WebP sem perdas passa a ter perdas; JPEG progressivo vira sequencial. O
+  arquivo regravado não é conferido de novo contra os 3 MB (nos testes o
+  tamanho cai ou fica igual).
+- A validação **decodifica** a imagem inteira: foto cortada (upload
+  interrompido) é recusada com a mesma mensagem do formato, em vez de
+  passar no `verify()` e quebrar na gravação. Custo: até ~100 MB de
+  memória por upload no teto de 25 MP.
 - Com `R2_BUCKET` definido, as imagens vão para o R2 com URL pública
   pelo `R2_PUBLIC_DOMAIN` (sem URL assinada — ADR-006). Sem ele, disco
   local (desenvolvimento).
@@ -247,7 +272,7 @@ desproporcional para esta edição (revisão do Renan no #17).
 | peso_publico | decimal(3,2) | padrão 0,30; **check: cada peso ≥ 0 e `peso_banca + peso_publico = 1`** (logo, cada um ≤ 1) |
 | votacao_aberta_em | datetime, null | preenchido pela spec 03; depois disso, não muda |
 | votacao_encerrada_em | datetime, null | **check: só com `votacao_aberta_em` e ≥ ela** |
-| banca_conferida_em | datetime, null | preenchido pelo coordenador no admin; nasce vazio. Corrigir nota depois disso **apaga** a conferência (spec 06) |
+| banca_conferida_em | datetime, null, `editable=False` | escrito só pela conferência da spec 06, com `update_fields`; o `save()` preserva o valor do banco nos demais saves; nasce vazio. Corrigir nota depois disso **apaga** a conferência (spec 06) |
 | criado_em | datetime auto | |
 
 Métodos: `Edicao.objects.ativa()` (a edição ativa ou `None`),
@@ -351,6 +376,12 @@ nesta edição):
 - [ ] Imagem de 3,1 MB → recusada; GIF → recusado
 - [ ] Nome gravado = `projetos/<uuid>.<ext>`, sem o nome original
 - [ ] Sétima imagem extra → recusada pelo formset
+- [ ] JPEG e WebP com EXIF de GPS, aparelho e orientação → gravados sem GPS nem aparelho, com a orientação; PNG perde EXIF e textos (capa e imagem extra)
+- [ ] JPEG gravado mantém formato e tamanho em pixels; MPO continua `.jpg`
+- [ ] Salvar o projeto de novo não regrava a capa já gravada
+- [ ] PNG de poucos KB com mais de 25 megapixels → recusado
+- [ ] Comentário do JPEG não chega ao arquivo gravado
+- [ ] JPEG cortado → recusado na validação; salvo sem validar → nada gravado
 
 **Moderação**
 - [ ] Publicar em lote: projeto completo vira `publicado` com `publicado_em`; projeto sem capa fica em `em_revisao` e aparece na mensagem

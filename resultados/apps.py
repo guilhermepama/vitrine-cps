@@ -1,4 +1,4 @@
-# Frente: Renan — spec 04 (ver TAREFAS.md).
+# Frente: Guilherme (assumida do Renan em 05/10) — spec 04 (ver TAREFAS.md).
 from django.apps import AppConfig
 
 

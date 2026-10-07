@@ -37,7 +37,7 @@ def superusuario(client):
 def digitacao(client):
     """Staff do grupo digitacao-banca, com todas as permissões dos models da votação:
     mesmo assim não passa — a regra é superusuário, não permissão de model."""
-    grupo = Group.objects.create(name="digitacao-banca")
+    grupo, _ = Group.objects.get_or_create(name="digitacao-banca")  # o app banca cria no post_migrate
     grupo.permissions.set(Permission.objects.filter(content_type__app_label="votacao"))
     usuario = User.objects.create_user("barbara", "barbara@example.com", "senha-forte-123", is_staff=True)
     usuario.groups.add(grupo)

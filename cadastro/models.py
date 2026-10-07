@@ -10,7 +10,7 @@ from django.db.models.lookups import Exact
 from django.utils import timezone
 from django.utils.text import slugify
 
-from cadastro.imagens import caminho_capa, caminho_imagem, validar_imagem
+from cadastro.imagens import caminho_capa, caminho_imagem, remover_metadados, validar_imagem
 from cadastro.seguranca import gerar_token_edicao
 
 somente_https = URLValidator(schemes=["https"])
@@ -31,7 +31,8 @@ class Edicao(models.Model):
     # Preenchidos pela votação (spec 03). Depois de aberta, a edição trava.
     votacao_aberta_em = models.DateTimeField(null=True, blank=True, editable=False)
     votacao_encerrada_em = models.DateTimeField(null=True, blank=True, editable=False)
-    banca_conferida_em = models.DateTimeField(null=True, blank=True)
+    # Escrito só pela conferência da banca e pelas correções (spec 06).
+    banca_conferida_em = models.DateTimeField(null=True, blank=True, editable=False)
     criado_em = models.DateTimeField(auto_now_add=True)
 
     objects = EdicaoQuerySet.as_manager()
@@ -71,7 +72,12 @@ class Edicao(models.Model):
 
     def save(self, *args, **kwargs):
         with transaction.atomic():
-            self._verificar_travas(travar_linha=True)
+            antes = self._verificar_travas(travar_linha=True)
+            if "banca_conferida_em" not in (kwargs.get("update_fields") or ()):
+                # Só a conferência da spec 06 escreve o campo, sempre com
+                # update_fields: save completo de instância velha não regrava
+                # conferência antiga nem apaga uma nova. Edição nova nasce vazia.
+                self.banca_conferida_em = antes["banca_conferida_em"] if antes else None
             super().save(*args, **kwargs)
 
     def _verificar_travas(self, travar_linha=False):
@@ -80,15 +86,16 @@ class Edicao(models.Model):
 
         No save(), a linha da edição fica travada (select_for_update) até o fim
         da transação. Quem abre a votação (spec 03) trava a mesma linha.
+        Devolve os valores do banco (ou None, edição nova).
         """
         if not self.pk:
-            return
+            return None
         consulta = Edicao.objects.select_for_update() if travar_linha else Edicao.objects
         antes = consulta.filter(pk=self.pk).values(
-            "peso_banca", "peso_publico", "votacao_aberta_em", "votacao_encerrada_em"
+            "peso_banca", "peso_publico", "votacao_aberta_em", "votacao_encerrada_em", "banca_conferida_em"
         ).first()
         if not antes or antes["votacao_aberta_em"] is None:
-            return
+            return antes
         erros = {}
         if self.votacao_aberta_em != antes["votacao_aberta_em"]:
             erros["votacao_aberta_em"] = "A abertura da votação não pode ser alterada nem apagada."
@@ -100,6 +107,7 @@ class Edicao(models.Model):
             erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
         if erros:
             raise ValidationError(erros)
+        return antes
 
 
 class Curso(models.Model):
@@ -229,6 +237,7 @@ class Projeto(models.Model):
             self._verificar_travas(travar_edicao=True)
             if not self.slug:
                 self.slug = self._slug_livre()
+            remover_metadados(self.capa)
             super().save(*args, **kwargs)
 
     def _verificar_travas(self, travar_edicao=False):
@@ -363,6 +372,10 @@ class ImagemProjeto(models.Model):
         verbose_name = "imagem do projeto"
         verbose_name_plural = "imagens do projeto"
         ordering = ["ordem", "id"]
+
+    def save(self, *args, **kwargs):
+        remover_metadados(self.arquivo)
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.legenda or f"Imagem {self.pk}"
