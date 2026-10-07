@@ -84,8 +84,10 @@ def remover_metadados(campo):
         raise ValidationError("A imagem tem resolução grande demais.", code="pixels")
     try:
         conteudo = _sem_metadados(campo, formato)
-    except OSError:  # truncada ou corrompida: o `verify()` não pega
-        raise ValidationError("Envie uma imagem JPG, PNG ou WebP.", code="formato")
+    except Exception:
+        # Truncada, corrompida ou com metadado malformado que o `verify()` não
+        # pega (ex.: struct.error do EXIF): recusa como formato, nunca 500 (G12).
+        raise ValidationError("Envie uma imagem JPG, PNG ou WebP.", code="formato") from None
     campo.file = ContentFile(conteudo, name=campo.name)
 
 
@@ -94,6 +96,8 @@ def _sem_metadados(campo, formato):
     with Image.open(campo) as imagem:
         imagem.info.pop("comment", None)  # o Pillow regrava o comentário do JPEG
         orientacao = imagem.getexif().get(ORIENTACAO)
+        if not (isinstance(orientacao, int) and 1 <= orientacao <= 8):
+            orientacao = None  # valor fora do padrão EXIF (texto, 0, 99): descarta
         exif = Image.Exif()
         if orientacao:
             exif[ORIENTACAO] = orientacao
