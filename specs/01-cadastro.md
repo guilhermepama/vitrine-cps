@@ -1,7 +1,7 @@
 # Spec — Cadastro (edições, cursos, turmas, projetos) e admin
 
 - **Responsável**: Guilherme (@guilhermepama)
-- **Status**: em implementação — models entregues (PR #17); importação neste PR (2/3); admin no 3/3
+- **Status**: implementada — models (PR #17), importação (PR #19) e admin/moderação (3/3)
 - **Depende de**: ADR-002 (stack), ADR-006 (R2), ADR-007 (pesos), ADR-009
   (cadastro pelo grupo), spec 00 (esqueleto)
 - **Absorve a spec 05**: o admin do cadastro está aqui; estações e
@@ -119,6 +119,21 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   escreve no projeto antes de rodar a ação); sem motivo, o projeto fica
   como está e aparece na mensagem.
 - `publicado_em` é gravado na primeira publicação e não muda depois.
+- **Publicar limpa `motivo_ajustes`**: o motivo é da rodada que terminou;
+  uma devolução futura exige motivo novo.
+- **Histórico**: Publicar, Devolver (com o motivo), Regerar e Revogar link
+  ficam no histórico do admin (`LogEntry`), **sem o token**. Ação que não
+  muda nada não entra no histórico.
+- **Salvar o formulário do projeto no admin grava só os campos alterados**
+  (`update_fields`) e só se o projeto não mudou desde que o formulário foi
+  aberto: o formulário leva a versão (`atualizado_em`) escondida, conferida
+  com as linhas da `Edicao` e do `Projeto` travadas. Desatualizado → recusa
+  com mensagem para recarregar; nada é regravado (link, status,
+  `publicado_em`, texto que o grupo salvou).
+- **Exclusão de projeto**: uma por vez, pela tela do projeto (sem "apagar
+  selecionados", que não passa pela trava). Com a votação da edição aberta,
+  recusada (403); a abertura é relida com a linha da `Edicao` travada antes
+  de apagar.
 - `status` é **somente leitura no admin**: muda só pelas ações (Publicar,
   Devolver para ajustes) e pelo fluxo do grupo (spec 02), que aplicam os
   requisitos e as travas.
@@ -206,8 +221,11 @@ desproporcional para esta edição (revisão do Renan no #17).
 - Comparações de hash com `hmac.compare_digest`.
 - **Regerar link** (ação do admin, um projeto por vez): grava novo hash;
   o link anterior deixa de valer na hora; o admin vê o link novo **uma
-  vez**, na mensagem de confirmação, para repassar ao grupo.
-- **Revogar link**: apaga o hash; nenhum link vale até regerar.
+  vez**, numa página de confirmação sem cache (`no-store`), para repassar
+  ao grupo. Não vai em mensagem do Django: a mensagem viaja num cookie
+  assinado, não cifrado, e o token ficaria gravado no navegador.
+- **Revogar link** (um projeto por vez): apaga o hash; nenhum link vale
+  até regerar.
 - **Projeto criado à mão no admin** (plano B, turma sem lista): o
   formulário tem um campo "RA do representante" **só de escrita** — vazio
   ao abrir, nunca reexibido; ao salvar, grava só o `ra_hmac`. Obrigatório
@@ -392,6 +410,13 @@ nesta edição):
 - [ ] Com a votação aberta: publicar, devolver para ajustes e trocar a turma do projeto → `ValidationError`, nada muda no banco
 - [ ] Trocar a turma do projeto para turma de outra edição → `ValidationError`, mesmo antes de abrir a votação
 - [ ] `status` não é editável no formulário do admin
+- [ ] Publicar limpa `motivo_ajustes`
+- [ ] Publicar, Devolver, Regerar e Revogar entram no histórico do admin, sem o token; ação sem efeito não entra
+- [ ] Link revogado (ou projeto publicado) por outra requisição enquanto o formulário do admin é salvo → o salvar não desfaz
+- [ ] Formulário do admin aberto antes de o grupo salvar (ou de uma ação) → recusado com mensagem; o que foi gravado depois é preservado
+- [ ] Lista de projetos sem "apagar selecionados"; com a votação aberta, apagar → 403, inclusive se a votação abrir depois da checagem de permissão
+- [ ] Link regerado aparece só na página de confirmação, que tem `no-store` e não grava cookie com o token
+- [ ] Regerar e Revogar com mais de um projeto selecionado → recusado
 - [ ] Slug alterado direto no model (`p.slug = "outro"; p.save()`) → `ValidationError`, slug do banco inalterado
 - [ ] `votacao_foi_aberta()`: nulo → falso; passado e instante exato → verdadeiro; futuro → falso
 - [ ] Publicar enquanto outra transação abre a votação → espera e é recusado (teste de concorrência)

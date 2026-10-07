@@ -159,6 +159,17 @@ def test_republicar_nao_muda_publicado_em(settings, tmp_path):
     assert p.publicado_em == primeira
 
 
+def test_publicar_limpa_o_motivo_da_rodada_anterior(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = _completo()
+    p.motivo_ajustes = "Capa borrada"
+    p.save()
+    p.publicar()
+    p.refresh_from_db()
+    assert p.motivo_ajustes == ""
+    assert p.devolver_para_ajustes() is False  # devolução nova exige motivo novo
+
+
 def test_devolver_exige_motivo():
     p = fabricas.projeto(status="em_revisao")
     assert p.devolver_para_ajustes() is False
