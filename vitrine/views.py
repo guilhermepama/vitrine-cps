@@ -9,6 +9,7 @@ from functools import wraps
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.http import HttpResponseNotFound
 from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
@@ -147,6 +148,9 @@ def imagem(request, token):
     projeto = servicos.projeto_do_token(token)
     if projeto is None:
         return _link_invalido(request)
+    # Quem não pode editar leva 403 antes de qualquer leitura do arquivo.
+    if not servicos.pode_editar(projeto):
+        return _tela_de_edicao(request, projeto, token, status=403)
     # Nenhuma requisição leva mais de uma imagem.
     if sum(len(arquivos) for _, arquivos in request.FILES.lists()) != 1:
         return _tela_de_edicao(request, projeto, token, erro_imagem="Envie uma imagem por vez.", status=400)
@@ -157,7 +161,11 @@ def imagem(request, token):
     dados = form.cleaned_data
     try:
         servicos.enviar_imagem(projeto.pk, token, dados["tipo"], dados["arquivo"], dados["legenda"])
-    except (servicos.EdicaoEncerrada, ValidationError):
+    except servicos.EdicaoEncerrada:
+        return _403_com_estado_atual(request, token)
+    except ValidationError as erro:
+        if erro.code in ("formato", "pixels"):  # a imagem foi recusada ao ser regravada
+            return _tela_de_edicao(request, projeto, token, erro_imagem=" ".join(erro.messages), status=400)
         return _403_com_estado_atual(request, token)
     except servicos.LimiteDeImagens:
         return _tela_de_edicao(
@@ -182,6 +190,6 @@ def imagem_remover(request, token, imagem_id):
     except servicos.EdicaoEncerrada:
         return _403_com_estado_atual(request, token)
     except servicos.ImagemInexistente:
-        return _link_invalido(request)
+        return HttpResponseNotFound("Imagem não encontrada.")
     messages.success(request, "Imagem removida.")
     return redirect("vitrine:editar", token=token)

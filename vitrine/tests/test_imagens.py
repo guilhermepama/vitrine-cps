@@ -272,3 +272,69 @@ def test_dois_uploads_simultaneos_com_5_extras_gravam_so_um():
     [t.join() for t in threads]
     assert sorted(resultados) == ["gravou", "limite"]
     assert p.imagens.count() == 6
+
+
+# --- Rodada 3 do parecer -------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_arquivo_invalido_em_projeto_nao_editavel_da_403_sem_ler_o_arquivo(client):
+    p, token = aux.projeto_com_link(status=Projeto.Status.EM_REVISAO)
+    lixo = SimpleUploadedFile("nao-e-imagem.png", b"nada de imagem aqui", content_type="image/png")
+    assert enviar(client, token, "capa", lixo).status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("formato,nome", [("JPEG", "foto.jpg"), ("WEBP", "foto.webp"), ("PNG", "foto.png")])
+def test_jpg_png_e_webp_validos_sao_aceitos(client, formato, nome):
+    p, token = aux.projeto_com_link()
+    assert enviar(client, token, "extra", fabricas.imagem(formato, nome)).status_code == 302
+    assert p.imagens.count() == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("codigo,status", [("formato", 400), ("pixels", 400), ("outro", 403)])
+def test_validation_error_da_imagem_so_vira_403_se_nao_for_da_imagem(client, monkeypatch, codigo, status):
+    from django.core.exceptions import ValidationError
+
+    p, token = aux.projeto_com_link()
+
+    def recusar(*args, **kwargs):
+        raise ValidationError("Mensagem da imagem.", code=codigo)
+
+    monkeypatch.setattr(servicos, "enviar_imagem", recusar)
+    r = enviar(client, token, "capa", fabricas.imagem())
+    assert r.status_code == status
+    if status == 400:
+        assert "Mensagem da imagem." in r.content.decode()
+
+
+GPS = 0x8825
+
+
+def _jpeg_com_gps():
+    import io
+
+    from PIL import Image
+
+    exif = Image.Exif()
+    exif[0x0110] = "Celular do aluno"
+    exif.get_ifd(GPS).update({1: "S", 2: (20.0, 44.0, 12.0), 3: "W", 4: (48.0, 54.0, 3.0)})
+    buffer = io.BytesIO()
+    Image.new("RGB", (20, 20), "red").save(buffer, "JPEG", exif=exif.tobytes())
+    return SimpleUploadedFile("casa.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("tipo", ["capa", "extra"])
+def test_foto_com_gps_sai_do_upload_do_grupo_sem_gps(client, settings, tipo):
+    from PIL import Image
+
+    p, token = aux.projeto_com_link()
+    assert enviar(client, token, tipo, _jpeg_com_gps()).status_code == 302
+    p.refresh_from_db()
+    gravada = p.capa if tipo == "capa" else p.imagens.get().arquivo
+    with Image.open(Path(settings.MEDIA_ROOT) / gravada.name) as imagem:
+        exif = imagem.getexif()
+        assert not exif.get_ifd(GPS)
+        assert 0x0110 not in exif  # nem o modelo do aparelho
