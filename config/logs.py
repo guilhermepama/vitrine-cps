@@ -18,22 +18,33 @@ herda o filtro do handler.
 """
 
 import logging
+import re
 
 PREFIXO = "/grupo/editar/"
 MASCARA = "<token>"
+# O caminho do log é o pedido como chegou: barra dupla, maiúsculas e "../"
+# também caem no 404 e levam o token, e o token pode estar em qualquer
+# segmento ("/grupo/editar/x/../<token>/../"). Em vez de adivinhar a posição,
+# todo caminho com um segmento "editar" (qualquer caixa) tem cada segmento
+# longo tratado como token. Mascarar a mais não faz mal; a menos vaza o link.
+_SEGMENTOS_DA_ROTA = {"grupo", "editar", "imagem", "remover", ".", ".."}
+_NO_TEXTO = re.compile(r"(/+grupo/+editar/+)[^/\s'\"]+", re.IGNORECASE)
 
 
-def _token(record):
+def _tokens(record):
     caminho = getattr(getattr(record, "request", None), "path_info", None)
-    if not isinstance(caminho, str) or not caminho.startswith(PREFIXO):
-        return None
-    return caminho[len(PREFIXO) :].split("/", 1)[0] or None
+    if not isinstance(caminho, str):
+        return []
+    segmentos = [s for s in caminho.split("/") if s]
+    if not any(s.lower() == "editar" for s in segmentos):
+        return []
+    return [s for s in segmentos if s.lower() not in _SEGMENTOS_DA_ROTA]
 
 
 class FiltroTokenEdicao(logging.Filter):
     def filter(self, record):
-        token = _token(record)
-        if token is None:
+        tokens = _tokens(record)
+        if not tokens:
             return True
         texto = record.getMessage()
         if record.exc_info and record.exc_info[0] is not None:
@@ -41,9 +52,10 @@ class FiltroTokenEdicao(logging.Filter):
         # Mesmo um "token" curto e inválido sai mascarado no caminho; fora do
         # caminho (mensagem da exceção), só troca um texto que pareça token,
         # para não desfigurar a linha trocando uma letra solta.
-        texto = texto.replace(PREFIXO + token, PREFIXO + MASCARA)
-        if len(token) >= 8:
-            texto = texto.replace(token, MASCARA)
+        texto = _NO_TEXTO.sub(lambda m: m.group(1) + MASCARA, texto)
+        for token in sorted(set(tokens), key=len, reverse=True):
+            if len(token) >= 8:
+                texto = texto.replace(token, MASCARA)
         record.msg = texto
         record.args = ()
         record.exc_info = None

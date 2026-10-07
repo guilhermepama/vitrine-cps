@@ -12,6 +12,7 @@ o banco).
 
 import logging
 import sys
+import types
 from contextlib import contextmanager
 
 import pytest
@@ -20,6 +21,7 @@ from django.test import RequestFactory
 from config.logs import FiltroTokenEdicao
 
 TOKEN = "token-de-teste-do-grupo-000000000"  # falso, sem entropia (gitleaks)
+MASCARA_ESPERADA = "<token>"
 
 
 @contextmanager
@@ -102,3 +104,75 @@ def test_registro_sem_request_ou_de_outra_rota_passa_intacto():
     assert FiltroTokenEdicao().filter(outra) is True
     assert outra.args == ("/projeto/a/",)
     assert hasattr(outra, "request")
+
+
+# --- Variações do caminho (revisão posterior do #38) -------------------------------
+
+
+@pytest.mark.parametrize(
+    "caminho",
+    [
+        f"/grupo/editar//{TOKEN}/imagem/",
+        f"/grupo//editar/{TOKEN}/",
+        f"/grupo/editar///{TOKEN}",
+        f"/GRUPO/Editar/{TOKEN}/",
+        f"/grupo/x/../editar/{TOKEN}/",
+    ],
+)
+def test_variacoes_do_caminho_tambem_saem_sem_o_token(caminho):
+    registro = logging.LogRecord("django.request", logging.WARNING, __file__, 1, "Not Found: %s", (caminho,), None)
+    registro.request = types.SimpleNamespace(path_info=caminho)
+    assert FiltroTokenEdicao().filter(registro) is True
+    assert TOKEN not in registro.getMessage()
+    assert MASCARA_ESPERADA in registro.getMessage()
+
+
+@pytest.mark.urls("tests.urls_logs_token")
+def test_404_com_barra_dupla_sai_sem_o_token(client):
+    with _captura(logging.getLogger("django.request")) as linhas:
+        resposta = client.get(f"/grupo/editar//{TOKEN}/imagem/")
+    assert resposta.status_code == 404
+    assert linhas
+    assert TOKEN not in "\n".join(linhas)
+
+
+@pytest.mark.parametrize(
+    "caminho",
+    [
+        f"/grupo/editar/{TOKEN}/../",
+        f"/grupo/editar/{TOKEN}/../../outra/",
+        f"/grupo/editar/{TOKEN}/x/../../../",
+        f"/grupo/editar/x/../{TOKEN}/",
+        f"/grupo/editar/../editar/{TOKEN}/",
+        f"/grupo/editar/a/b/../../{TOKEN}/",
+        f"/grupo/editar/x/../../grupo/editar/{TOKEN}/",
+        f"/grupo/editar/x/../{TOKEN}/../",
+        f"/a/b/../../grupo/x/../editar/{TOKEN}/x/../../../",
+    ],
+)
+def test_ponto_ponto_depois_do_token_nao_tira_o_token_da_deteccao(caminho):
+    """Regressão (parecer do Renan no #61): o normpath resolve o "../" e o
+    caminho normalizado deixa de casar com a rota; o token tem de sair mesmo assim,
+    na mensagem, nos args e no traceback."""
+    try:
+        raise ValueError(f"falhou em {caminho}")
+    except ValueError:
+        exc_info = sys.exc_info()
+    registro = _registro(
+        "django.request", logging.ERROR, "Internal Server Error: %s", (caminho,), caminho, exc_info, 500
+    )
+    assert FiltroTokenEdicao().filter(registro) is True
+    assert registro.args == ()
+    assert registro.exc_info is None
+    texto = logging.Formatter().format(registro)
+    assert TOKEN not in texto
+    assert MASCARA_ESPERADA in texto
+    assert "ValueError: falhou em" in texto
+
+
+def test_caminho_que_so_comeca_parecido_passa_intacto():
+    caminho = "/grupo/editarx/abc/"
+    registro = logging.LogRecord("django.request", logging.WARNING, __file__, 1, "Not Found: %s", (caminho,), None)
+    registro.request = types.SimpleNamespace(path_info=caminho)
+    assert FiltroTokenEdicao().filter(registro) is True
+    assert registro.args == (caminho,)

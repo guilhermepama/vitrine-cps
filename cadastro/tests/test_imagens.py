@@ -245,3 +245,53 @@ def test_salvar_sem_validar_jpeg_cortado_ou_grande_demais_nao_grava(settings, tm
     with pytest.raises(ValidationError):
         fabricas.projeto(capa=arquivo())
     assert not any(tmp_path.rglob("*.*"))
+
+
+# --- Orientação malformada (revisão posterior do #48) -------------------------------
+
+
+def _jpeg_com_orientacao_em_texto():
+    """JPEG com a tag de orientação gravada como texto ("seis"). O `verify()`
+    aceita; antes, a limpeza quebrava com struct.error (500)."""
+    import io
+    import struct
+
+    from PIL import Image
+
+    ifd = struct.pack("<H", 1) + struct.pack("<HHII", ORIENTACAO, 2, 5, 26) + struct.pack("<I", 0)
+    exif = b"Exif\x00\x00" + b"II*\x00" + struct.pack("<I", 8) + ifd + b"seis\x00"
+    buffer = io.BytesIO()
+    Image.new("RGB", (40, 20), "green").save(buffer, "JPEG", exif=exif)
+    return SimpleUploadedFile("torta.jpg", buffer.getvalue(), content_type="image/jpeg")
+
+
+@pytest.mark.django_db
+def test_orientacao_em_texto_e_descartada_sem_erro(settings, tmp_path):
+    settings.MEDIA_ROOT = tmp_path
+    p = fabricas.projeto(capa=_jpeg_com_orientacao_em_texto())
+    assert ORIENTACAO not in _abrir_gravada(p.capa).getexif()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("valor", [0, 9, 99])
+def test_orientacao_fora_de_1_a_8_e_descartada(settings, tmp_path, valor):
+    settings.MEDIA_ROOT = tmp_path
+    p = fabricas.projeto(capa=_com_metadados(orientacao=valor))
+    assert ORIENTACAO not in _abrir_gravada(p.capa).getexif()
+
+
+@pytest.mark.django_db
+def test_falha_ao_regravar_vira_validation_error_e_nada_e_gravado(settings, tmp_path, monkeypatch):
+    import struct
+
+    from cadastro import imagens
+
+    def quebra(*args, **kwargs):
+        raise struct.error("metadado malformado")
+
+    settings.MEDIA_ROOT = tmp_path
+    monkeypatch.setattr(imagens, "_sem_metadados", quebra)
+    with pytest.raises(ValidationError) as erro:
+        fabricas.projeto(capa=_com_metadados())
+    assert erro.value.code == "formato"
+    assert not any(tmp_path.rglob("*.*"))
