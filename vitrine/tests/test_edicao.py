@@ -171,32 +171,36 @@ def test_salvar_regrava_so_os_campos_do_grupo(client):
             assert f'"{coluna}"' not in sql.split(" WHERE ")[0], (coluna, sql)
 
 
-@pytest.mark.django_db(transaction=True)
-def test_votacao_aberta_no_meio_do_envio_da_403_explicada_e_nao_grava(client, monkeypatch):
+def _em_outra_conexao(funcao):
+    """Roda `funcao` numa thread com a própria conexão (a votação abre em outro processo)."""
     import threading
 
     from django.db import connection
 
+    def alvo():
+        try:
+            funcao()
+        finally:
+            connection.close()
+
+    return threading.Thread(target=alvo)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("acao", ["salvar", "enviar"])
+def test_votacao_aberta_entre_a_leitura_e_a_trava_da_403_explicada_e_nao_grava(client, monkeypatch, acao):
     p, token = aux.projeto_com_link()
     aux.com_capa(p)
     original = servicos.travar_para_edicao
 
-    def abrir_em_outra_conexao():
-        try:
-            aux.votacao_aberta(p)
-        finally:
-            connection.close()
-
-    def travar_e_abrir_a_votacao(pk, tok):
-        travado = original(pk, tok)
-        # A votação abre (em outra conexão, já confirmada) depois da trava e antes da gravação.
-        outra = threading.Thread(target=abrir_em_outra_conexao)
+    def abrir_a_votacao_e_travar(pk, tok):
+        outra = _em_outra_conexao(lambda: aux.votacao_aberta(p))
         outra.start()
         outra.join()
-        return travado
+        return original(pk, tok)
 
-    monkeypatch.setattr(servicos, "travar_para_edicao", travar_e_abrir_a_votacao)
-    r = client.post(url(token), aux.dados_de_edicao(acao="enviar"))
+    monkeypatch.setattr(servicos, "travar_para_edicao", abrir_a_votacao_e_travar)
+    r = client.post(url(token), aux.dados_de_edicao(acao=acao))
     assert r.status_code == 403
     html = r.content.decode()
     assert "Fale com a coordenação" in html and 'name="acao"' not in html
@@ -205,22 +209,44 @@ def test_votacao_aberta_no_meio_do_envio_da_403_explicada_e_nao_grava(client, mo
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_votacao_so_abre_depois_do_salvar_em_andamento(client, monkeypatch):
+    """A `Edicao` fica travada durante o Salvar: a abertura espera, em vez de passar no meio."""
+    p, token = aux.projeto_com_link()
+    original = servicos.travar_para_edicao
+    abertura, ficou_bloqueada = [], []
+
+    def travar_e_tentar_abrir(pk, tok):
+        travado = original(pk, tok)
+        abertura.append(_em_outra_conexao(lambda: aux.votacao_aberta(p)))
+        abertura[0].start()
+        abertura[0].join(1)
+        ficou_bloqueada.append(abertura[0].is_alive())
+        return travado
+
+    monkeypatch.setattr(servicos, "travar_para_edicao", travar_e_tentar_abrir)
+    assert client.post(url(token), aux.dados_de_edicao(resumo="Gravado antes da abertura")).status_code == 302
+    abertura[0].join(15)
+    assert ficou_bloqueada == [True]
+    p.refresh_from_db()
+    assert p.resumo == "Gravado antes da abertura"
+    assert p.turma.edicao.votacao_foi_aberta()  # a abertura concluiu depois do Salvar
+
+
+def test_travar_a_edicao_antes_do_projeto():
+    """Ordem Edicao -> Projeto (a do `Projeto.save()` e do admin): evita deadlock."""
+    import inspect
+
+    codigo = inspect.getsource(servicos.travar_para_edicao)
+    assert codigo.index("Edicao.objects.select_for_update") < codigo.index("Projeto.objects.select_for_update")
+
+
+@pytest.mark.django_db(transaction=True)
 def test_link_regerado_entre_a_leitura_e_a_gravacao_nao_grava(client, monkeypatch):
-    import threading
-
-    from django.db import connection
-
     p, token = aux.projeto_com_link()
     original = servicos.travar_para_edicao
 
-    def regerar_em_outra_conexao():
-        try:
-            Projeto.objects.get(pk=p.pk).regerar_link()
-        finally:
-            connection.close()
-
     def regerar_antes(pk, tok):
-        outra = threading.Thread(target=regerar_em_outra_conexao)
+        outra = _em_outra_conexao(lambda: Projeto.objects.get(pk=p.pk).regerar_link())
         outra.start()
         outra.join()
         return original(pk, tok)
@@ -330,3 +356,20 @@ def test_validation_error_do_save_no_meio_do_envio_desfaz_e_da_403(client, monke
     assert r.status_code == 403
     p.refresh_from_db()
     assert p.status == Projeto.Status.PRE_CADASTRADO and p.resumo == ""
+
+
+def test_tela_de_edicao_nao_mostra_o_nome_do_representante(client, db):
+    p, token = aux.projeto_com_link(representante_nome="Fulano de Tal da Silva")
+    assert "Fulano" not in client.get(url(token)).content.decode()
+
+
+def test_integrante_de_outro_projeto_no_formset_nao_e_alterado(client, db):
+    p, token = aux.projeto_com_link()
+    outro, _ = aux.projeto_com_link(edicao=p.turma.edicao, ra_hmac=aux.hash_ra("7654321"))
+    alheio = Integrante.objects.create(projeto=outro, nome="Alheio", papel="Original", ordem=0)
+    dados = aux.dados_de_edicao(integrantes=(("Invasor", "Trocado"),))
+    dados.update({"integrantes-INITIAL_FORMS": "1", "integrantes-0-id": str(alheio.pk)})
+    client.post(url(token), dados)
+    alheio.refresh_from_db()
+    assert (alheio.nome, alheio.papel, alheio.projeto_id) == ("Alheio", "Original", outro.pk)
+    assert not p.integrantes.filter(nome="Invasor", pk=alheio.pk).exists()

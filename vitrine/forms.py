@@ -67,6 +67,7 @@ def integrante_formset(projeto, **kwargs):
         fields=["nome", "papel"],
         extra=extras,
         max_num=maximo,
+        absolute_max=maximo,
         validate_max=True,
         can_delete=True,
     )

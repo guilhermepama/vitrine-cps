@@ -14,7 +14,7 @@ from django.core.cache import cache
 from django.db import transaction
 from django.utils import timezone
 
-from cadastro.models import Projeto
+from cadastro.models import Edicao, Projeto
 from cadastro.seguranca import chave_ip, hash_ra, hash_token, ip_do_cliente, token_confere
 
 logger = logging.getLogger(__name__)
@@ -125,7 +125,7 @@ def reivindicar(ra):
 # --- Edição pelo link ---------------------------------------------------------
 
 
-FORMATO_DO_TOKEN = re.compile(r"[A-Za-z0-9_-]{1,200}")
+FORMATO_DO_TOKEN = re.compile(r"[A-Za-z0-9_-]{20,200}")
 
 
 def projeto_do_token(token):
@@ -162,9 +162,14 @@ def pode_editar(projeto):
 def travar_para_edicao(projeto_pk, token):
     """Trava a linha do projeto (dentro de uma transação) e confere se ainda é editável.
 
-    Confere o token de novo já sob a trava: se a coordenação regerou o link
-    entre a leitura e a gravação, o link antigo não grava.
+    Trava a `Edicao` primeiro e o `Projeto` depois, a mesma ordem do
+    `Projeto.save()` e do admin (a ordem inversa causaria deadlock). Com as duas
+    linhas travadas, confere de novo o prazo e a votação: nenhum "Salvar" grava
+    depois que a votação abre. Confere também o token: se a coordenação regerou
+    o link entre a leitura e a gravação, o link antigo não grava.
     """
+    edicao_pk = Projeto.objects.values_list("turma__edicao_id", flat=True).get(pk=projeto_pk)
+    Edicao.objects.select_for_update().get(pk=edicao_pk)
     projeto = (
         Projeto.objects.select_for_update(of=("self",))
         .select_related("turma__curso", "turma__edicao")
