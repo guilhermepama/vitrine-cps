@@ -22,7 +22,7 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 
 from banca import conferencia as modulo
-from banca.models import Avaliacao, Jurado
+from banca.models import Avaliacao, Jurado, Nota
 from banca.sinais import GRUPO_DIGITACAO
 from banca.tests import fabricas
 from cadastro.models import Edicao, Projeto
@@ -570,3 +570,44 @@ def test_versao_nao_muda_com_outra_edicao():
     outra, _, outros, js = _edicao(nome="Outra", sigla="X")
     _avaliar_todos(js, outros)
     assert modulo.versao_da_banca(edicao.pk) == antes
+
+
+@pytest.mark.django_db(transaction=True)
+def test_correcao_entre_ler_as_notas_e_calcular_a_versao_nao_passa(monkeypatch):
+    """Parecer do Renan no #65: a página lê as notas e só depois calcula a versão.
+    Uma correção que confirmasse entre as duas leituras faria a tela mostrar a nota
+    antiga com a versão da nova. Com a Edicao travada no GET, a correção espera a
+    página terminar, e o concluir com a versão da página é recusado."""
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    nota_id = avaliacoes[0].notas.first().pk
+    renan = _staff("renan", "concluir_conferencia")
+    cliente = Client()
+    cliente.force_login(renan)
+
+    original = modulo.versao_da_banca
+    correcao = {}
+
+    def corrigir():
+        nota = Nota.objects.get(pk=nota_id)
+        nota.valor = 3
+        nota.save()
+
+    def versao_com_correcao_no_meio(edicao_id):
+        if "thread" not in correcao:  # só no GET: as notas exibidas já foram lidas
+            correcao["thread"], correcao["resultado"] = _em_thread(corrigir)
+            correcao["thread"].join(timeout=0.5)
+            correcao["esperou"] = correcao["thread"].is_alive()
+        return original(edicao_id)
+
+    monkeypatch.setattr(modulo, "versao_da_banca", versao_com_correcao_no_meio)
+    pagina = cliente.get(_url(edicao)).content.decode()
+    correcao["thread"].join(timeout=10)
+    assert correcao["esperou"], "a correção deveria esperar a trava da Edicao do GET"
+    assert "erro" not in correcao["resultado"]
+
+    vista = re.search(r'name="versao" value="([0-9a-f]+)"', pagina).group(1)
+    resposta = cliente.post(_url(edicao), {"acao": "concluir", "versao": vista})
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None

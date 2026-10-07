@@ -87,12 +87,15 @@ def _url(edicao_id):
 def conferencia(request, id, admin_site=admin.site):
     if request.method == "POST":
         return _executar(request, id)
-    edicao = get_object_or_404(Edicao, pk=id)
     digitador = request.GET.get("digitador")
     if digitador is not None and not id_valido(digitador):
         messages.error(request, "Digitador inválido.")
-        return redirect(_url(edicao.pk))
-    contexto = _contexto(edicao, digitador and int(digitador))
+        return redirect(_url(id))
+    # Notas exibidas e versão lidas com a `Edicao` travada (a mesma trava de quem
+    # corrige uma nota, pelos sinais): uma correção não cai entre as duas leituras.
+    with transaction.atomic():
+        edicao = get_object_or_404(Edicao.objects.select_for_update(), pk=id)
+        contexto = _contexto(edicao, digitador and int(digitador))
     return render(request, "banca/conferencia.html", {**admin_site.each_context(request), **contexto})
 
 
