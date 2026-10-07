@@ -13,9 +13,11 @@ fora dos formulários (`editable=False`).
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
-from django.db import models
+from django.core.exceptions import PermissionDenied, ValidationError
+from django.db import models, transaction
+from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, reverse
+from django.utils.cache import add_never_cache_headers
 
 from cadastro.models import Curso, Edicao, ImagemProjeto, Integrante, Projeto, Turma
 from cadastro.seguranca import hash_ra
@@ -208,6 +210,33 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
             return False
         return super().has_delete_permission(request, obj)
 
+    def delete_model(self, request, obj):
+        # A checagem acima é sem trava: abrir a votação entre ela e o delete tiraria
+        # o projeto da cédula. Aqui a linha da edição fica travada (mesma ordem do
+        # Projeto.save) e a abertura é relida antes de apagar.
+        with transaction.atomic():
+            aberta_em = (
+                Edicao.objects.select_for_update()
+                .filter(pk=obj.turma.edicao_id)
+                .values_list("votacao_aberta_em", flat=True)
+                .first()
+            )
+            if aberta_em is not None:
+                raise PermissionDenied
+            obj.delete()
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            return super().save_model(request, obj, form, change)
+        # Só os campos alterados no formulário: a instância foi lida no começo do
+        # POST, e um save() completo regravaria por cima o que mudou nesse meio-tempo
+        # (link regerado ou revogado, Publicar, o grupo salvando pelo link).
+        do_model = {f.name for f in obj._meta.concrete_fields}
+        campos = [c for c in form.changed_data if c in do_model]
+        if "ra_representante" in form.changed_data:
+            campos.append("ra_hmac")  # o clean grava o RA novo em instance.ra_hmac
+        obj.save(update_fields=[*campos, "atualizado_em"])
+
     @admin.display(description="reivindicado", boolean=True)
     def reivindicado(self, projeto):
         return projeto.reivindicado_em is not None
@@ -270,13 +299,22 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
         projeto = projetos[0]
         token = projeto.regerar_link()
         self.log_change(request, projeto, "Link de edição regerado")  # nunca o token
-        # Mostrado uma vez: o token em claro não é gravado em lugar nenhum.
-        self.message_user(
+        # Mostrado uma vez, nesta resposta. Não vai em message_user: a mensagem do
+        # Django viaja num cookie (assinado, não cifrado) e o token seria gravado.
+        resposta = TemplateResponse(
             request,
-            f"Novo link de edição de “{projeto}” (o anterior deixou de valer). "
-            f"Copie agora, ele não aparece de novo: {_link_de_edicao(token)}",
-            messages.SUCCESS,
+            "admin/cadastro/projeto/link_regerado.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": "Novo link de edição",
+                "projeto": projeto,
+                "link": _link_de_edicao(token),
+                "opts": self.model._meta,
+            },
         )
+        add_never_cache_headers(resposta)
+        resposta["Referrer-Policy"] = "no-referrer"
+        return resposta
 
     @admin.action(description="Revogar link de edição (um projeto)")
     def acao_revogar_link(self, request, queryset):

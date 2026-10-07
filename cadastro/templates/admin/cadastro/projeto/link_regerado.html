@@ -1,0 +1,11 @@
+{% extends "admin/base_site.html" %}
+{% comment %}
+Link de edição regerado (spec 01, ADR-009). Aparece só nesta resposta: o token
+em claro não é gravado nem vai em mensagem (cookie). A página não é cacheada.
+{% endcomment %}
+{% block content %}
+<p>Novo link de edição de “{{ projeto }}”. O link anterior deixou de valer.</p>
+<p><strong>Copie agora: ele não aparece de novo.</strong></p>
+<p><input type="text" readonly size="90" value="{{ link }}" aria-label="Link de edição"></p>
+<p><a href="{% url 'admin:cadastro_projeto_changelist' %}">Voltar à lista de projetos</a></p>
+{% endblock %}

@@ -4,10 +4,13 @@ from datetime import timedelta
 
 import pytest
 from django.contrib.admin.models import LogEntry
+from django.contrib.admin.sites import site
+from django.core.exceptions import PermissionDenied
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils import timezone
 
+from cadastro.admin import ProjetoAdmin, ProjetoForm
 from cadastro.models import Curso, Edicao, Integrante, Projeto
 from cadastro.seguranca import hash_ra, hash_token
 from cadastro.tests import fabricas
@@ -58,6 +61,10 @@ def _acao(client, acao, *projetos):
 
 def _mensagens(resposta):
     return " ".join(str(m) for m in resposta.context["messages"])
+
+
+def _token_da_pagina(resposta):
+    return resposta.content.decode().split("/grupo/editar/")[1].split("/")[0]
 
 
 def _completo(turma_=None, **campos):
@@ -268,12 +275,23 @@ def test_regerar_link_mostra_uma_vez_e_invalida_o_anterior(admin_client, setting
     antigo = p.regerar_link()
     resposta = _acao(admin_client, "acao_regerar_link", p)
     p.refresh_from_db()
-    texto = _mensagens(resposta)
-    assert "https://vitrine.exemplo/grupo/editar/" in texto
-    novo = texto.split("/grupo/editar/")[1].split("/")[0]
+    assert "https://vitrine.exemplo/grupo/editar/" in resposta.content.decode()
+    novo = _token_da_pagina(resposta)
     assert p.token_edicao_hash == hash_token(novo)
     assert p.token_edicao_hash != hash_token(antigo)
     assert novo not in admin_client.get(LISTA).content.decode()  # não reaparece
+
+
+def test_link_regerado_nao_vai_para_cookie_nem_cache(admin_client):
+    """A mensagem do Django viaja num cookie assinado, não cifrado: o token não pode ir nela."""
+    p = fabricas.projeto()
+    resposta = _acao(admin_client, "acao_regerar_link", p)
+    token = _token_da_pagina(resposta)
+    assert resposta.redirect_chain == []
+    assert token not in str(resposta.cookies)
+    assert token not in str(admin_client.cookies)
+    assert "no-store" in resposta["Cache-Control"]
+    assert resposta["Referrer-Policy"] == "no-referrer"
 
 
 def test_regerar_link_exige_um_projeto_so(admin_client):
@@ -329,7 +347,7 @@ def test_acoes_de_moderacao_ficam_no_historico(admin_client, midia):
 def test_link_regerado_e_revogado_ficam_no_historico_sem_o_token(admin_client):
     p = fabricas.projeto()
     resposta = _acao(admin_client, "acao_regerar_link", p)
-    token = _mensagens(resposta).split("/grupo/editar/")[1].split("/")[0]
+    token = _token_da_pagina(resposta)
     _acao(admin_client, "acao_revogar_link", p)
     historico = _historico(p)
     assert sorted(historico) == ["Link de edição regerado", "Link de edição revogado"]
@@ -361,6 +379,20 @@ def test_com_a_votacao_aberta_o_projeto_nao_pode_ser_apagado(admin_client):
     apagar = reverse("admin:cadastro_projeto_delete", args=[p.pk])
     assert admin_client.get(apagar).status_code == 403
     assert admin_client.post(apagar, {"post": "yes"}).status_code == 403
+    assert Projeto.objects.filter(pk=p.pk).exists()
+
+
+def test_votacao_aberta_depois_da_checagem_ainda_impede_apagar(rf, admin_user):
+    """Corrida: a votação abre entre has_delete_permission e o delete. O delete_model
+    relê a abertura com a linha da edição travada."""
+    edicao = fabricas.edicao()
+    p = fabricas.projeto(fabricas.turma(edicao))
+    edicao.votacao_aberta_em = timezone.now() - timedelta(minutes=1)
+    edicao.save()
+    requisicao = rf.post("/")
+    requisicao.user = admin_user
+    with pytest.raises(PermissionDenied):
+        ProjetoAdmin(Projeto, site).delete_model(requisicao, p)
     assert Projeto.objects.filter(pk=p.pk).exists()
 
 
@@ -408,3 +440,38 @@ def test_ativar_segunda_edicao_volta_com_erro_legivel(admin_client):
     assert resposta.status_code == 200
     assert "Desative-a antes de ativar outra." in resposta.content.decode()
     assert Edicao.objects.filter(ativa=True).count() == 1
+
+
+# --- Corrida entre o formulário e as ações ----------------------------------------------
+
+
+def _no_meio_do_post(monkeypatch, acao):
+    """Roda `acao` (outra requisição) depois que o admin já leu o projeto e antes de gravar."""
+    original = ProjetoForm.clean
+
+    def clean(self):
+        dados = original(self)
+        acao(Projeto.objects.get(pk=self.instance.pk))
+        return dados
+
+    monkeypatch.setattr(ProjetoForm, "clean", clean)
+
+
+def test_salvar_o_formulario_nao_ressuscita_link_revogado(admin_client, monkeypatch):
+    p = fabricas.projeto()
+    p.regerar_link()
+    _no_meio_do_post(monkeypatch, lambda outro: outro.revogar_link())
+    admin_client.post(_editar(p), _novo_projeto(p.turma, ra="", titulo="Título novo"), follow=True)
+    p.refresh_from_db()
+    assert p.titulo == "Título novo"
+    assert p.token_edicao_hash is None and p.token_edicao_gerado_em is None
+
+
+def test_salvar_o_formulario_nao_desfaz_publicar(admin_client, monkeypatch, midia):
+    p = _completo()
+    _no_meio_do_post(monkeypatch, lambda outro: outro.publicar())
+    dados = {**_novo_projeto(p.turma, ra="", titulo=p.titulo), "resumo": "Resumo novo", "descricao": "Descrição"}
+    admin_client.post(_editar(p), dados, follow=True)
+    p.refresh_from_db()
+    assert p.resumo == "Resumo novo"
+    assert p.status == Projeto.Status.PUBLICADO and p.publicado_em is not None
