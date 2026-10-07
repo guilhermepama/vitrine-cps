@@ -67,3 +67,23 @@ def test_cabecalho_e_rodape_podem_ser_trocados():
 def test_pagina_pode_tirar_o_layout_do_main():
     """A ficha da banca controla a própria paginação e zera as classes do <main>."""
     assert "<main class=\"\">" in _pagina('{% extends "base.html" %}{% block classe_main %}{% endblock %}')
+
+
+def _css_base():
+    with open(finders.find("css/base.css"), encoding="utf-8") as arquivo:
+        return arquivo.read()
+
+
+def test_capa_em_banner_recortada_sem_distorcer():
+    """Spec 02: capa recortada em banner na proporção do Open Graph."""
+    regra = re.search(r"\.banner\s*\{([^}]*)\}", _css_base())
+    assert regra, ".banner precisa estar no base.css"
+    for declaracao in ("width: 100%", "aspect-ratio: 1.91 / 1", "object-fit: cover"):
+        assert declaracao in regra.group(1)
+
+
+def test_imagem_e_texto_longo_cabem_em_360px():
+    css = _css_base()
+    img = re.search(r"(?m)^img\s*\{([^}]*)\}", css).group(1)
+    assert "max-width: 100%" in img and "height: auto" in img
+    assert "overflow-wrap: break-word" in re.search(r"(?m)^body\s*\{([^}]*)\}", css).group(1)
