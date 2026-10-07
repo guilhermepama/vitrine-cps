@@ -138,6 +138,9 @@ class ProjetoForm(forms.ModelForm):
         widget=forms.PasswordInput(render_value=False, attrs={"autocomplete": "off"}),
         help_text="Obrigatório na criação. Na edição, deixe vazio para manter o atual. Nunca é exibido.",
     )
+    # Versão do projeto quando o formulário foi aberto: recusa salvar por cima do
+    # que o grupo (ou outra ação do admin) gravou depois disso.
+    versao = forms.CharField(widget=forms.HiddenInput, required=False)
 
     class Meta:
         model = Projeto
@@ -155,6 +158,7 @@ class ProjetoForm(forms.ModelForm):
             "link_demo",
             "link_video",
             "motivo_ajustes",
+            "versao",
         ]
         help_texts = {
             "motivo_ajustes": (
@@ -162,6 +166,29 @@ class ProjetoForm(forms.ModelForm):
                 f"“{MOTIVO_FOTOS_ETEC}”."
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.initial["versao"] = self.instance.atualizado_em.isoformat()
+
+    def clean(self):
+        dados = super().clean()
+        if self.instance.pk:
+            self._conferir_versao(dados.get("versao"))
+        return dados
+
+    def _conferir_versao(self, versao):
+        """O POST do admin roda numa transação (changeform_view): as travas valem até
+        o fim do salvar. Ordem Edicao → Projeto, a mesma do Projeto.save()."""
+        edicao_id = Projeto.objects.filter(pk=self.instance.pk).values_list("turma__edicao_id", flat=True).first()
+        list(Edicao.objects.select_for_update().filter(pk=edicao_id).values_list("pk", flat=True))
+        atual = Projeto.objects.select_for_update().filter(pk=self.instance.pk).values_list("atualizado_em", flat=True).first()
+        if atual is None or versao != atual.isoformat():
+            raise ValidationError(
+                "Este projeto mudou depois que você abriu o formulário (o grupo salvou ou uma ação foi "
+                "aplicada). Recarregue a página e refaça a alteração."
+            )
 
     def clean_ra_representante(self):
         ra = self.cleaned_data.get("ra_representante", "")

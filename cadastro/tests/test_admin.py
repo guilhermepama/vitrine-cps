@@ -26,6 +26,15 @@ def _editar(projeto):
     return reverse("admin:cadastro_projeto_change", args=[projeto.pk])
 
 
+def _versao(projeto):
+    """O que o formulário de edição traz escondido: a versão do projeto ao abrir."""
+    return Projeto.objects.get(pk=projeto.pk).atualizado_em.isoformat()
+
+
+def _edicao(projeto, **campos):
+    return {**_novo_projeto(projeto.turma, ra=campos.pop("ra", "")), "versao": _versao(projeto), **campos}
+
+
 def _formsets(integrantes=(), imagens=0):
     dados = {
         "integrantes-TOTAL_FORMS": str(len(integrantes)),
@@ -161,7 +170,7 @@ def test_ra_que_ja_representa_outro_projeto_da_edicao_e_recusado(admin_client):
 def test_editar_com_ra_vazio_mantem_o_atual(admin_client):
     p = fabricas.projeto()
     antes = p.ra_hmac
-    dados = _novo_projeto(p.turma, ra="", titulo="Agenda Escolar 2")
+    dados = _edicao(p, titulo="Agenda Escolar 2")
     resposta = admin_client.post(_editar(p), dados, follow=True)
     assert resposta.status_code == 200
     p.refresh_from_db()
@@ -171,7 +180,7 @@ def test_editar_com_ra_vazio_mantem_o_atual(admin_client):
 
 def test_editar_com_ra_novo_troca_o_hmac(admin_client):
     p = fabricas.projeto()
-    admin_client.post(_editar(p), _novo_projeto(p.turma, ra="555.666.777"), follow=True)
+    admin_client.post(_editar(p), _edicao(p, ra="555.666.777"), follow=True)
     p.refresh_from_db()
     assert p.ra_hmac == hash_ra("555666777")
 
@@ -192,7 +201,7 @@ def test_decimo_primeiro_integrante_e_recusado(admin_client):
 
 def test_setima_imagem_extra_e_recusada(admin_client, midia):
     p = fabricas.projeto()
-    dados = {**_novo_projeto(p.turma, ra=""), **_formsets(imagens=7)}
+    dados = {**_edicao(p), **_formsets(imagens=7)}
     for i in range(7):
         dados[f"imagens-{i}-arquivo"] = fabricas.imagem(nome=f"f{i}.png")
         dados[f"imagens-{i}-ordem"] = str(i)
@@ -461,7 +470,7 @@ def test_salvar_o_formulario_nao_ressuscita_link_revogado(admin_client, monkeypa
     p = fabricas.projeto()
     p.regerar_link()
     _no_meio_do_post(monkeypatch, lambda outro: outro.revogar_link())
-    admin_client.post(_editar(p), _novo_projeto(p.turma, ra="", titulo="Título novo"), follow=True)
+    admin_client.post(_editar(p), _edicao(p, titulo="Título novo"), follow=True)
     p.refresh_from_db()
     assert p.titulo == "Título novo"
     assert p.token_edicao_hash is None and p.token_edicao_gerado_em is None
@@ -470,8 +479,52 @@ def test_salvar_o_formulario_nao_ressuscita_link_revogado(admin_client, monkeypa
 def test_salvar_o_formulario_nao_desfaz_publicar(admin_client, monkeypatch, midia):
     p = _completo()
     _no_meio_do_post(monkeypatch, lambda outro: outro.publicar())
-    dados = {**_novo_projeto(p.turma, ra="", titulo=p.titulo), "resumo": "Resumo novo", "descricao": "Descrição"}
+    dados = _edicao(p, titulo=p.titulo, resumo="Resumo novo", descricao="Descrição")
     admin_client.post(_editar(p), dados, follow=True)
     p.refresh_from_db()
     assert p.resumo == "Resumo novo"
     assert p.status == Projeto.Status.PUBLICADO and p.publicado_em is not None
+
+
+# --- Formulário aberto antes de outra gravação (parecer do Renan no #60) -----------------
+
+AVISO_VERSAO = "Este projeto mudou depois que você abriu o formulário"
+
+
+def test_formulario_aberto_antes_nao_regrava_o_texto_que_o_grupo_salvou(admin_client):
+    p = fabricas.projeto(descricao="X")
+    aberto = _edicao(p, titulo=p.titulo, descricao="X")  # 1. o admin abre com X
+    grupo = Projeto.objects.get(pk=p.pk)
+    grupo.descricao = "Y"
+    grupo.save(update_fields=["descricao", "atualizado_em"])  # 2. o grupo salva Y
+    resposta = admin_client.post(_editar(p), {**aberto, "motivo_ajustes": "Capa borrada"})  # 3. envia X
+    assert resposta.status_code == 200
+    assert AVISO_VERSAO in resposta.content.decode()
+    p.refresh_from_db()
+    assert p.descricao == "Y" and p.motivo_ajustes == ""
+
+
+def test_formulario_aberto_antes_de_regerar_o_link_e_recusado(admin_client):
+    p = fabricas.projeto()
+    aberto = _edicao(p, titulo="Outro título")
+    token = Projeto.objects.get(pk=p.pk).regerar_link()
+    resposta = admin_client.post(_editar(p), aberto)
+    assert AVISO_VERSAO in resposta.content.decode()
+    p.refresh_from_db()
+    assert p.titulo != "Outro título"
+    assert p.token_edicao_hash == hash_token(token)
+
+
+def test_formulario_sem_versao_e_recusado(admin_client):
+    p = fabricas.projeto()
+    dados = _edicao(p, titulo="Outro título")
+    del dados["versao"]
+    resposta = admin_client.post(_editar(p), dados)
+    assert AVISO_VERSAO in resposta.content.decode()
+    assert Projeto.objects.get(pk=p.pk).titulo != "Outro título"
+
+
+def test_formulario_traz_a_versao_ao_abrir(admin_client):
+    p = fabricas.projeto()
+    html = admin_client.get(_editar(p)).content.decode()
+    assert f'name="versao" value="{_versao(p)}"' in html

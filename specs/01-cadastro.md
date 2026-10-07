@@ -125,8 +125,11 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   ficam no histórico do admin (`LogEntry`), **sem o token**. Ação que não
   muda nada não entra no histórico.
 - **Salvar o formulário do projeto no admin grava só os campos alterados**
-  (`update_fields`): o formulário não regrava link, status, `publicado_em`
-  nem o texto que o grupo salvou enquanto o admin editava.
+  (`update_fields`) e só se o projeto não mudou desde que o formulário foi
+  aberto: o formulário leva a versão (`atualizado_em`) escondida, conferida
+  com as linhas da `Edicao` e do `Projeto` travadas. Desatualizado → recusa
+  com mensagem para recarregar; nada é regravado (link, status,
+  `publicado_em`, texto que o grupo salvou).
 - **Exclusão de projeto**: uma por vez, pela tela do projeto (sem "apagar
   selecionados", que não passa pela trava). Com a votação da edição aberta,
   recusada (403); a abertura é relida com a linha da `Edicao` travada antes
@@ -410,6 +413,7 @@ nesta edição):
 - [ ] Publicar limpa `motivo_ajustes`
 - [ ] Publicar, Devolver, Regerar e Revogar entram no histórico do admin, sem o token; ação sem efeito não entra
 - [ ] Link revogado (ou projeto publicado) por outra requisição enquanto o formulário do admin é salvo → o salvar não desfaz
+- [ ] Formulário do admin aberto antes de o grupo salvar (ou de uma ação) → recusado com mensagem; o que foi gravado depois é preservado
 - [ ] Lista de projetos sem "apagar selecionados"; com a votação aberta, apagar → 403, inclusive se a votação abrir depois da checagem de permissão
 - [ ] Link regerado aparece só na página de confirmação, que tem `no-store` e não grava cookie com o token
 - [ ] Regerar e Revogar com mais de um projeto selecionado → recusado
