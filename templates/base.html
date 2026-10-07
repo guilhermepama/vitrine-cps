@@ -1,15 +1,28 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Vitrine CPS{% endblock %}</title>
+  {# Identidade visual: tokens no :root de static/css/base.css. Trocar a identidade = trocar só aquele bloco. #}
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
   {% block meta %}{% endblock %}
-  {# Identidade visual (variáveis CSS e logo SVG em static/) entra depois, sem mudar o nome deste arquivo nem os blocos. #}
 </head>
 <body>
-  <main>
+  {% block topo %}
+  <header class="topo nao-imprime">
+    <div class="marca">
+      <span class="marca__selo" aria-hidden="true">V</span>
+      <span class="marca__nome">Vitrine CPS</span>
+    </div>
+    <div class="topo__evento">Mostra de Projetos · Fatec &amp; Etec Olímpia</div>
+  </header>
+  {% endblock %}
+  <main class="{% block classe_main %}container conteudo pilha{% endblock %}">
     {% block conteudo %}{% endblock %}
   </main>
+  {% block rodape %}
+  <footer class="rodape nao-imprime">Centro Paula Souza — Fatec Olímpia · Etec Olímpia</footer>
+  {% endblock %}
 </body>
 </html>

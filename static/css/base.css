@@ -1,0 +1,185 @@
+/* ============================================================
+   VITRINE CPS — base.css
+   Regra do time: NENHUM estilo fora deste arquivo (sem inline).
+   Os tokens abaixo são PLACEHOLDER (cinzas do wireframe).
+   Identidade visual (05/10): trocar SÓ o bloco :root.
+   ============================================================ */
+
+/* ---------- TOKENS ---------- */
+:root {
+  /* cor — TROCAR quando a identidade chegar */
+  --cor-fundo: #ffffff;
+  --cor-superficie: #f6f8fa;      /* fundos de seção/admin */
+  --cor-borda: #d3d9e0;
+  --cor-borda-forte: #9aa3af;
+  --cor-texto: #1f2937;
+  --cor-texto-titulo: #111827;
+  --cor-texto-suave: #6a7380;
+  --cor-acento: #262d37;          /* botões/pilares — vira a cor da marca */
+  --cor-acento-texto: #ffffff;
+  --cor-erro: #b91c1c;
+  --cor-erro-fundo: #fef2f2;
+
+  /* tipografia — TROCAR a família quando a identidade chegar */
+  --fonte: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --texto-12: 0.75rem;
+  --texto-14: 0.875rem;
+  --texto-16: 1rem;
+  --texto-20: 1.25rem;
+  --texto-26: 1.625rem;
+  --texto-titulo: 2.25rem;
+
+  /* espaçamento (escala de 4) */
+  --esp-1: 4px;  --esp-2: 8px;  --esp-3: 12px;
+  --esp-4: 16px; --esp-5: 20px; --esp-6: 24px;
+  --esp-8: 32px; --esp-10: 40px;
+
+  /* forma */
+  --raio: 10px;
+  --raio-pill: 999px;
+  --alvo-toque: 44px; /* mínimo p/ botão e input no celular */
+}
+
+/* ---------- RESET MÍNIMO ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--fonte);
+  color: var(--cor-texto);
+  background: var(--cor-fundo);
+  line-height: 1.5;
+}
+img { max-width: 100%; display: block; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { line-height: 1.2; }
+
+/* ---------- LAYOUT ---------- */
+.container { max-width: 1120px; margin: 0 auto; padding: 0 var(--esp-5); }
+.secao { margin-top: var(--esp-8); }
+.secao__titulo {
+  font-size: var(--texto-12); font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--cor-texto-suave);
+  border-bottom: 1px solid var(--cor-borda); padding-bottom: var(--esp-2);
+  margin-bottom: var(--esp-4);
+}
+
+/* Ritmo vertical para telas que ainda não usam as classes: cada filho do
+   <main> ganha espaço acima, para o reset de margens não colar parágrafos. */
+.pilha > * + * { margin-top: var(--esp-4); }
+
+/* ---------- CABEÇALHO E RODAPÉ (base.html) ---------- */
+/* Sem links: não há página inicial nesta edição, e nada aqui leva ao voto (G8). */
+.topo {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: var(--esp-4); min-height: 56px; padding: 0 var(--esp-5);
+  border-bottom: 1px solid var(--cor-borda);
+}
+.marca { display: flex; align-items: center; gap: var(--esp-3); }
+.marca__selo {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border: 2px solid var(--cor-texto); border-radius: 6px;
+  font: 700 13px/1 var(--fonte); color: var(--cor-texto);
+}
+.marca__nome { font: 700 var(--texto-14)/1 var(--fonte); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap; }
+.topo__evento { font-size: var(--texto-12); color: var(--cor-texto-suave); text-align: right; }
+.conteudo { padding-top: var(--esp-6); padding-bottom: var(--esp-10); }
+.rodape {
+  border-top: 1px solid var(--cor-borda); padding: var(--esp-5);
+  font-size: var(--texto-12); color: var(--cor-texto-suave);
+}
+
+/* ---------- BOTÕES ---------- */
+.botao {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: var(--esp-2); min-height: var(--alvo-toque); padding: 0 var(--esp-5);
+  border: none; border-radius: var(--raio); cursor: pointer;
+  background: var(--cor-acento); color: var(--cor-acento-texto);
+  font: 700 var(--texto-16)/1 var(--fonte); text-decoration: none;
+}
+.botao--secundario {
+  background: var(--cor-fundo); color: var(--cor-texto);
+  border: 1px solid var(--cor-borda-forte);
+}
+.botao--perigo {
+  background: var(--cor-erro-fundo); color: var(--cor-erro);
+  border: 1px dashed var(--cor-erro);
+}
+.botao--bloco { display: flex; width: 100%; }
+
+/* ---------- CHIPS (filtros, opções) ---------- */
+.chip {
+  display: inline-flex; align-items: center; min-height: 42px;
+  padding: 0 var(--esp-4); border-radius: var(--raio-pill); cursor: pointer;
+  background: var(--cor-fundo); color: var(--cor-texto);
+  border: 1px solid var(--cor-borda-forte);
+  font: 600 var(--texto-14)/1 var(--fonte);
+}
+.chip--ativo {
+  background: var(--cor-acento); color: var(--cor-acento-texto);
+  border-color: var(--cor-acento); font-weight: 700;
+}
+
+/* ---------- SELOS DE STATUS ---------- */
+.selo {
+  display: inline-block; white-space: nowrap;   /* nunca quebra em 2 linhas */
+  padding: 3px 10px; border-radius: var(--raio-pill);
+  border: 1px solid var(--cor-borda-forte);
+  font: 700 11px/1.5 var(--fonte); letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--cor-texto);
+}
+.selo--publicado { background: var(--cor-acento); border-color: var(--cor-acento); color: var(--cor-acento-texto); }
+.selo--pre-cadastrado { color: var(--cor-texto-suave); }
+.selo--ajustes { border-style: dashed; color: var(--cor-texto-suave); }
+
+/* ---------- CARTÕES ---------- */
+.cartao {
+  background: var(--cor-fundo); border: 1px solid var(--cor-borda);
+  border-radius: 12px; padding: var(--esp-5);
+}
+.cartao--tracejado { border-style: dashed; border-color: var(--cor-borda-forte); }
+
+/* ---------- FORMULÁRIOS ---------- */
+.rotulo { display: block; font: 700 13px/1.5 var(--fonte); color: var(--cor-texto); margin-bottom: var(--esp-1); }
+.campo, textarea.campo, select.campo {
+  width: 100%; min-height: 48px; padding: var(--esp-3) var(--esp-4);
+  border: 1px solid var(--cor-borda-forte); border-radius: var(--raio);
+  font: 400 15px/1.4 var(--fonte); color: var(--cor-texto); background: var(--cor-fundo);
+}
+.campo:focus { outline: 2px solid var(--cor-acento); outline-offset: 1px; }
+.campo--erro { border: 1.5px solid var(--cor-erro); }
+.campo--leitura { background: var(--cor-superficie); border-color: var(--cor-borda); color: var(--cor-texto-suave); }
+.ajuda { font-size: var(--texto-12); color: var(--cor-texto-suave); margin-top: var(--esp-1); }
+
+/* ---------- AVISOS ---------- */
+.aviso {
+  display: flex; gap: var(--esp-3); padding: var(--esp-4);
+  border-radius: var(--raio); font-size: 13px;
+}
+.aviso--erro { background: var(--cor-erro-fundo); border: 1px solid var(--cor-erro); color: #7f1d1d; }
+
+/* ---------- TABELAS (admin/resultados) ---------- */
+.tabela { width: 100%; border-collapse: collapse; border: 1px solid var(--cor-borda); border-radius: var(--raio); overflow: hidden; }
+.tabela th {
+  background: var(--cor-superficie); text-align: left;
+  font: 700 11px/1.5 var(--fonte); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--cor-texto-suave); padding: var(--esp-3);
+  border-bottom: 1px solid var(--cor-borda);
+}
+.tabela td { padding: var(--esp-3); border-bottom: 1px solid #e4e9ee; font-size: 13px; }
+.tabela tr:last-child td { border-bottom: none; }
+
+/* ---------- AVATAR / MONOGRAMA ---------- */
+.monograma {
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 50%; background: #e4e9ee; color: var(--cor-texto-suave);
+  font-weight: 700;
+}
+.monograma--g { width: 128px; height: 128px; font-size: 36px; border: 4px solid var(--cor-fundo); }
+.monograma--m { width: 48px; height: 48px; font-size: 16px; }
+
+/* ---------- IMPRESSÃO (ficha da banca, resultado oficial) ---------- */
+@media print {
+  .nao-imprime { display: none !important; }
+  body { background: #ffffff; }
+  .quebra-pagina { break-before: page; } /* uma turma por página no resultado */
+}
