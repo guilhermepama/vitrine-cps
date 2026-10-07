@@ -24,8 +24,11 @@ import re
 PREFIXO = "/grupo/editar/"
 MASCARA = "<token>"
 # O caminho do log é o pedido como chegou: barra dupla, maiúsculas e "../"
-# também caem no 404 e levam o token. A detecção usa o caminho normalizado; a
-# troca no texto aceita barras repetidas e qualquer caixa.
+# também caem no 404 e levam o token. A detecção procura primeiro no caminho
+# como chegou (o normpath resolveria "<token>/../" e apagaria o token da rota)
+# e usa o caminho normalizado só para "/grupo/x/../editar/<token>". A troca no
+# texto aceita barras repetidas e qualquer caixa.
+_NO_CAMINHO = re.compile(r"/+grupo/+editar/+([^/\s'\"]+)", re.IGNORECASE)
 _ROTA = re.compile(r"^/grupo/editar/([^/]+)", re.IGNORECASE)
 _NO_TEXTO = re.compile(r"(/+grupo/+editar/+)[^/\s'\"]+", re.IGNORECASE)
 
@@ -39,7 +42,7 @@ def _token(record):
     caminho = getattr(getattr(record, "request", None), "path_info", None)
     if not isinstance(caminho, str):
         return None
-    achado = _ROTA.match(_normalizado(caminho))
+    achado = _NO_CAMINHO.search(caminho) or _ROTA.match(_normalizado(caminho))
     return achado.group(1) if achado else None
 
 

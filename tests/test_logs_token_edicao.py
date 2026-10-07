@@ -136,6 +136,34 @@ def test_404_com_barra_dupla_sai_sem_o_token(client):
     assert TOKEN not in "\n".join(linhas)
 
 
+@pytest.mark.parametrize(
+    "caminho",
+    [
+        f"/grupo/editar/{TOKEN}/../",
+        f"/grupo/editar/{TOKEN}/../../outra/",
+        f"/grupo/editar/{TOKEN}/x/../../../",
+    ],
+)
+def test_ponto_ponto_depois_do_token_nao_tira_o_token_da_deteccao(caminho):
+    """Regressão (parecer do Renan no #61): o normpath resolve o "../" e o
+    caminho normalizado deixa de casar com a rota; o token tem de sair mesmo assim,
+    na mensagem, nos args e no traceback."""
+    try:
+        raise ValueError(f"falhou em {caminho}")
+    except ValueError:
+        exc_info = sys.exc_info()
+    registro = _registro(
+        "django.request", logging.ERROR, "Internal Server Error: %s", (caminho,), caminho, exc_info, 500
+    )
+    assert FiltroTokenEdicao().filter(registro) is True
+    assert registro.args == ()
+    assert registro.exc_info is None
+    texto = logging.Formatter().format(registro)
+    assert TOKEN not in texto
+    assert f"/grupo/editar/{MASCARA_ESPERADA}/" in texto
+    assert "ValueError: falhou em" in texto
+
+
 def test_caminho_que_so_comeca_parecido_passa_intacto():
     caminho = "/grupo/editarx/abc/"
     registro = logging.LogRecord("django.request", logging.WARNING, __file__, 1, "Not Found: %s", (caminho,), None)
