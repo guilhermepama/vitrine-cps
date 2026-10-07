@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block titulo %}Edição do projeto — Vitrine CPS{% endblock %}
+
+{% block conteudo %}
+<p>ÁREA DO GRUPO</p>
+<h1>{{ projeto.titulo }}</h1>
+<p>
+  {{ projeto.turma.rotulo }}
+  · Situação: {{ projeto.get_status_display }}
+</p>
+
+{% if messages %}
+{% for mensagem in messages %}<p class="aviso" role="status">{{ mensagem }}</p>{% endfor %}
+{% endif %}
+
+{% if projeto.status == "ajustes" and projeto.motivo_ajustes %}
+<div class="aviso" role="alert">
+  <strong>A coordenação pediu ajustes:</strong>
+  {{ projeto.motivo_ajustes|linebreaksbr }}
+</div>
+{% endif %}
+
+{% if motivo_somente_leitura %}
+<p class="aviso" role="alert">{{ motivo_somente_leitura }}</p>
+
+{% if projeto.resumo %}<h2>Resumo</h2><p>{{ projeto.resumo }}</p>{% endif %}
+{% if projeto.descricao %}<h2>Descrição</h2>{{ projeto.descricao|linebreaks }}{% endif %}
+{% if projeto.componente_origem %}<h2>Componente de origem</h2><p>{{ projeto.componente_origem }}</p>{% endif %}
+{% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+<h2>Links</h2>
+<ul>
+  {% if projeto.link_repositorio %}<li>Repositório: {{ projeto.link_repositorio }}</li>{% endif %}
+  {% if projeto.link_demo %}<li>Demonstração: {{ projeto.link_demo }}</li>{% endif %}
+  {% if projeto.link_video %}<li>Vídeo: {{ projeto.link_video }}</li>{% endif %}
+</ul>
+{% endif %}
+{% if projeto.capa %}<h2>Capa</h2><img src="{{ projeto.capa.url }}" alt="Capa do projeto">{% endif %}
+{% if imagens %}<h2>Galeria</h2>{% for imagem in imagens %}<img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">{% endfor %}{% endif %}
+{% if integrantes %}<h2>Equipe</h2><ul>{% for integrante in integrantes %}<li>{{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+
+{% else %}
+
+<h2>O que falta para a publicação</h2>
+{% if pendencias %}
+<ul>{% for item in pendencias %}<li>{{ item }}</li>{% endfor %}</ul>
+{% else %}
+<p>Tudo pronto: você já pode enviar o projeto para a revisão.</p>
+{% endif %}
+
+<form method="post" action="{% url 'vitrine:editar' token %}">
+  {% csrf_token %}
+  <h2>O projeto</h2>
+  <p>O nome do projeto é definido pela coordenação e não pode ser alterado aqui.</p>
+  {{ form.as_div }}
+
+  <h2>Equipe (1 a 10 integrantes{% if etec %} — só o primeiro nome{% endif %})</h2>
+  {{ formset.management_form }}
+  {% if formset.non_form_errors %}<div class="erro">{{ formset.non_form_errors }}</div>{% endif %}
+  {% for form_integrante in formset %}
+  <fieldset>
+    <legend>Integrante {{ forloop.counter }}</legend>
+    {{ form_integrante.as_div }}
+  </fieldset>
+  {% endfor %}
+  <p>Precisa de mais linhas? Salve e volte a esta página.</p>
+
+  <button type="submit" name="acao" value="salvar">Salvar</button>
+  <button type="submit" name="acao" value="enviar"{% if not pode_enviar %} disabled{% endif %}>Enviar para revisão</button>
+  {% if not pode_enviar %}<p>O envio para revisão fica disponível quando não houver pendências.</p>{% endif %}
+  <p>A coordenação revisa e publica. Depois de publicado, o grupo não edita mais.</p>
+</form>
+
+<h2>Imagens</h2>
+<p class="aviso">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
+{% if etec %}<p>Não envie fotos de pessoas.</p>{% endif %}
+{% if erro_imagem %}<p class="erro" role="alert">{{ erro_imagem }}</p>{% endif %}
+
+<h3>Capa (obrigatória para publicar)</h3>
+{% if projeto.capa %}<img src="{{ projeto.capa.url }}" alt="Capa atual do projeto">{% endif %}
+<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="tipo" value="capa">
+  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
+  <p>JPG, PNG ou WebP, até 3 MB. Proporção ideal: 1,91:1 (por exemplo, 1200×630 px) para a prévia do WhatsApp.</p>
+  <button type="submit">{% if projeto.capa %}Trocar capa{% else %}Adicionar capa{% endif %}</button>
+</form>
+
+<h3>Galeria (até {{ maximo_imagens }} imagens)</h3>
+{% for imagem in imagens %}
+<figure>
+  <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
+  {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
+  <form method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
+    {% csrf_token %}
+    <button type="submit">Remover</button>
+  </form>
+</figure>
+{% endfor %}
+{% if imagens|length < maximo_imagens %}
+<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  <input type="hidden" name="tipo" value="extra">
+  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
+  <input type="text" name="legenda" maxlength="120" placeholder="Legenda (opcional)">
+  <button type="submit">Adicionar imagem</button>
+</form>
+{% endif %}
+
+{% endif %}
+{% endblock %}

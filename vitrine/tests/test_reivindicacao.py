@@ -18,6 +18,13 @@ from vitrine.tests import auxiliares as aux
 URL = "/grupo/"
 
 
+@pytest.fixture(autouse=True)
+def _janela_fixa(monkeypatch):
+    """Congela o balde da janela fixa: com 50 requisições lentas (banco remoto) a
+    janela de 10 min pode virar no meio do teste e zerar a contagem."""
+    monkeypatch.setattr(servicos, "_balde", lambda janela_segundos: 1000)
+
+
 def _recusado(client, ra, **extra):
     return client.post(URL, {"ra": ra}, **extra)
 

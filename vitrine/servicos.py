@@ -6,15 +6,19 @@ pelos métodos do model — nunca por `update()` em lote.
 """
 
 import logging
+import re
 import time
+from functools import partial
 
 from django.conf import settings
 from django.core.cache import cache
+from django.core.files.storage import default_storage
 from django.db import transaction
+from django.db.models import Max
 from django.utils import timezone
 
-from cadastro.models import Projeto
-from cadastro.seguranca import chave_ip, hash_ra, ip_do_cliente
+from cadastro.models import Edicao, ImagemProjeto, Projeto
+from cadastro.seguranca import chave_ip, hash_ra, hash_token, ip_do_cliente, token_confere
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +28,27 @@ LIMITE_FALHAS_POR_IP = 50
 JANELA_IP_SEGUNDOS = 10 * 60
 LIMITE_FALHAS_GLOBAL = 1000
 JANELA_GLOBAL_SEGUNDOS = 60 * 60
+
+TIPO_CAPA = "capa"
+TIPO_EXTRA = "extra"
+
+
+class EdicaoEncerrada(Exception):
+    """O projeto não aceita mais edição (status, prazo ou votação aberta)."""
+
+
+class LimiteDeImagens(Exception):
+    """O projeto já tem o máximo de imagens extras."""
+
+
+class ImagemInexistente(Exception):
+    """A imagem não existe ou é de outro projeto."""
+
+
+class PendenciasParaEnviar(Exception):
+    def __init__(self, pendencias):
+        super().__init__("Há pendências para enviar o projeto à revisão.")
+        self.pendencias = pendencias
 
 
 # --- Rate limit ---------------------------------------------------------------
@@ -109,6 +134,139 @@ def reivindicar(ra):
         projeto.reivindicado_em = timezone.now()
         projeto.save(update_fields=["reivindicado_em", "atualizado_em"])
         return projeto.regerar_link()
+
+
+# --- Edição pelo link ---------------------------------------------------------
+
+
+FORMATO_DO_TOKEN = re.compile(r"[A-Za-z0-9_-]{20,200}")
+
+
+def projeto_do_token(token):
+    # Formato fora do que `token_urlsafe` gera: 404 sem consultar o banco (G12).
+    if not token or not FORMATO_DO_TOKEN.fullmatch(token):
+        return None
+    projeto = (
+        Projeto.objects.select_related("turma__curso", "turma__edicao")
+        .filter(token_edicao_hash=hash_token(token))
+        .first()
+    )
+    if projeto is None or not token_confere(token, projeto.token_edicao_hash):
+        return None
+    return projeto
+
+
+def motivo_somente_leitura(projeto):
+    """None se o grupo pode editar; senão, o texto que a tela mostra."""
+    if projeto.status == Projeto.Status.EM_REVISAO:
+        return "Este projeto foi enviado para a revisão da coordenação. Para corrigir algo, fale com a coordenação."
+    if projeto.status == Projeto.Status.PUBLICADO:
+        return "Este projeto já foi publicado. Para corrigir algo, fale com a coordenação."
+    if projeto.status not in (Projeto.Status.PRE_CADASTRADO, Projeto.Status.AJUSTES):
+        return "Edição encerrada. Fale com a coordenação."
+    if not _edicao_aceita_edicao(projeto):
+        return "O prazo de edição acabou. Fale com a coordenação."
+    return None
+
+
+def pode_editar(projeto):
+    return motivo_somente_leitura(projeto) is None
+
+
+def travar_para_edicao(projeto_pk, token):
+    """Trava a linha do projeto (dentro de uma transação) e confere se ainda é editável.
+
+    Trava a `Edicao` primeiro e o `Projeto` depois, a mesma ordem do
+    `Projeto.save()` e do admin (a ordem inversa causaria deadlock). Com as duas
+    linhas travadas, confere de novo o prazo e a votação: nenhum "Salvar" grava
+    depois que a votação abre. Confere também o token: se a coordenação regerou
+    o link entre a leitura e a gravação, o link antigo não grava.
+    """
+    edicao_pk = Projeto.objects.values_list("turma__edicao_id", flat=True).get(pk=projeto_pk)
+    Edicao.objects.select_for_update().get(pk=edicao_pk)
+    projeto = (
+        Projeto.objects.select_for_update(of=("self",))
+        .select_related("turma__curso", "turma__edicao")
+        .get(pk=projeto_pk)
+    )
+    if not token_confere(token, projeto.token_edicao_hash) or not pode_editar(projeto):
+        raise EdicaoEncerrada
+    return projeto
+
+
+def enviar_para_revisao(projeto):
+    """Confere as pendências no estado gravado e muda o status para `em_revisao`.
+
+    Chamar dentro da mesma transação que gravou os campos: com pendências,
+    levanta PendenciasParaEnviar e a transação inteira é desfeita.
+    """
+    pendencias = projeto.pendencias_para_publicar()
+    if pendencias:
+        raise PendenciasParaEnviar(pendencias)
+    projeto.status = Projeto.Status.EM_REVISAO
+    projeto.save(update_fields=["status", "atualizado_em"])
+
+
+# --- Imagens, uma por requisição ----------------------------------------------
+
+
+def _apagar_do_storage(nome, projeto_pk):
+    # Só depois do commit: se a transação for desfeita, o projeto ainda aponta
+    # para o arquivo antigo. Falhar aqui não desfaz a gravação.
+    try:
+        default_storage.delete(nome)
+    except Exception as erro:
+        logger.warning("Falha ao apagar arquivo do storage (projeto %s): %s.", projeto_pk, type(erro).__name__)
+
+
+def _descartar_novo(campo, antigo, projeto_pk):
+    """Apaga o arquivo recém-subido se a gravação falhou depois do upload.
+
+    O `FieldFile` sobe o arquivo no `pre_save`, antes do INSERT/UPDATE: sem isto,
+    um erro de banco deixaria um objeto sem referência no bucket público.
+    """
+    if campo.name and campo.name != antigo and getattr(campo, "_committed", False):
+        _apagar_do_storage(campo.name, projeto_pk)
+
+
+def enviar_imagem(projeto_pk, token, tipo, arquivo, legenda=""):
+    with transaction.atomic():
+        # Trava a linha do projeto ANTES de contar as extras: dois uploads
+        # simultâneos com 5 extras gravam só um.
+        projeto = travar_para_edicao(projeto_pk, token)
+        if tipo == TIPO_CAPA:
+            antiga = projeto.capa.name if projeto.capa else None
+            projeto.capa = arquivo
+            try:
+                projeto.save(update_fields=["capa", "atualizado_em"])
+            except Exception:
+                _descartar_novo(projeto.capa, antiga, projeto.pk)
+                raise
+            if antiga:
+                transaction.on_commit(partial(_apagar_do_storage, antiga, projeto.pk))
+            return
+        if projeto.imagens.count() >= ImagemProjeto.MAXIMO_POR_PROJETO:
+            raise LimiteDeImagens
+        ultima = projeto.imagens.aggregate(ultima=Max("ordem"))["ultima"]
+        imagem = ImagemProjeto(
+            projeto=projeto, arquivo=arquivo, legenda=legenda, ordem=0 if ultima is None else ultima + 1
+        )
+        try:
+            imagem.save(force_insert=True)
+        except Exception:
+            _descartar_novo(imagem.arquivo, None, projeto.pk)
+            raise
+
+
+def remover_imagem(projeto_pk, token, imagem_pk):
+    with transaction.atomic():
+        projeto = travar_para_edicao(projeto_pk, token)
+        imagem = projeto.imagens.filter(pk=imagem_pk).first()
+        if imagem is None:
+            raise ImagemInexistente
+        nome = imagem.arquivo.name
+        imagem.delete()
+        transaction.on_commit(partial(_apagar_do_storage, nome, projeto.pk))
 
 
 # --- Links absolutos ----------------------------------------------------------
