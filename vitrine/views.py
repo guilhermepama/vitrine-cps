@@ -6,12 +6,16 @@ leva a /entrar, /estacao, /votar, /votos ou /visitantes (guardrail 8).
 
 from functools import wraps
 
-from django.shortcuts import render
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.db import transaction
+from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
 from vitrine import servicos
+from vitrine.forms import ProjetoGrupoForm, integrante_formset
 
 
 def paginas_do_grupo(view):
@@ -54,8 +58,78 @@ def grupo(request):
 # --- Edição pelo link ---------------------------------------------------------
 
 
-@paginas_do_grupo
-def editar(request, token):
-    # A tela de edição chega na fatia seguinte; até lá o link ainda não abre
-    # nada. A rota existe agora para a reivindicação gerar o link com reverse().
+def _link_invalido(request):
     return render(request, "vitrine/link_invalido.html", status=404)
+
+
+def _403_com_estado_atual(request, token):
+    """Recarrega o projeto: o que o POST leu antes da trava pode estar velho (corrida)."""
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:  # o link foi substituído no meio do envio
+        return _link_invalido(request)
+    return _tela_de_edicao(request, projeto, token, status=403)
+
+
+def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, status=200):
+    motivo = servicos.motivo_somente_leitura(projeto)
+    contexto = {
+        "projeto": projeto,
+        "token": token,
+        "motivo_somente_leitura": motivo,
+        "pendencias": projeto.pendencias_para_publicar() if pendencias is None else pendencias,
+        "etec": projeto.turma.curso.unidade == "etec",
+        "imagens": projeto.imagens.all(),
+        "integrantes": projeto.integrantes.all(),
+    }
+    if motivo is None:
+        contexto["form"] = form or ProjetoGrupoForm(instance=projeto)
+        contexto["formset"] = formset or integrante_formset(projeto)
+        contexto["pode_enviar"] = not contexto["pendencias"]
+    return render(request, "vitrine/editar.html", contexto, status=status)
+
+
+@paginas_do_grupo
+@require_http_methods(["GET", "POST"])
+def editar(request, token):
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:
+        return _link_invalido(request)
+    if request.method == "GET":
+        return _tela_de_edicao(request, projeto, token)
+
+    if not servicos.pode_editar(projeto):
+        return _tela_de_edicao(request, projeto, token, status=403)
+    acao = request.POST.get("acao")
+    if acao not in ("salvar", "enviar"):
+        return _tela_de_edicao(request, projeto, token, status=400)
+
+    form = formset = None
+    try:
+        with transaction.atomic():
+            travado = servicos.travar_para_edicao(projeto.pk, token)
+            form = ProjetoGrupoForm(request.POST, instance=travado)
+            formset = integrante_formset(travado, data=request.POST)
+            if not (form.is_valid() and formset.is_valid()):
+                transaction.set_rollback(True)
+            else:
+                # Só os campos que o grupo edita (a spec proíbe regravar a linha inteira).
+                travado = form.save(commit=False)
+                travado.save(update_fields=[*ProjetoGrupoForm.Meta.fields, "atualizado_em"])
+                formset.save()
+                if acao == "enviar":
+                    servicos.enviar_para_revisao(travado)
+    except (servicos.EdicaoEncerrada, ValidationError):
+        # ValidationError: as travas da spec 01 vivem no save() (a votação abriu no meio do envio).
+        return _403_com_estado_atual(request, token)
+    except servicos.PendenciasParaEnviar as erro:
+        # A transação foi desfeita: remonta os formulários só com o que o grupo
+        # digitou (os objetos antigos já carregam ids de linhas que não existem).
+        digitado = ProjetoGrupoForm(request.POST, instance=projeto)
+        integrantes = integrante_formset(projeto, data=request.POST)
+        return _tela_de_edicao(request, projeto, token, digitado, integrantes, pendencias=erro.pendencias, status=400)
+
+    if not (form.is_valid() and formset.is_valid()):
+        return _tela_de_edicao(request, projeto, token, form, formset, status=400)
+
+    messages.success(request, "Enviado para revisão da coordenação." if acao == "enviar" else "Rascunho salvo.")
+    return redirect("vitrine:editar", token=token)
