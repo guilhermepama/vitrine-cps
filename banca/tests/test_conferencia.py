@@ -78,8 +78,17 @@ def _linhas(resposta):
     return re.findall(r'<tr class="avaliacao">(.*?)</tr>', resposta.content.decode(), re.S)
 
 
-def _concluir(client, edicao, acao="concluir"):
-    return client.post(_url(edicao), {"acao": acao})
+def _versao_da_pagina(client, edicao):
+    """A versão que o formulário da página traz, lida de um GET de verdade."""
+    achado = re.search(r'name="versao" value="([0-9a-f]+)"', client.get(_url(edicao)).content.decode())
+    return achado.group(1) if achado else ""
+
+
+def _concluir(client, edicao, acao="concluir", versao=None):
+    dados = {"acao": acao}
+    if acao == "concluir":
+        dados["versao"] = _versao_da_pagina(client, edicao) if versao is None else versao
+    return client.post(_url(edicao), dados)
 
 
 # --- Amostra -------------------------------------------------------------------------------
@@ -499,3 +508,65 @@ def test_concluir_espera_a_ficha_em_gravacao_e_ve_a_avaliacao():
     assert resposta.status_code == 302 and _mensagens(resposta)[-1:] == [modulo.QUEM_DIGITOU]
     edicao.refresh_from_db()
     assert edicao.banca_conferida_em is None
+
+
+# --- Versão das notas (parecer do Renan no #58) ----------------------------------------------
+
+
+def test_nota_corrigida_depois_de_abrir_a_pagina_impede_concluir(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    vista = _versao_da_pagina(conferente, edicao)  # o conferente abre a página
+    nota = avaliacoes[0].notas.first()  # outro usuário corrige uma nota
+    nota.valor = 3
+    nota.save()
+    resposta = _concluir(conferente, edicao, versao=vista)
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+    assert not LogEntry.objects.exists()
+
+
+def test_avaliacao_nova_ou_apagada_depois_de_abrir_impede_concluir(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados[:1], projetos)
+    vista = _versao_da_pagina(conferente, edicao)
+    fabricas.avaliar(jurados[1], projetos[0], [5, 5])
+    assert _mensagens(_concluir(conferente, edicao, versao=vista))[-1:] == [modulo.NOTAS_MUDARAM]
+    vista = _versao_da_pagina(conferente, edicao)
+    avaliacoes[0].delete()
+    assert _mensagens(_concluir(conferente, edicao, versao=vista))[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+def test_concluir_sem_versao_e_recusado(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    _avaliar_todos(jurados, projetos)
+    resposta = conferente.post(_url(edicao), {"acao": "concluir"})
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+def test_conferir_de_novo_depois_da_correcao_conclui(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    vista = _versao_da_pagina(conferente, edicao)
+    nota = avaliacoes[0].notas.first()
+    nota.valor = 3
+    nota.save()
+    _concluir(conferente, edicao, versao=vista)
+    resposta = _concluir(conferente, edicao)  # reabre a página (versão nova) e conclui
+    assert _mensagens(resposta)[-1:] == ["Conferência concluída."]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is not None
+
+
+def test_versao_nao_muda_com_outra_edicao():
+    edicao, _, projetos, jurados = _edicao()
+    _avaliar_todos(jurados, projetos)
+    antes = modulo.versao_da_banca(edicao.pk)
+    outra, _, outros, js = _edicao(nome="Outra", sigla="X")
+    _avaliar_todos(js, outros)
+    assert modulo.versao_da_banca(edicao.pk) == antes

@@ -8,7 +8,9 @@ GET: cobertura por jurado e por turma e a amostra a conferir (ou, com
 `?digitador=<id>`, todas as avaliações daquele digitador). Número fixo de
 consultas, independente do tamanho da edição.
 
-POST (`acao`): "concluir" preenche `banca_conferida_em`; "reabrir" (decisão
+POST (`acao`): "concluir" preenche `banca_conferida_em`, só se as avaliações
+e notas ainda são as que a página mostrou (`versao`, conferida com a `Edicao`
+travada; parecer do Renan no #58); "reabrir" (decisão
 do coordenador em 05/10, parecer do #55) apaga, e o passo 1 da digitação
 volta a listar os jurados da edição. As duas com a `Edicao` travada e
 registro no histórico do admin; recusa → 302 com a mensagem, nada muda.
@@ -39,6 +41,22 @@ JA_CONFERIDA = "A conferência desta edição já foi concluída."
 NAO_ENCERRADA = "A votação desta edição ainda não foi encerrada."
 SEM_AVALIACOES = "Nenhuma avaliação digitada nesta edição."
 NAO_CONFERIDA = "A conferência desta edição não está concluída; não há digitação a reabrir."
+NOTAS_MUDARAM = (
+    "As avaliações ou notas desta edição mudaram depois que você abriu a página. "
+    "Confira de novo antes de concluir."
+)
+
+
+def versao_da_banca(edicao_id):
+    """Marca do estado da banca: sha256 das avaliações (jurado, projeto) e das
+    notas da edição. Qualquer digitação, correção ou exclusão muda a marca."""
+    avaliacoes = Avaliacao.objects.filter(jurado__edicao_id=edicao_id).order_by("pk")
+    notas = Nota.objects.filter(avaliacao__jurado__edicao_id=edicao_id).order_by("avaliacao_id", "criterio_id", "pk")
+    estado = (
+        list(avaliacoes.values_list("pk", "jurado_id", "projeto_id")),
+        [(a, c, str(v)) for a, c, v in notas.values_list("avaliacao_id", "criterio_id", "valor")],
+    )
+    return hashlib.sha256(repr(estado).encode()).hexdigest()
 
 
 def tamanho_da_amostra(total):
@@ -148,6 +166,7 @@ def _contexto(edicao, digitador):
         "digitadores": sorted(digitadores.items(), key=lambda item: item[0][1]),
         "digitador": digitador,
         "linhas": linhas,
+        "versao": versao_da_banca(edicao.pk),
     }
 
 
@@ -161,6 +180,10 @@ def _concluir(request, edicao):
         return SEM_AVALIACOES
     if avaliacoes.filter(digitado_por=request.user).exists():  # `alterado_por` não impede
         return QUEM_DIGITOU
+    # A `Edicao` está travada (_executar) e toda correção passa por ela (sinais):
+    # a marca relida aqui é a que vale até o commit.
+    if request.POST.get("versao") != versao_da_banca(edicao.pk):
+        return NOTAS_MUDARAM
     edicao.banca_conferida_em = timezone.now()
     edicao.save(update_fields=["banca_conferida_em"])
     _registrar(request, edicao, f"Conferência da banca concluída por {request.user.get_username()}")
