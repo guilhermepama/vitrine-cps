@@ -22,7 +22,8 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 
 from banca import conferencia as modulo
-from banca.models import Avaliacao, Jurado
+from banca import sinais
+from banca.models import Avaliacao, Jurado, Nota
 from banca.sinais import GRUPO_DIGITACAO
 from banca.tests import fabricas
 from cadastro.models import Edicao, Projeto
@@ -78,8 +79,17 @@ def _linhas(resposta):
     return re.findall(r'<tr class="avaliacao">(.*?)</tr>', resposta.content.decode(), re.S)
 
 
-def _concluir(client, edicao, acao="concluir"):
-    return client.post(_url(edicao), {"acao": acao})
+def _versao_da_pagina(client, edicao):
+    """A versão que o formulário da página traz, lida de um GET de verdade."""
+    achado = re.search(r'name="versao" value="([0-9a-f]+)"', client.get(_url(edicao)).content.decode())
+    return achado.group(1) if achado else ""
+
+
+def _concluir(client, edicao, acao="concluir", versao=None):
+    dados = {"acao": acao}
+    if acao == "concluir":
+        dados["versao"] = _versao_da_pagina(client, edicao) if versao is None else versao
+    return client.post(_url(edicao), dados)
 
 
 # --- Amostra -------------------------------------------------------------------------------
@@ -497,5 +507,142 @@ def test_concluir_espera_a_ficha_em_gravacao_e_ve_a_avaliacao():
     assert not thread.is_alive() and "erro" not in resultado
     resposta = resultado["valor"]
     assert resposta.status_code == 302 and _mensagens(resposta)[-1:] == [modulo.QUEM_DIGITOU]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+# --- Versão das notas (parecer do Renan no #58) ----------------------------------------------
+
+
+def test_nota_corrigida_depois_de_abrir_a_pagina_impede_concluir(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    vista = _versao_da_pagina(conferente, edicao)  # o conferente abre a página
+    nota = avaliacoes[0].notas.first()  # outro usuário corrige uma nota
+    nota.valor = 3
+    nota.save()
+    resposta = _concluir(conferente, edicao, versao=vista)
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+    assert not LogEntry.objects.exists()
+
+
+def test_avaliacao_nova_ou_apagada_depois_de_abrir_impede_concluir(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados[:1], projetos)
+    vista = _versao_da_pagina(conferente, edicao)
+    fabricas.avaliar(jurados[1], projetos[0], [5, 5])
+    assert _mensagens(_concluir(conferente, edicao, versao=vista))[-1:] == [modulo.NOTAS_MUDARAM]
+    vista = _versao_da_pagina(conferente, edicao)
+    avaliacoes[0].delete()
+    assert _mensagens(_concluir(conferente, edicao, versao=vista))[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+def test_concluir_sem_versao_e_recusado(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    _avaliar_todos(jurados, projetos)
+    resposta = conferente.post(_url(edicao), {"acao": "concluir"})
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is None
+
+
+def test_conferir_de_novo_depois_da_correcao_conclui(conferente):
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    vista = _versao_da_pagina(conferente, edicao)
+    nota = avaliacoes[0].notas.first()
+    nota.valor = 3
+    nota.save()
+    _concluir(conferente, edicao, versao=vista)
+    resposta = _concluir(conferente, edicao)  # reabre a página (versão nova) e conclui
+    assert _mensagens(resposta)[-1:] == ["Conferência concluída."]
+    edicao.refresh_from_db()
+    assert edicao.banca_conferida_em is not None
+
+
+def test_versao_nao_muda_com_outra_edicao():
+    edicao, _, projetos, jurados = _edicao()
+    _avaliar_todos(jurados, projetos)
+    antes = modulo.versao_da_banca(edicao.pk)
+    outra, _, outros, js = _edicao(nome="Outra", sigla="X")
+    _avaliar_todos(js, outros)
+    assert modulo.versao_da_banca(edicao.pk) == antes
+
+
+def _espera_trava(conexao, thread, prazo=10):
+    """True quando outra conexão está parada esperando uma trava de linha; False se a
+    thread terminou sem esperar. Consulta o Postgres, sem depender de tempo."""
+    limite = time.monotonic() + prazo
+    while time.monotonic() < limite:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM pg_stat_activity"
+                " WHERE datname = current_database() AND pid <> pg_backend_pid()"
+                " AND wait_event_type = 'Lock'"
+            )
+            if cursor.fetchone()[0]:
+                return True
+        if not thread.is_alive():
+            return False
+        time.sleep(0.01)
+    raise AssertionError("a correção não terminou nem ficou esperando a trava")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_correcao_entre_ler_as_notas_e_calcular_a_versao_nao_passa(monkeypatch):
+    """Parecer do Renan no #65: a página lê as notas e só depois calcula a versão.
+    Uma correção que confirmasse entre as duas leituras faria a tela mostrar a nota
+    antiga com a versão da nova. Com a Edicao travada no GET, a correção espera a
+    página terminar, e o concluir com a versão da página é recusado.
+
+    Sem tempo fixo (rodada 2 do parecer): um Event marca o instante em que a correção
+    vai pegar a trava da Edicao, e o Postgres diz se ela ficou esperando. Sem a trava
+    no GET, a correção confirma antes da versão e o teste falha."""
+    edicao, _, projetos, jurados = _edicao()
+    avaliacoes = _avaliar_todos(jurados, projetos)
+    nota_id = avaliacoes[0].notas.first().pk
+    renan = _staff("renan", "concluir_conferencia")
+    cliente = Client()
+    cliente.force_login(renan)
+
+    vai_travar = threading.Event()
+    desfazer_original = sinais.desfazer_conferencia
+
+    def desfazer_avisando(edicao_id):
+        vai_travar.set()  # a nota já foi gravada; agora a correção pede a trava da Edicao
+        return desfazer_original(edicao_id)
+
+    monkeypatch.setattr(sinais, "desfazer_conferencia", desfazer_avisando)
+
+    def corrigir():
+        nota = Nota.objects.get(pk=nota_id)
+        nota.valor = 3
+        nota.save()
+
+    versao_original = modulo.versao_da_banca
+    correcao = {}
+
+    def versao_com_correcao_no_meio(edicao_id):
+        if "thread" not in correcao:  # só no GET: as notas exibidas já foram lidas
+            correcao["thread"], correcao["resultado"] = _em_thread(corrigir)
+            assert vai_travar.wait(timeout=10), "a correção não chegou à trava da Edicao"
+            correcao["esperou"] = _espera_trava(connection, correcao["thread"])
+        return versao_original(edicao_id)
+
+    monkeypatch.setattr(modulo, "versao_da_banca", versao_com_correcao_no_meio)
+    pagina = cliente.get(_url(edicao)).content.decode()
+    correcao["thread"].join(timeout=10)
+    assert not correcao["thread"].is_alive(), "a correção deveria terminar depois do GET"
+    assert "erro" not in correcao["resultado"]
+    assert correcao["esperou"], "a correção deveria esperar a trava da Edicao do GET"
+    assert Nota.objects.get(pk=nota_id).valor == 3
+
+    vista = re.search(r'name="versao" value="([0-9a-f]+)"', pagina).group(1)
+    resposta = cliente.post(_url(edicao), {"acao": "concluir", "versao": vista})
+    assert _mensagens(resposta)[-1:] == [modulo.NOTAS_MUDARAM]
     edicao.refresh_from_db()
     assert edicao.banca_conferida_em is None
