@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block titulo %}Projeto não encontrado — Vitrine CPS{% endblock %}
+
+{% block conteudo %}
+<h1>Projeto não encontrado</h1>
+<p>
+  Esse link pode estar errado — ou o projeto ainda não foi publicado pela coordenação.
+  Confira o endereço com quem te enviou e tente de novo mais tarde.
+</p>
+<p><a href="{% url 'vitrine:como_votar' %}">Conhecer a Mostra</a></p>
+{% endblock %}
