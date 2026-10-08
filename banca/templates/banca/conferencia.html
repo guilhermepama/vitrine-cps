@@ -69,6 +69,7 @@ Conferência da banca (spec 06). Só no admin: notas por jurado nunca em página
 {% else %}
 <form method="post">{% csrf_token %}
   {% if total_sem_avaliacao %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} projeto{{ total_sem_avaliacao|pluralize }} publicado{{ total_sem_avaliacao|pluralize }} sem nenhuma avaliação. A turma fica com banca pendente no resultado.</p>{% endif %}
+  <input type="hidden" name="versao" value="{{ versao }}">
   <button type="submit" name="acao" value="concluir">Concluir conferência</button>
 </form>
 {% endif %}

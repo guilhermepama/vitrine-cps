@@ -205,7 +205,13 @@ nota de banca de cada projeto.
     impede;
   - votação da edição ainda não encerrada;
   - nenhuma avaliação na edição;
-  - já conferida.
+  - já conferida;
+  - **as avaliações ou notas mudaram desde que a página foi aberta**: o
+    formulário leva a versão da banca (sha256 das avaliações e notas da
+    edição), relida com a `Edicao` travada → "As avaliações ou notas desta
+    edição mudaram depois que você abriu a página. Confira de novo antes de
+    concluir." Sem isso, uma correção feita entre abrir e concluir seria
+    dada como conferida sem ninguém ter visto.
 - **Quem confere**: a permissão `concluir_conferencia` é dada ao
   coordenador e ao Renan (decisão do coordenador): se o coordenador
   digitar fichas no dia 30, o Renan conclui.
@@ -362,6 +368,7 @@ Tabelas novas (migrations do app `banca`):
 - [ ] Usuário que só corrigiu (`alterado_por`) consegue concluir
 - [ ] Concluir com votação não encerrada, sem avaliações, ou já conferida → recusa, nada muda
 - [ ] Concluir válido → `banca_conferida_em` preenchido
+- [ ] Nota corrigida, avaliação nova ou apagada entre abrir a página e concluir → recusa com a mensagem, `banca_conferida_em` vazio; abrir de novo e concluir → conclui
 - [ ] POST sem CSRF → 403
 - [ ] `banca_conferida_em` é somente leitura no admin de `Edicao`
 - [ ] Reabrir digitação com a edição conferida → `banca_conferida_em` vazio, `LogEntry` "Digitação reaberta por <usuário>" na `Edicao`, e o passo 1 da digitação volta a listar os jurados da edição
