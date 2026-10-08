@@ -22,6 +22,7 @@ from django.urls import resolve, reverse
 from django.utils import timezone
 
 from banca import conferencia as modulo
+from banca import sinais
 from banca.models import Avaliacao, Jurado, Nota
 from banca.sinais import GRUPO_DIGITACAO
 from banca.tests import fabricas
@@ -572,12 +573,35 @@ def test_versao_nao_muda_com_outra_edicao():
     assert modulo.versao_da_banca(edicao.pk) == antes
 
 
+def _espera_trava(conexao, thread, prazo=10):
+    """True quando outra conexão está parada esperando uma trava de linha; False se a
+    thread terminou sem esperar. Consulta o Postgres, sem depender de tempo."""
+    limite = time.monotonic() + prazo
+    while time.monotonic() < limite:
+        with conexao.cursor() as cursor:
+            cursor.execute(
+                "SELECT count(*) FROM pg_stat_activity"
+                " WHERE datname = current_database() AND pid <> pg_backend_pid()"
+                " AND wait_event_type = 'Lock'"
+            )
+            if cursor.fetchone()[0]:
+                return True
+        if not thread.is_alive():
+            return False
+        time.sleep(0.01)
+    raise AssertionError("a correção não terminou nem ficou esperando a trava")
+
+
 @pytest.mark.django_db(transaction=True)
 def test_correcao_entre_ler_as_notas_e_calcular_a_versao_nao_passa(monkeypatch):
     """Parecer do Renan no #65: a página lê as notas e só depois calcula a versão.
     Uma correção que confirmasse entre as duas leituras faria a tela mostrar a nota
     antiga com a versão da nova. Com a Edicao travada no GET, a correção espera a
-    página terminar, e o concluir com a versão da página é recusado."""
+    página terminar, e o concluir com a versão da página é recusado.
+
+    Sem tempo fixo (rodada 2 do parecer): um Event marca o instante em que a correção
+    vai pegar a trava da Edicao, e o Postgres diz se ela ficou esperando. Sem a trava
+    no GET, a correção confirma antes da versão e o teste falha."""
     edicao, _, projetos, jurados = _edicao()
     avaliacoes = _avaliar_todos(jurados, projetos)
     nota_id = avaliacoes[0].notas.first().pk
@@ -585,26 +609,37 @@ def test_correcao_entre_ler_as_notas_e_calcular_a_versao_nao_passa(monkeypatch):
     cliente = Client()
     cliente.force_login(renan)
 
-    original = modulo.versao_da_banca
-    correcao = {}
+    vai_travar = threading.Event()
+    desfazer_original = sinais.desfazer_conferencia
+
+    def desfazer_avisando(edicao_id):
+        vai_travar.set()  # a nota já foi gravada; agora a correção pede a trava da Edicao
+        return desfazer_original(edicao_id)
+
+    monkeypatch.setattr(sinais, "desfazer_conferencia", desfazer_avisando)
 
     def corrigir():
         nota = Nota.objects.get(pk=nota_id)
         nota.valor = 3
         nota.save()
 
+    versao_original = modulo.versao_da_banca
+    correcao = {}
+
     def versao_com_correcao_no_meio(edicao_id):
         if "thread" not in correcao:  # só no GET: as notas exibidas já foram lidas
             correcao["thread"], correcao["resultado"] = _em_thread(corrigir)
-            correcao["thread"].join(timeout=0.5)
-            correcao["esperou"] = correcao["thread"].is_alive()
-        return original(edicao_id)
+            assert vai_travar.wait(timeout=10), "a correção não chegou à trava da Edicao"
+            correcao["esperou"] = _espera_trava(connection, correcao["thread"])
+        return versao_original(edicao_id)
 
     monkeypatch.setattr(modulo, "versao_da_banca", versao_com_correcao_no_meio)
     pagina = cliente.get(_url(edicao)).content.decode()
     correcao["thread"].join(timeout=10)
-    assert correcao["esperou"], "a correção deveria esperar a trava da Edicao do GET"
+    assert not correcao["thread"].is_alive(), "a correção deveria terminar depois do GET"
     assert "erro" not in correcao["resultado"]
+    assert correcao["esperou"], "a correção deveria esperar a trava da Edicao do GET"
+    assert Nota.objects.get(pk=nota_id).valor == 3
 
     vista = re.search(r'name="versao" value="([0-9a-f]+)"', pagina).group(1)
     resposta = cliente.post(_url(edicao), {"acao": "concluir", "versao": vista})
