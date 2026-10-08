@@ -1,0 +1,49 @@
+{% comment %}
+  Corpo do projeto (spec 02). Sem nenhum link ou formulário de voto (guardrail 8):
+  outro app pode incluir este partial, mas a página pública nunca leva à cédula.
+{% endcomment %}
+{% if projeto.capa %}<img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">{% endif %}
+
+<p>
+  <span class="monograma monograma--m" aria-hidden="true">{{ projeto.turma.curso.sigla|slice:":3" }}</span>
+  {{ projeto.turma.rotulo }}{% if projeto.componente_origem %} · {{ projeto.componente_origem }}{% endif %}
+</p>
+
+<h1>{{ projeto.titulo }}</h1>
+{% if projeto.resumo %}<p>{{ projeto.resumo }}</p>{% endif %}
+
+{% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+<h2>Links do projeto</h2>
+<ul>
+  {% if projeto.link_repositorio %}<li><a href="{{ projeto.link_repositorio }}" target="_blank" rel="noopener noreferrer nofollow">Repositório</a></li>{% endif %}
+  {% if projeto.link_demo %}<li><a href="{{ projeto.link_demo }}" target="_blank" rel="noopener noreferrer nofollow">Demonstração</a></li>{% endif %}
+  {% if projeto.link_video %}<li><a href="{{ projeto.link_video }}" target="_blank" rel="noopener noreferrer nofollow">Vídeo</a></li>{% endif %}
+</ul>
+{% endif %}
+
+{% if projeto.descricao %}
+<h2>Sobre o projeto</h2>
+{{ projeto.descricao|linebreaks }}
+{% endif %}
+
+{% if projeto.imagens.all %}
+<h2>Galeria</h2>
+{% for imagem in projeto.imagens.all %}
+<figure>
+  <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
+  {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
+</figure>
+{% endfor %}
+{% endif %}
+
+{% if projeto.integrantes.all %}
+<h2>Equipe</h2>
+<ul>
+  {% for integrante in projeto.integrantes.all %}
+  <li>
+    <span class="monograma monograma--m" aria-hidden="true">{{ integrante.nome|slice:":1"|upper }}</span>
+    {{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
