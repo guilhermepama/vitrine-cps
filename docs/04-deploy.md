@@ -53,7 +53,8 @@ build pack **Dockerfile**.
 - **Domains**: `https://vitrinecps.com.br,https://www.vitrinecps.com.br`,
   com redirecionamento para o domínio sem `www` (opção "Direction").
 - **Ports Exposes**: `8000`.
-- **Healthcheck**: path `/saude/`, porta 8000.
+- **Healthcheck**: HTTP GET, path `/saude/`, porta 8000, expected 200,
+  start period 30 s (o primeiro boot roda as migrações).
 
 ### Variáveis de ambiente
 
@@ -61,7 +62,7 @@ build pack **Dockerfile**.
 |---|---|
 | `DJANGO_DEBUG` | `0` |
 | `DJANGO_SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
-| `DJANGO_ALLOWED_HOSTS` | `vitrinecps.com.br,www.vitrinecps.com.br` |
+| `DJANGO_ALLOWED_HOSTS` | `vitrinecps.com.br,www.vitrinecps.com.br,localhost` (o `localhost` é do healthcheck do Coolify, que testa de dentro do container) |
 | `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://vitrinecps.com.br,https://www.vitrinecps.com.br` |
 | `DJANGO_URL_PUBLICA` | `https://vitrinecps.com.br` |
 | `DJANGO_SECURE_SSL_REDIRECT` | `0` (o Cloudflare já redireciona HTTP→HTTPS na borda) |
