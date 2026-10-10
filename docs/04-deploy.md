@@ -83,8 +83,8 @@ gerar quatro valores diferentes.
 > túnel, o Traefik enxerga todas as requisições com o IP do cloudflared.
 > Com `X-Real-Ip`, o público inteiro do evento viraria um IP só e o rate
 > limit (300/10 min/IP) barraria a votação. O `CF-Connecting-IP` é escrito
-> pelo Cloudflare e, com o firewall fechado (só o túnel entra), o cliente
-> não consegue forjá-lo.
+> pelo Cloudflare e, desde que as portas 80/443 estejam fechadas (ver
+> checklist), o cliente não consegue forjá-lo.
 
 ## 5. R2 (imagens)
 
@@ -110,6 +110,17 @@ gerar quatro valores diferentes.
          `media.vitrinecps.com.br` e prévia abrindo
    - [ ] IP real: acessar de 4G e de Wi-Fi e conferir no rate limit/logs que
          são IPs distintos (não pode aparecer IP interno do Docker)
+   - [ ] Portas 80/443 fechadas na VPS (IPv4 e IPv6), no firewall do painel
+         da Hostinger.
+   - [ ] Acesso direto pelo IP não responde:
+
+             curl -sk --max-time 5 --resolve vitrinecps.com.br:443:<IP_DA_VPS>                -H "CF-Connecting-IP: 1.2.3.4" https://vitrinecps.com.br/saude/
+
+         Esperado: timeout ou conexão recusada. Se responder 200, o firewall
+         está aberto.
+   - [ ] Teste de rate limit com `CF-Connecting-IP` falso via domínio: o
+         bloqueio tem de vir; de outra rede (4G), não estar bloqueado.
+   - [ ] Proxy do Coolify sem `--accesslog` e com `--log.level` fora de DEBUG.
 
 ## Operação
 
@@ -117,4 +128,14 @@ gerar quatro valores diferentes.
   botão Deploy.
 - Logs: Coolify → aplicação → Logs (o Django loga no console; rotas do
   visitante filtradas — guardrail 11).
-- Backup do banco: responsabilidade do Neon (point-in-time restore).
+
+### Backup do banco (ADR-006, obrigatório)
+O PITR do Neon no plano gratuito volta só ~6 h. Fazer `pg_dump` em três momentos:
+1. Véspera do evento
+2. Ao encerrar a votação
+3. Após publicar o resultado
+
+    pg_dump -Fc "<DATABASE_URL de produção>" -f vitrine-AAAA-MM-DD-momento.dump
+
+- Responsável: <nome>
+- Onde guardar: <local restrito>. Nunca no repositório, porque o dump tem a tabela do cache com IP.

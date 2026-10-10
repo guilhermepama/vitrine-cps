@@ -206,18 +206,19 @@ Formato:
       visitante) e a spec 02 (`/grupo/editar/<token>/`, com o token na
       URL). Do container só sai o log da aplicação, que passa pelo filtro
       `votacao/logs.py`.
-    - **IP real: `DJANGO_IP_HEADER=X-Real-Ip`.** O Traefik descarta esse
-      cabeçalho quando vem do cliente e o preenche com o IP de quem abriu
-      a conexão. Para isso valer, o domínio do app fica **só no DNS da
-      Cloudflare, sem o proxy** ("nuvem cinza"): com o proxy, o IP visto
+    - **IP real: `DJANGO_IP_HEADER=X-Real-Ip`** (substituído na revisão de
+      10/10). O Traefik descarta esse cabeçalho quando vem do cliente e o
+      preenche com o IP de quem abriu a conexão. Para isso valer, o
+      domínio do app fica **só no DNS da Cloudflare, sem o proxy** ("nuvem
+      cinza" — substituído na revisão de 10/10): com o proxy, o IP visto
       seria o da Cloudflare e o rate limit por IP viraria um contador
       único para todo mundo. **Teste obrigatório ao publicar**: requisição
       com `X-Real-Ip` e `X-Forwarded-For` falsos → `ip_do_cliente` não
       devolve o valor falso.
     - **Rede**: o container não mapeia porta para o host (só a porta
       interna exposta ao Traefik) e o firewall do VPS libera só 22, 80 e
-      443. Acesso direto ao gunicorn furaria o `X-Real-Ip` e o
-      `X-Forwarded-Proto`.
+      443 (substituído na revisão de 10/10). Acesso direto ao gunicorn
+      furaria o `X-Real-Ip` e o `X-Forwarded-Proto`.
     - **Deploy**: o Coolify publica a `main` pelo app do GitHub (só
       leitura). Início com
       `python manage.py migrate --noinput && python manage.py createcachetable && python manage.py collectstatic --noinput && gunicorn config.wsgi --bind 0.0.0.0:8000 --workers 3`
@@ -247,7 +248,7 @@ Formato:
       (3.12); configuração de log do Traefik anexada (sem `--accesslog`,
       `--log.level` fora de DEBUG), como pede a spec 03; teste de IP real
       — estourar o rate limit variando `X-Real-Ip` e `X-Forwarded-For`
-      falsos (o bloqueio tem de vir) e, logo depois, de outra rede (4G),
+      falsos (substituído na revisão de 10/10) (o bloqueio tem de vir) e, logo depois, de outra rede (4G),
       não estar bloqueado; o mesmo com IPv6, ou não publicar registro
       AAAA.
     - **O banco continua no Neon** — o Coolify não cria Postgres no VPS.
@@ -267,6 +268,13 @@ Formato:
       produção. URLs assinadas descartadas: expiram e quebram a prévia do
       link no WhatsApp, que é o canal de divulgação da vitrine.
     - Requer cartão ou PayPal cadastrado na Cloudflare, mesmo no grátis.
+  - **Revisão em 2026-10-10 (PR #69)**: servidor atrás de Cloudflare
+    Tunnel, no lugar da nuvem cinza.
+    - IP real: `DJANGO_IP_HEADER=CF-Connecting-IP` (substitui
+      `X-Real-Ip`). Só é seguro com 80/443 fechadas na VPS.
+    - Firewall: só a 22 aberta; o túnel faz a conexão de saída.
+    - `collectstatic` no build, com valores falsos só para importar o
+      settings. Nenhum segredo real entra na imagem (G3).
 - Consequências: Supabase descartado — duplicaria autenticação e API que o
   Django já oferece, pausa o projeto após 1 semana sem uso (o sistema é
   usado em ondas semestrais) e não tem backup no plano gratuito. O Neon

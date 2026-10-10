@@ -29,6 +29,9 @@ RUN DJANGO_DEBUG=1 \
     DATABASE_URL=postgres://build:build@localhost:5432/build \
     python manage.py collectstatic --noinput
 
+RUN useradd --create-home --uid 1000 app
+USER app
+
 EXPOSE 8000
 
 # Migra, garante a tabela do cache (rate limit, guardrail 7) e sobe o gunicorn.

@@ -90,7 +90,7 @@ em horário de aula). A folga fica entre 23/10 e 27/10 para correções.
 - [x] `ip_do_cliente`/`chave_ip` compartilhados (#25); segredos da votação
       obrigatórios (#24); filtro de log P2 ligado (#26, #27)
 - [x] ADR-010: aprovação em pares nos PRs do coordenador (#28, #29)
-- [x] Servidor decidido: VPS com Coolify, IP real por `X-Real-Ip`
+- [x] Servidor decidido: VPS com Coolify, IP real por `CF-Connecting-IP`
       (ADR-006, #30); `URL_PUBLICA` obrigatória em produção (#32)
 - [x] **Spec 03 implementada (Renan)**: F1 models (#21), F2 abrir/encerrar
       e estações (#22), F3 QR e página da estação (#31), F4 emissão em
