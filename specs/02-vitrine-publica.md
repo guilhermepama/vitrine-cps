@@ -581,7 +581,7 @@ Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
   URL, sem troca por sessão. A ADR-006 já registra: sem log de acesso no
   gunicorn nem no Traefik.
 - **Rate limit**: 50 falhas/10 min por IP; global sobe de 200 para
-  1.000/h; IPv6 pelo /64. O IP real vem de `X-Real-Ip`
+  1.000/h; IPv6 pelo /64. O IP real vem de `CF-Connecting-IP`
   (`DJANGO_IP_HEADER`, ADR-006).
 - **Local e horário**: texto fixo no template, sem campo novo na `Edicao`:
   "às 19h, no campus da Fatec Olímpia — Av. Governador Adhemar Pereira de
