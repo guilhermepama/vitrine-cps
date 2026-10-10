@@ -111,10 +111,13 @@ gerar quatro valores diferentes.
    - [ ] IP real: acessar de 4G e de Wi-Fi e conferir no rate limit/logs que
          são IPs distintos (não pode aparecer IP interno do Docker)
    - [ ] Portas 80/443 fechadas na VPS (IPv4 e IPv6), no firewall do painel
-         da Hostinger.
+         da Hostinger. Não usar o `ufw`: o Docker escreve as próprias regras
+         de iptables e passa por cima dele — as portas continuariam abertas.
    - [ ] Acesso direto pelo IP não responde:
 
-             curl -sk --max-time 5 --resolve vitrinecps.com.br:443:<IP_DA_VPS>                -H "CF-Connecting-IP: 1.2.3.4" https://vitrinecps.com.br/saude/
+         ```
+         curl -sk --max-time 5 --resolve vitrinecps.com.br:443:<IP_DA_VPS> -H "CF-Connecting-IP: 1.2.3.4" https://vitrinecps.com.br/saude/
+         ```
 
          Esperado: timeout ou conexão recusada. Se responder 200, o firewall
          está aberto.
@@ -135,7 +138,9 @@ O PITR do Neon no plano gratuito volta só ~6 h. Fazer `pg_dump` em três moment
 2. Ao encerrar a votação
 3. Após publicar o resultado
 
-    pg_dump -Fc "<DATABASE_URL de produção>" -f vitrine-AAAA-MM-DD-momento.dump
+```bash
+pg_dump -Fc "<DATABASE_URL de produção>" -f vitrine-AAAA-MM-DD-momento.dump
+```
 
-- Responsável: <nome>
-- Onde guardar: <local restrito>. Nunca no repositório, porque o dump tem a tabela do cache com IP.
+- Responsável: Guilherme
+- Onde guardar: pasta restrita no Drive institucional. Nunca no repositório, porque o dump tem a tabela do cache com IP.
