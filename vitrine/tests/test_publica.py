@@ -272,15 +272,39 @@ def test_nenhuma_sintaxe_de_template_vaza_para_o_html(client):
 CSS = Path(__file__).resolve().parents[2] / "static" / "css" / "base.css"
 
 
-def _regras(css):
-    """{seletor: {propriedade: valor}} do CSS simples deste arquivo."""
+def _lista_regras(css):
+    """[(seletor, {propriedade: valor})] na ordem do arquivo, com seletor repetido
+    aparecendo uma vez por ocorrência (o `body` do `@media print` não apaga o principal)."""
     css = re.sub(r"(?s)/\*.*?\*/", "", css)
-    return {
-        " ".join(seletor.split()): dict(
-            (p.strip(), v.strip()) for p, v in (d.split(":", 1) for d in corpo.split(";") if ":" in d)
+    return [
+        (
+            " ".join(seletor.split()),
+            dict((p.strip(), v.strip()) for p, v in (d.split(":", 1) for d in corpo.split(";") if ":" in d)),
         )
         for seletor, corpo in re.findall(r"([^{}]+)\{([^{}]*)\}", css)
-    }
+    ]
+
+
+def _regras(css):
+    """{seletor: {propriedade: valor}}, juntando as ocorrências de um mesmo seletor."""
+    regras = {}
+    for seletor, propriedades in _lista_regras(css):
+        regras.setdefault(seletor, {}).update(propriedades)
+    return regras
+
+
+def _larguras_acima_de_360px(css):
+    """(seletor, propriedade, valor) de toda largura fixa em px acima de 360, em toda
+    ocorrência de cada seletor, e de todo `overflow-x` que força rolagem lateral."""
+    achados = []
+    for seletor, propriedades in _lista_regras(css):
+        for nome in ("width", "min-width"):
+            pixels = re.fullmatch(r"(\d+(?:\.\d+)?)px", propriedades.get(nome, ""))
+            if pixels and float(pixels.group(1)) > 360:
+                achados.append((seletor, nome, propriedades[nome]))
+        if propriedades.get("overflow-x") == "scroll":
+            achados.append((seletor, "overflow-x", "scroll"))
+    return achados
 
 
 def test_css_da_capa_em_banner_recortado():
@@ -292,11 +316,13 @@ def test_css_da_capa_em_banner_recortado():
 
 
 def test_css_nao_tem_largura_fixa_maior_que_a_tela_de_360px():
-    for seletor, propriedades in _regras(CSS.read_text(encoding="utf-8")).items():
-        for nome in ("width", "min-width"):
-            pixels = re.fullmatch(r"(\d+(?:\.\d+)?)px", propriedades.get(nome, ""))
-            if pixels:
-                assert float(pixels.group(1)) <= 360, (seletor, nome)
+    assert _larguras_acima_de_360px(CSS.read_text(encoding="utf-8")) == []
+
+
+def test_largura_em_seletor_repetido_tambem_e_checada():
+    # O `body` repetido (como o do `@media print` no base.css) não esconde o primeiro.
+    css = "body { min-width: 480px; }\n@media print { body { background: #fff; } }\n.x { overflow-x: scroll; }"
+    assert _larguras_acima_de_360px(css) == [("body", "min-width", "480px"), (".x", "overflow-x", "scroll")]
 
 
 @pytest.mark.django_db
