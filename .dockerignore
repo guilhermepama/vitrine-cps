@@ -1,0 +1,17 @@
+.git
+.venv
+.env
+.env.*
+!.env.example
+__pycache__
+*.pyc
+.pytest_cache
+.tmp-claude
+_local
+media
+staticfiles
+node_modules
+docs/docs-seed
+.github
+.claude
+.cursor
