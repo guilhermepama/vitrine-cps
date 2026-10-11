@@ -340,7 +340,9 @@ class ProjetoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
             },
         )
         add_never_cache_headers(resposta)
-        resposta["Referrer-Policy"] = "no-referrer"
+        # `same-origin`, não `no-referrer`: a página tem o POST de "Encerrar sessão" do admin
+        # e `no-referrer` faz o navegador mandar `Origin: null` (CSRF 403). Ver #70.
+        resposta["Referrer-Policy"] = "same-origin"
         return resposta
 
     @admin.action(description="Revogar link de edição (um projeto)")
