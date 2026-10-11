@@ -230,10 +230,13 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   hora (a página consulta o hash a cada request).
 - Dois colegas com o mesmo link editando ao mesmo tempo: vale a última
   gravação (aceito; o link é de uma pessoa só).
-- Páginas do grupo respondem com `Referrer-Policy: no-referrer`,
+- Páginas do grupo respondem com `Referrer-Policy: same-origin`,
   `X-Robots-Tag: noindex` e `Cache-Control: no-store`, para o token na URL
   não vazar por referência, buscador ou cache. O token fica na URL (não é
-  trocado por sessão).
+  trocado por sessão). `same-origin`, não `no-referrer`: com `no-referrer` o
+  navegador manda `Origin: null` no POST e o CSRF do Django recusa todo
+  formulário do grupo (403 em produção, 10/10). `same-origin` não manda
+  Referer para domínio externo, que é o que protege o token.
 - **O token não vai para o log da aplicação.** "Sem log de acesso"
   (ADR-006) cobre o gunicorn e o Traefik, não o log da aplicação: o Django
   registra todo 4xx em `django.request` com o caminho
@@ -430,7 +433,7 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] Nenhum `update()` ou `bulk_update()` em `status`, `slug` ou `turma` no app `vitrine` (revisão de código)
 - [ ] Entradas conforme a tabela "Validação de entrada (guardrail 12)": resumo > 280, descrição > 3.000, componente > 120, link > 200, nome ou papel > 60, legenda > 120, `acao` e `tipo` desconhecidos, token > 200 caracteres (404 sem consultar o banco) e RA enorme → recusados, nada gravado
 - [ ] Nenhum SQL cru no app `vitrine` (`.raw(`, `.extra(`, `cursor`, `execute(`) — guardrail 13
-- [ ] Páginas do grupo respondem com `Referrer-Policy: no-referrer`, `X-Robots-Tag: noindex` e `Cache-Control: no-store`
+- [ ] Páginas do grupo respondem com `Referrer-Policy: same-origin`, `X-Robots-Tag: noindex` e `Cache-Control: no-store`
 - [ ] Com a configuração real de `LOGGING`, um 400, um 403 e um 404 em `/grupo/editar/<token>/...` **com token válido** deixam a linha no log (`django.request`) com `<token>` no lugar do token, e o token não aparece (teste com captura de log)
 - [ ] A página de edição mostra, junto dos campos de imagem, o aviso "Salve o texto antes de enviar imagens" (teste de conteúdo)
 

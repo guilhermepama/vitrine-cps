@@ -22,13 +22,17 @@ from vitrine.forms import ImagemUploadForm, ProjetoGrupoForm, integrante_formset
 
 
 def paginas_do_grupo(view):
-    """Páginas do grupo: sem cache, sem indexação, sem referência (G11 por analogia)."""
+    """Páginas do grupo: sem cache, sem indexação, sem referência para fora do site (G11 por analogia).
+
+    `same-origin`, não `no-referrer`: com `no-referrer` o navegador manda `Origin: null`
+    no POST e o CSRF do Django recusa todo formulário do grupo.
+    """
 
     @wraps(view)
     @never_cache
     def envolvida(request, *args, **kwargs):
         resposta = view(request, *args, **kwargs)
-        resposta["Referrer-Policy"] = "no-referrer"
+        resposta["Referrer-Policy"] = "same-origin"
         resposta["X-Robots-Tag"] = "noindex"
         return resposta
 
