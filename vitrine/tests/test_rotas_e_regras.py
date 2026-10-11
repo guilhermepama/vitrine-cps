@@ -26,7 +26,7 @@ def test_como_votar_nao_tem_caminho_de_voto(client):
 @pytest.mark.django_db
 def test_paginas_do_grupo_tem_os_cabecalhos_de_protecao(client):
     for resposta in (client.get("/grupo/"), client.get("/grupo/editar/naoexiste/")):
-        assert resposta["Referrer-Policy"] == "no-referrer"
+        assert resposta["Referrer-Policy"] == "same-origin"
         assert resposta["X-Robots-Tag"] == "noindex"
         assert "no-store" in resposta["Cache-Control"]
 

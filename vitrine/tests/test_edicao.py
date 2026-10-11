@@ -61,7 +61,7 @@ def test_em_ajustes_mostra_o_motivo(client):
 def test_paginas_do_grupo_tem_os_cabecalhos_de_protecao(client):
     p, token = aux.projeto_com_link()
     for resposta in (client.get(url(token)), client.get(url("naoexiste")), client.get("/grupo/")):
-        assert resposta["Referrer-Policy"] == "no-referrer"
+        assert resposta["Referrer-Policy"] == "same-origin"
         assert resposta["X-Robots-Tag"] == "noindex"
         assert "no-store" in resposta["Cache-Control"]
 
