@@ -7,6 +7,7 @@ from django.contrib.admin.models import LogEntry
 from django.contrib.admin.sites import site
 from django.core.exceptions import PermissionDenied
 from django.contrib.auth.models import User
+from django.test import Client
 from django.urls import reverse
 from django.utils import timezone
 
@@ -300,7 +301,36 @@ def test_link_regerado_nao_vai_para_cookie_nem_cache(admin_client):
     assert token not in str(resposta.cookies)
     assert token not in str(admin_client.cookies)
     assert "no-store" in resposta["Cache-Control"]
-    assert resposta["Referrer-Policy"] == "no-referrer"
+    assert resposta["Referrer-Policy"] == "same-origin"
+
+
+
+def test_logout_funciona_na_tela_do_link_regerado():
+    """CSRF como o navegador faz (ver #70): com `no-referrer` o logout ia com `Origin: null` e dava 403."""
+    client = Client(enforce_csrf_checks=True)
+    client.force_login(User.objects.create_superuser("coord", "coord@exemplo.com", "senha-forte-123"))
+    p = fabricas.projeto()
+    client.get(LISTA)
+    csrf = client.cookies["csrftoken"].value
+    resposta = client.post(
+        LISTA,
+        {"action": "acao_regerar_link", "_selected_action": [p.pk], "csrfmiddlewaretoken": csrf},
+        HTTP_ORIGIN="http://testserver",
+    )
+    assert resposta.status_code == 200
+    html = resposta.content.decode()
+    assert "/grupo/editar/" in html
+    assert 'method="post"' in html.lower()
+    assert reverse("admin:logout") in html
+    assert resposta["Referrer-Policy"] != "no-referrer"
+
+    saida = client.post(
+        reverse("admin:logout"), {"csrfmiddlewaretoken": csrf}, HTTP_ORIGIN="http://testserver"
+    )
+    assert saida.status_code != 403
+    depois = client.get(reverse("admin:index"))
+    assert depois.status_code == 302
+    assert reverse("admin:login") in depois["Location"]
 
 
 def test_regerar_link_exige_um_projeto_so(admin_client):
