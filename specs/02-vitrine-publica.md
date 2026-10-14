@@ -1,8 +1,10 @@
 # Spec — Vitrine pública e área do grupo
 
 - **Responsável**: Cleiton (@gustimmolp)
-- **Status**: pronta para implementar (pareceres de 03/10 e 04/10 e as
-  decisões do coordenador incorporados; aprovada e na `main` pelo PR #23)
+- **Status**: implementada e na `main` (PRs #44 a #47, com os ajustes dos
+  pareceres e, depois, #66 e #70). Pendem só as conferências manuais no site
+  no ar: prévia no WhatsApp com capa de ~3 MB, upload de 3 MB e a página a
+  360 px no celular; e o export do wireframe em `docs/wireframes/`.
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
