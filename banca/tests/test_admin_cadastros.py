@@ -37,14 +37,14 @@ def _url(modelo, acao, *args):
 
 def test_superusuario_cria_criterio_antes_de_abrir(admin_client):
     edicao = cadastro.edicao()
-    resposta = admin_client.post(_url("criterio", "add"), {"edicao": edicao.pk, "nome": "Inovação", "apoio": "", "ordem": 1})
+    resposta = admin_client.post(_url("criterio", "add"), {"edicao": edicao.pk, "tipo": "banca", "nome": "Inovação", "apoio": "", "ordem": 1})
     assert resposta.status_code == 302
     assert Criterio.objects.filter(edicao=edicao, nome="Inovação").exists()
 
 
 def test_criar_criterio_em_edicao_aberta_volta_com_erro(admin_client):
     edicao = fabricas.cenario()[0]
-    resposta = admin_client.post(_url("criterio", "add"), {"edicao": edicao.pk, "nome": "Novo", "apoio": "", "ordem": 9})
+    resposta = admin_client.post(_url("criterio", "add"), {"edicao": edicao.pk, "tipo": "banca", "nome": "Novo", "apoio": "", "ordem": 9})
     assert resposta.status_code == 200
     assert "não mudam depois de aberta a votação" in resposta.content.decode()
     assert not Criterio.objects.filter(nome="Novo").exists()
@@ -82,7 +82,7 @@ def test_criterio_travado_abre_so_leitura_para_o_superusuario(admin_client):
 
 
 def _dados_jurado(edicao, *turmas, nome="Ana"):
-    return {"edicao": edicao.pk, "nome": nome, "turmas": [t.pk for t in turmas]}
+    return {"edicao": edicao.pk, "tipo": "banca", "nome": nome, "turmas": [t.pk for t in turmas]}
 
 
 def test_superusuario_cria_jurado_com_turmas_da_edicao(admin_client):

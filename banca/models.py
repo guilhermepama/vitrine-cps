@@ -22,18 +22,32 @@ def _votacao_aberta(*edicao_ids, travar=False):
     return any(aberta is not None for aberta in consulta.values_list("votacao_aberta_em", flat=True))
 
 
+class Tipo(models.TextChoices):
+    """Quem avalia (ADR-013): a banca (critérios técnicos) ou os avaliadores
+    convidados (impactos, inovação, viabilidade). Mesmo fluxo, critérios próprios."""
+
+    BANCA = "banca", "Banca"
+    CONVIDADO = "convidado", "Avaliador convidado"
+
+
+def _de_tipo(tipo):
+    """Complemento das mensagens: "" para a banca, " de avaliador convidado" para o convidado."""
+    return "" if tipo == Tipo.BANCA else f" de {Tipo(tipo).label.lower()}"
+
+
 class Criterio(models.Model):
     edicao = models.ForeignKey(Edicao, on_delete=models.PROTECT, related_name="criterios_banca")
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, default=Tipo.BANCA)
     nome = models.CharField(max_length=60)
     apoio = models.CharField(max_length=200, blank=True, help_text="Texto de apoio impresso na ficha.")
     ordem = models.PositiveSmallIntegerField()
 
     class Meta:
         verbose_name = "critério"
-        ordering = ["edicao", "ordem"]
+        ordering = ["edicao", "tipo", "ordem"]
         constraints = [
-            models.UniqueConstraint(fields=["edicao", "nome"], name="criterio_nome_unico_na_edicao"),
-            models.UniqueConstraint(fields=["edicao", "ordem"], name="criterio_ordem_unica_na_edicao"),
+            models.UniqueConstraint(fields=["edicao", "tipo", "nome"], name="criterio_nome_unico_na_edicao"),
+            models.UniqueConstraint(fields=["edicao", "tipo", "ordem"], name="criterio_ordem_unica_na_edicao"),
             models.CheckConstraint(condition=Q(ordem__gte=1), name="criterio_ordem_positiva"),
         ]
 
@@ -54,13 +68,16 @@ class Criterio(models.Model):
         de aberta a votação, com a linha da `Edicao` travada no save(). Vale
         para a edição de destino e para a de origem (mover o critério tiraria
         um critério de uma edição aberta)."""
-        antes = Criterio.objects.filter(pk=self.pk).values_list("edicao_id", flat=True).first() if self.pk else None
-        if _votacao_aberta(self.edicao_id, antes, travar=travar):
+        antes = Criterio.objects.filter(pk=self.pk).values("edicao_id", "tipo").first() if self.pk else None
+        if _votacao_aberta(self.edicao_id, antes and antes["edicao_id"], travar=travar):
             raise ValidationError("Os critérios não mudam depois de aberta a votação (ADR-007).")
+        if antes and antes["tipo"] != self.tipo and self.notas.exists():
+            raise ValidationError("Critério com nota não muda de tipo (ADR-013).")
 
 
 class Jurado(models.Model):
     edicao = models.ForeignKey(Edicao, on_delete=models.PROTECT, related_name="jurados")
+    tipo = models.CharField(max_length=10, choices=Tipo.choices, default=Tipo.BANCA)
     nome = models.CharField(max_length=120)
     turmas = models.ManyToManyField(Turma, related_name="jurados", help_text="Turmas que o jurado avalia.")
 
@@ -84,12 +101,17 @@ class Jurado(models.Model):
         super().save(*args, **kwargs)
 
     def _verificar_edicao(self):
-        """Jurado com avaliação não muda de edição (as avaliações iriam junto)."""
+        """Jurado com avaliação não muda de edição (as avaliações iriam junto)
+        nem de tipo (as notas ficariam com critérios do outro tipo — ADR-013)."""
         if not self.pk:
             return
-        antes = Jurado.objects.filter(pk=self.pk).values_list("edicao_id", flat=True).first()
-        if antes is not None and antes != self.edicao_id and self.avaliacoes.exists():
+        antes = Jurado.objects.filter(pk=self.pk).values("edicao_id", "tipo").first()
+        if antes is None or not self.avaliacoes.exists():
+            return
+        if antes["edicao_id"] != self.edicao_id:
             raise ValidationError("Jurado com avaliação digitada não muda de edição.")
+        if antes["tipo"] != self.tipo:
+            raise ValidationError("Jurado com avaliação digitada não muda de tipo.")
 
 
 class Avaliacao(models.Model):
@@ -131,8 +153,8 @@ class Avaliacao(models.Model):
             raise ValidationError("O projeto não está publicado.")
         if not _votacao_aberta(jurado.edicao_id):
             raise ValidationError("A votação desta edição ainda não foi aberta.")
-        if not Criterio.objects.filter(edicao_id=jurado.edicao_id).exists():
-            raise ValidationError("A edição não tem critérios cadastrados.")
+        if not Criterio.objects.filter(edicao_id=jurado.edicao_id, tipo=jurado.tipo).exists():
+            raise ValidationError(f"A edição não tem critérios{_de_tipo(jurado.tipo)} cadastrados.")
 
     def save(self, *args, **kwargs):
         # Atômico: o desfazer da conferência (sinais) entra na mesma transação.
@@ -163,6 +185,8 @@ class Nota(models.Model):
         if avaliacao and avaliacao.jurado_id and self.criterio_id:
             if self.criterio.edicao_id != avaliacao.jurado.edicao_id:
                 raise ValidationError("O critério é de outra edição.")
+            if self.criterio.tipo != avaliacao.jurado.tipo:
+                raise ValidationError("O critério é de outro tipo de avaliador (ADR-013).")
 
     def save(self, *args, **kwargs):
         with transaction.atomic():

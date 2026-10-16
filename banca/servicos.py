@@ -3,15 +3,21 @@
 from django.db.models import Avg
 
 from cadastro.models import Edicao, Projeto
-from banca.models import Nota
+from banca.models import Nota, Tipo
 
 
-def nota_banca_por_projeto(edicao):
-    """{projeto_id: Decimal} com a nota de banca de cada projeto publicado da
-    edição que tem pelo menos uma avaliação (ADR-007).
+def nota_banca_por_projeto(edicao, tipo=Tipo.BANCA):
+    """{projeto_id: Decimal} com a nota de cada projeto publicado da edição que
+    tem pelo menos uma avaliação do `tipo` (ADR-007; ADR-013: `banca` ou
+    `convidado`, cada um com seus critérios)."""
+    return _nota_por_projeto(edicao, tipo)
+
+
+def _nota_por_projeto(edicao, tipo):
+    """Nota de um tipo de avaliador por projeto (ADR-007).
 
     Regra: média dos critérios em cada avaliação, depois média entre os
-    jurados. Toda avaliação tem exatamente os N critérios da edição
+    jurados do tipo. Toda avaliação tem exatamente os N critérios do tipo na edição
     (obrigatórios na digitação, travados antes dela), então a média das
     médias é a média de todas as notas do projeto: uma consulta só. Sem
     arredondamento (spec 04). Não olha `banca_conferida_em`.
@@ -19,6 +25,7 @@ def nota_banca_por_projeto(edicao):
     linhas = (
         Nota.objects.filter(
             avaliacao__jurado__edicao=edicao,
+            avaliacao__jurado__tipo=tipo,
             avaliacao__projeto__turma__edicao=edicao,
             avaliacao__projeto__status=Projeto.Status.PUBLICADO,
         )
