@@ -87,6 +87,9 @@ svg { max-width: 100%; display: block; }
 h1, h2, h3, p, figure { margin: 0; }
 h1, h2, h3 { line-height: 1.2; }
 a { color: inherit; }
+/* `hidden` sempre esconde: classe com `display` (ex.: .botao, inline-flex) venceria o
+   atributo e mostraria controle que só funciona com JS (revisão do Renan no #74). */
+[hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--cor-acento); outline-offset: -3px; }
 /* Em fundo vermelho o contorno vermelho some (revisão do #73): ali o foco é branco.
    O botão branco da chamada volta ao vermelho, que aparece sobre o branco. */
@@ -123,6 +126,8 @@ a { color: inherit; }
 /* Ritmo vertical para telas que ainda não usam as classes: cada filho do
    <main> ganha espaço acima, para o reset de margens não colar parágrafos. */
 .pilha > * + * { margin-top: var(--esp-4); }
+/* rodapé no fim da janela mesmo em página curta (só na tela: a impressão pagina sozinha) */
+@media screen { body { display: flex; flex-direction: column; min-height: 100vh; } body > main { flex: 1; min-width: 0; } }
 .conteudo { padding-top: var(--esp-6); padding-bottom: var(--esp-10); }
 
 /* Grades de uma coluna no celular: minmax(0,1fr) para conteúdo largo (título
@@ -472,6 +477,41 @@ a { color: inherit; }
 .chamada .botao--branco:hover { background: var(--cor-texto); border-color: var(--cor-texto); color: var(--cor-sobre-tinta); }
 .chamada .botao--vazado { color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
 .chamada .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
+
+/* ============================================================
+   ÁREA DO GRUPO (spec 02, layout da spec 07)
+   ============================================================ */
+.acesso { border-bottom: 1px solid var(--cor-linha); }
+.acesso__grade { display: grid; grid-template-columns: minmax(0, 1fr); }
+.acesso__grade > * { min-width: 0; }
+@media (min-width: 900px) { .acesso__grade { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
+.acesso__texto { padding-block: var(--esp-10); }
+@media (min-width: 900px) { .acesso__texto { padding-right: clamp(32px, 6vw, 96px); border-right: 1px solid var(--cor-linha); } }
+.acesso .mono { margin-bottom: 12px; }
+.acesso h1 { font-size: var(--texto-h2); }
+.acesso__texto > p, .acesso--aviso p:not(.mono) { margin-top: var(--esp-5); max-width: 36em; color: var(--cor-texto-suave); }
+.acesso strong { color: var(--cor-texto); font-weight: 600; }
+.acesso__passos { margin: var(--esp-8) 0 0; padding: 0; list-style: none; border-top: 1px solid var(--cor-linha); }
+.acesso__passos li { display: flex; gap: 16px; align-items: baseline; padding-block: 14px; border-bottom: 1px solid var(--cor-borda); color: var(--cor-texto-suave); font-size: var(--texto-14); }
+.acesso__num { flex: none; font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: var(--texto-26); line-height: 1; color: var(--cor-acento); }
+/* o formulário é uma célula da grade, mais clara que o papel */
+.acesso__cartao { display: grid; gap: var(--esp-4); align-content: start; padding: var(--esp-8) var(--gutter); margin-inline: calc(-1 * var(--gutter)); background: var(--cor-superficie); border-top: 1px solid var(--cor-linha); }
+/* no desktop a célula sangra até a borda direita da tela, como a foto do hero */
+@media (min-width: 900px) { .acesso__cartao { margin: 0 calc(-1 * max(var(--gutter), (100vw - 1280px) / 2 + var(--gutter))) 0 0; padding: var(--esp-10) var(--esp-8); border-top: 0; } }
+/* telas curtas (área do grupo): a seção ocupa a altura que sobra e o rodapé fica embaixo */
+.tela-cheia { display: flex; flex-direction: column; }
+.tela-cheia > .acesso { flex: 1; display: flex; }
+.tela-cheia > .acesso > .container { flex: 1; width: 100%; }
+.acesso__form { display: grid; gap: var(--esp-2); }
+.acesso__form .botao { margin-top: var(--esp-3); }
+.campo--grande { min-height: 56px; font: 500 var(--texto-20)/1.2 var(--fonte-mono); letter-spacing: 0.06em; background: var(--cor-fundo); }
+.campo--link { font: 400 var(--texto-14)/1.4 var(--fonte-mono); background: var(--cor-fundo); }
+.acesso__acoes { display: flex; flex-wrap: wrap; gap: 12px; }
+.acesso--aviso .container { padding-block: var(--esp-12); }
+/* alerta: faixa com borda à esquerda, sem cantos nem sombra */
+.alerta { display: grid; gap: 6px; padding: var(--esp-4); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: #6E0E0E; font-size: var(--texto-14); }
+.alerta strong { color: inherit; }
+.alerta--neutro { border-color: var(--cor-linha); background: transparent; color: var(--cor-texto-suave); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 

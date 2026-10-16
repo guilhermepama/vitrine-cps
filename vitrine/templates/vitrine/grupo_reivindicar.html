@@ -2,30 +2,38 @@
 
 {% block titulo %}Área do grupo — Vitrine CPS{% endblock %}
 
+{% block classe_main %}tela-cheia{% endblock %}
+
 {% block conteudo %}
-<p>ÁREA DO GRUPO</p>
-<h1>Publique o projeto do seu grupo</h1>
-<p>Digite o RA do representante informado pela coordenação. Só o representante acessa a edição.</p>
-<p>
-  Ao acessar, você verá o link de edição do projeto <strong>uma única vez</strong>. Guarde esse link:
-  ele é o único acesso de edição e só a coordenação pode gerar outro.
-</p>
+{# A resposta de recusa precisa ser idêntica para qualquer motivo (spec 02): nada aqui depende do RA digitado. #}
+<section class="acesso">
+  <div class="container acesso__grade">
+    <div class="acesso__texto">
+      <p class="mono">Área do grupo</p>
+      <h1 class="display">Publique o projeto do seu grupo<span class="ponto">.</span></h1>
+      <p>Digite o RA do representante informado pela coordenação. Só o representante acessa a edição.</p>
+      <ol class="acesso__passos">
+        <li><span class="acesso__num" aria-hidden="true">01</span><span><strong>Entre com o RA</strong> do representante do grupo.</span></li>
+        <li><span class="acesso__num" aria-hidden="true">02</span><span><strong>Guarde o link de edição.</strong> Ele aparece <strong>uma única vez</strong>: é o único acesso de edição e só a coordenação pode gerar outro.</span></li>
+        <li><span class="acesso__num" aria-hidden="true">03</span><span><strong>Monte a página e envie para revisão.</strong> A coordenação do curso aprova antes de ela ficar pública.</span></li>
+      </ol>
+    </div>
 
-{% if recusado %}
-<div class="erro" role="alert">
-  <strong>Não foi possível acessar com esse RA</strong>
-  <p>
-    Confira os números e tente de novo. Se o RA estiver certo, o link de edição do grupo pode já ter
-    sido retirado — use o link que foi guardado ou procure a coordenação.
-  </p>
-</div>
-{% endif %}
-
-<form method="post" autocomplete="off">
-  {% csrf_token %}
-  <label for="ra">RA do representante</label>
-  <input id="ra" name="ra" type="text" inputmode="numeric" maxlength="60" placeholder="Somente números" required>
-  <p>De 5 a 20 dígitos. Pode digitar com ou sem pontos e traços.</p>
-  <button type="submit">Acessar meu projeto</button>
-</form>
+    <div class="acesso__cartao">
+      {% if recusado %}
+      <div class="alerta" role="alert">
+        <strong>Não foi possível acessar com esse RA</strong>
+        <p>Confira os números e tente de novo. Se o RA estiver certo, o link de edição do grupo pode já ter sido retirado — use o link que foi guardado ou procure a coordenação.</p>
+      </div>
+      {% endif %}
+      <form method="post" autocomplete="off" class="acesso__form">
+        {% csrf_token %}
+        <label class="rotulo" for="ra">RA do representante</label>
+        <input class="campo campo--grande" id="ra" name="ra" type="text" inputmode="numeric" maxlength="60" placeholder="Somente números" required aria-describedby="ra-ajuda">
+        <p class="ajuda" id="ra-ajuda">De 5 a 20 dígitos. Pode digitar com ou sem pontos e traços.</p>
+        <button class="botao botao--vermelho botao--bloco" type="submit">Acessar meu projeto</button>
+      </form>
+    </div>
+  </div>
+</section>
 {% endblock %}
