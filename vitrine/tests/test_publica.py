@@ -353,3 +353,11 @@ def test_nenhum_titulo_desfaz_a_quebra_de_palavra_longa():
     caixa alta) estourava os 360 px. `break-word` só quebra quando não cabe."""
     regras = _lista_regras(CSS.read_text(encoding="utf-8"))
     assert [seletor for seletor, props in regras if props.get("overflow-wrap") == "normal"] == []
+
+
+def test_menu_sem_javascript_quebra_para_a_segunda_linha_no_celular():
+    """Revisão do #77: sem JS, marca + "Projetos" + "Área do grupo" passavam dos
+    360 px (470 px medidos). Abaixo de 1000 px o menu vai para uma segunda linha."""
+    regras = dict(_lista_regras(CSS.read_text(encoding="utf-8")))
+    assert regras["html:not(.js) .topo__linha"]["flex-wrap"] == "wrap"
+    assert regras["html:not(.js) .nav"]["flex"] == "1 0 100%"

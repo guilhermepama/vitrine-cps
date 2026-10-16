@@ -1,4 +1,4 @@
-// Filtro por curso da página inicial (spec 07). Melhoria progressiva: o
+// Filtro por curso da página de projetos (spec 07). Melhoria progressiva: o
 // grupo de chips vem com `hidden` e só aparece com JavaScript; sem ele,
 // todas as turmas ficam visíveis.
 (function () {

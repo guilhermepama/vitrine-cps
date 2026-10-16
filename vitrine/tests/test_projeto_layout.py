@@ -31,7 +31,7 @@ def test_links_do_projeto_mostram_o_dominio(client):
 def test_menu_leva_aos_projetos_e_a_area_do_grupo(client):
     p = publicado()
     html = client.get(f"/projeto/{p.slug}/").content.decode()
-    assert 'href="/#projetos"' in html and 'href="/grupo/" class="nav__botao"' in html
+    assert 'href="/projetos/"' in html and 'href="/grupo/" class="nav__botao"' in html
     assert "js/menu.js" in html
 
 

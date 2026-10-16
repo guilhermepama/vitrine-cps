@@ -77,23 +77,6 @@ def test_so_publicados_da_edicao_ativa(client, edicao):
 
 
 @pytest.mark.django_db
-def test_ordem_das_turmas_e_dos_projetos(client, edicao):
-    etec = _turma(edicao, "ADM", 2, unidade=Curso.Unidade.ETEC, tipo="ano")
-    dsm2 = _turma(edicao, "DSM", 2)
-    gtur3 = _turma(edicao, "GTUR", 3)
-    dsm3 = _turma(edicao, "DSM", 3)
-    _publicado(etec, "Recicla")
-    _publicado(dsm2, "Cantina")
-    _publicado(gtur3, "Olimpia 360")
-    _publicado(dsm3, "Zeta")
-    _publicado(dsm3, "Alfa")
-
-    html = _html(client)
-    posicoes = [html.index(t) for t in ("Alfa", "Zeta", "Cantina", "Olimpia 360", "Recicla")]
-    assert posicoes == sorted(posicoes)
-
-
-@pytest.mark.django_db
 def test_cartao_leva_a_pagina_do_projeto_e_resume_os_links(client, edicao):
     p = _publicado(_turma(edicao, "DSM", 3), "Fila Zero", integrantes=4, link_repositorio="https://github.com/x/y", link_video="https://youtu.be/z")
     html = _html(client)
@@ -132,14 +115,61 @@ def test_titulo_da_secao_conta_projetos_e_turmas(client, edicao):
 
 
 @pytest.mark.django_db
-def test_filtro_tem_um_chip_por_curso_e_vem_escondido(client, edicao):
+def test_quem_faz_vem_antes_dos_projetos(client):
+    html = _html(client)
+    assert html.index("02 — Quem faz") < html.index("03 — Projetos desta edição")
+
+
+# --- Quatro na home, o resto em /projetos/ ----------------------------------------------
+
+
+def _varios(edicao, n):
+    turma = _turma(edicao, "DSM", 3)
+    return [_publicado(turma, f"Projeto {i:02d}") for i in range(n)]
+
+
+@pytest.mark.django_db
+def test_home_mostra_no_maximo_quatro_e_chama_para_todos(client, edicao):
+    _varios(edicao, 6)
+    html = _html(client)
+    assert html.count('class="cartao-projeto"') == inicio.QUANTIDADE_NA_HOME == 4
+    assert 'href="/projetos/"' in html and "Ver todos os 6 projetos" in html
+    assert "Seis projetos, uma turma" in html  # o título conta todos, não só os sorteados
+
+
+@pytest.mark.django_db
+def test_home_com_ate_quatro_mostra_todos_sem_chamada(client, edicao):
+    _varios(edicao, 3)
+    html = _html(client)
+    assert html.count('class="cartao-projeto"') == 3
+    assert "Ver todos os" not in html and "sorteados" not in html
+
+
+@pytest.mark.django_db
+def test_home_sem_filtro_por_curso(client, edicao):
     _publicado(_turma(edicao, "DSM", 3), "A")
     _publicado(_turma(edicao, "GTUR", 2), "B")
     html = _html(client)
-    assert re.search(r'<div class="filtros"[^>]*data-filtro-cursos hidden>', html)
-    assert re.findall(r'class="chip[^"]*" data-curso="([^"]+)"', html) == ["todos", "dsm", "gtur"]
-    assert 'data-curso="dsm">' in html  # turma marcada para o filtro
-    assert "js/filtro-cursos.js" in html
+    assert "data-filtro-cursos" not in html and "js/filtro-cursos.js" not in html
+
+
+def test_sorteio_respeita_a_quantidade_e_a_ordem_das_turmas():
+    grupos = [inicio.GrupoTurma(turma=None, projetos=["a", "b", "c"]), inicio.GrupoTurma(turma=None, projetos=["d", "e", "f"])]
+    sorteio_ao_contrario = lambda indices, k: list(indices)[::-1][:k]  # noqa: E731 — sorteio previsível
+    assert inicio.sortear_destaques(grupos, sorteio=sorteio_ao_contrario) == ["c", "d", "e", "f"]
+    assert inicio.sortear_destaques(grupos[:1]) == ["a", "b", "c"]
+    assert inicio.sortear_destaques([]) == []
+
+
+@pytest.mark.django_db
+def test_sorteio_varia_entre_visitas(client, edicao, monkeypatch):
+    _varios(edicao, 6)
+    monkeypatch.setattr(inicio.random, "sample", lambda indices, k: list(indices)[:k])
+    primeiros = _html(client)
+    monkeypatch.setattr(inicio.random, "sample", lambda indices, k: list(indices)[-k:])
+    ultimos = _html(client)
+    assert "Projeto 00" in primeiros and "Projeto 00" not in ultimos
+    assert "Projeto 05" in ultimos and "Projeto 05" not in primeiros
 
 
 # --- Sem edição, sem projeto, depois do evento ------------------------------------------
