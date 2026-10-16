@@ -17,6 +17,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 
 from cadastro.models import ImagemProjeto, Projeto
+from vitrine import inicio as pagina_inicial
 from vitrine import servicos
 from vitrine.forms import ImagemUploadForm, ProjetoGrupoForm, integrante_formset
 
@@ -40,6 +41,11 @@ def paginas_do_grupo(view):
 
 
 # --- Vitrine pública ----------------------------------------------------------
+
+
+def inicio(request):
+    """Página inicial (spec 07): convite e projetos publicados da edição ativa."""
+    return render(request, "vitrine/inicio.html", pagina_inicial.contexto_da_pagina_inicial())
 
 
 def pagina_do_projeto(request, slug):

@@ -46,10 +46,23 @@ def test_meta_vem_depois_do_css_base():
     assert html.index("css/base.css") < html.index('property="og:title"')
 
 
-def test_cabecalho_e_rodape_sem_links_nem_formulario():
-    """G8: nada no esqueleto comum leva ao voto; não há página inicial para linkar."""
+ROTAS_DE_VOTO = ("/entrar", "/estacao", "/votar", "/votos", "/visitantes")
+
+
+def test_cabecalho_e_rodape_sem_caminho_de_voto_nem_formulario():
+    """G8: o esqueleto comum só leva à página inicial e à área do grupo (nem à explicação do voto,
+    que a página de um projeto de edição passada não pode oferecer — spec 02)."""
     html = _pagina()
-    assert "<a " not in html and "<form" not in html
+    assert "<form" not in html
+    destinos = re.findall(r'(?:href|src|action)="([^"]*)"', html)
+    assert not [d for d in destinos if d.startswith(ROTAS_DE_VOTO)]
+    assert {"/", "/grupo/"} <= set(destinos)
+
+
+def test_menu_vazio_por_padrao():
+    """Spec 07: cada página decide o próprio menu; o esqueleto só tem a marca."""
+    html = _pagina()
+    assert 'class="nav' not in html and "<script" not in html
 
 
 def test_cabecalho_e_rodape_nao_saem_na_impressao():

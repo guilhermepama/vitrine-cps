@@ -4,25 +4,51 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titulo %}Vitrine CPS{% endblock %}</title>
-  {# Identidade visual: tokens no :root de static/css/base.css. Trocar a identidade = trocar só aquele bloco. #}
+  {# Identidade visual: tokens no :root de static/css/base.css (spec 07). #}
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   {% block meta %}{% endblock %}
 </head>
 <body>
   {% block topo %}
   <header class="topo nao-imprime">
-    <div class="marca">
-      <span class="marca__selo" aria-hidden="true">V</span>
-      <span class="marca__nome">Vitrine CPS</span>
+    <div class="container topo__linha">
+      <a class="marca" href="{% url 'vitrine:inicio' %}" aria-label="Vitrine CPS, página inicial">{% include "partes/logo.svg" %}</a>
+      {# Vazio por padrão: cada página pública decide o menu. Nenhum link leva ao voto (G8). #}
+      {% block menu %}{% endblock %}
     </div>
-    <div class="topo__evento">Mostra de Projetos · Fatec &amp; Etec Olímpia</div>
   </header>
   {% endblock %}
   <main class="{% block classe_main %}container conteudo pilha{% endblock %}">
     {% block conteudo %}{% endblock %}
   </main>
   {% block rodape %}
-  <footer class="rodape nao-imprime">Centro Paula Souza — Fatec Olímpia · Etec Olímpia</footer>
+  <footer class="rodape nao-imprime">
+    <div class="container">
+      <div class="rodape__grade">
+        <div class="rodape__col">
+          <p class="mono">Vitrine CPS</p>
+          <p>Plataforma da Mostra de Projetos da Fatec Olímpia e da Etec Olímpia, unidades do Centro Paula Souza. Desenvolvida e mantida pela comunidade da Fatec Olímpia.</p>
+        </div>
+        <div class="rodape__col">
+          <p class="mono">Mostra</p>
+          <ul>
+            <li><a href="{% url 'vitrine:inicio' %}">Página inicial</a></li>
+            <li><a href="{% url 'vitrine:inicio' %}#projetos">Projetos</a></li>
+            <li><a href="{% url 'vitrine:grupo' %}">Área do grupo</a></li>
+          </ul>
+        </div>
+        <div class="rodape__col">
+          <p class="mono">Instituição</p>
+          <ul>
+            <li><a href="https://www.fatecolimpia.edu.br/" rel="noopener noreferrer">Fatec Olímpia</a></li>
+            <li><a href="https://www.cps.sp.gov.br/" rel="noopener noreferrer">Centro Paula Souza</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="rodape__fim mono"><span>Centro Paula Souza · Fatec Olímpia · Etec Olímpia</span>{% block rodape_edicao %}{% endblock %}</div>
+    </div>
+  </footer>
   {% endblock %}
+  {% block scripts %}{% endblock %}
 </body>
 </html>
