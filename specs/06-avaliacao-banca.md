@@ -7,6 +7,11 @@
   `Projeto`, `banca_conferida_em`), spec 04 (consome
   `nota_banca_por_projeto`)
 
+> **Emenda ADR-013 (16/10):** avaliadores **convidados** usam o mesmo fluxo
+> da banca, com `tipo` no jurado e no critério — ver a seção "Avaliadores
+> convidados (ADR-013)". Onde esta spec diz "banca", vale para os dois
+> tipos, salvo quando a seção diz o contrário.
+
 ## Objetivo
 Registrar as notas 0–10, por critério, que cada jurado deu aos projetos
 das turmas que avaliou — escritas em **ficha impressa e assinada** no
@@ -228,7 +233,40 @@ nota de banca de cada projeto.
   mensagem), nada muda. Concluir também fica no histórico ("Conferência
   da banca concluída por <usuário>").
 
+### Avaliadores convidados (ADR-013)
+- `Criterio.tipo` e `Jurado.tipo`: `banca` (padrão) ou `convidado`,
+  escolhidos no admin. A migration preenche `banca` em tudo o que existe.
+- Unicidade dos critérios passa a ser por (edição, tipo): nome e ordem
+  únicos dentro de cada tipo. A trava depois de aberta a votação vale
+  igual.
+- **Critérios desta edição** (cadastro no admin, não no código):
+  `convidado` = impacto ambiental, impacto social, inovação, viabilidade
+  econômica; `banca` = os técnicos da coordenação.
+- **Ficha**: só os critérios do tipo do jurado; o cabeçalho diz "Banca" ou
+  "Avaliador convidado". A rota da edição inteira imprime os dois tipos,
+  banca primeiro.
+- **Digitação**: o inline tem uma nota por critério **do tipo do jurado**;
+  o `clean()` do formset exige o conjunto igual ao dos critérios daquele
+  tipo na edição. Recusas novas: nota de critério de outro tipo; edição
+  sem critério do tipo do jurado ("A edição não tem critérios de
+  <tipo> cadastrados.").
+- **Conferência**: cobertura por jurado e por turma **separada por tipo**;
+  "projetos sem nenhuma avaliação" vira "sem avaliação de banca" e "sem
+  avaliação de convidado". A amostra a conferir sorteia entre todas as
+  avaliações (os dois tipos), com a mesma regra. Concluir continua único
+  para a edição (`banca_conferida_em`).
+- **Mudar o tipo** de jurado ou critério com avaliação/nota → erro no
+  formulário (as notas ficariam no tipo errado).
+- **Jurado por curso (ADR-013):** a normalização passa a ser por curso;
+  a coordenação distribui cada jurado (banca e convidado) por **todas as
+  turmas do curso**. O cadastro continua por turma (M2M); a conferência
+  avisa quando um jurado cobre só parte das turmas de um curso ("Jurado X
+  avalia DSM 1º e 2º, mas não DSM 3º").
+
 ### Nota de banca do projeto (`nota_banca_por_projeto`)
+- **ADR-013:** `nota_banca_por_projeto(edicao, tipo="banca")` — o mesmo
+  cálculo filtrado pelo tipo do jurado; a spec 04 chama uma vez para cada
+  tipo. Sem o argumento, o comportamento de hoje (só banca).
 - `nota_banca_por_projeto(edicao) -> dict[int, Decimal]`, em
   `banca/servicos.py`.
 - Regra (ADR-007): para cada avaliação, a média das notas dos critérios;

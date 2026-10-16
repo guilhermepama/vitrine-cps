@@ -452,3 +452,68 @@ Formato:
     números.
   - `C` vira campo da `Edicao` só se a coordenação quiser ajustar por
     edição — hoje não.
+
+## ADR-013 — Avaliadores convidados, ranking geral e nota do boletim
+- Status: aceita (decisões da coordenação em 16/10; detalhes de
+  implementação propostos pelo coordenador do projeto)
+- Data: 2026-10-16
+- Contexto: a coordenação definiu em 16/10 como a mostra é avaliada nesta
+  edição. Além da banca (critérios técnicos), **avaliadores convidados**
+  dão notas em impacto ambiental, impacto social, inovação e viabilidade
+  econômica. O público avalia os mesmos três critérios do ADR-012 em todos
+  os projetos. O 3º ano do Ensino Médio e a Etec foram convidados a expor e
+  **concorrem junto** com os cursos da Fatec. Há duas saídas: o ranking
+  apresentado ao público (banca + convidados + público) e a nota do
+  **boletim** do aluno (banca + convidados, sem o público). O ADR-007 previa
+  só banca e público, por turma.
+- Decisão:
+  - **Convidados são jurados de outro tipo.** `Jurado.tipo` e
+    `Criterio.tipo` ∈ {`banca`, `convidado`}. Cada tipo tem seus critérios
+    na edição; a ficha de um jurado traz só os critérios do tipo dele.
+    Mesmo fluxo da banca (ADR-008): ficha impressa, digitação no admin,
+    conferência única para os dois tipos. Mesma escala (0 a 10, uma casa).
+  - Nota de cada tipo no projeto: média dos critérios em cada avaliação,
+    média entre os avaliadores daquele tipo (regra do ADR-007, por tipo).
+  - **Ranking apresentado ao público** = `0,50·b + 0,20·c + 0,30·p`
+    (banca, convidados, público), cada parte normalizada min-max. Pesos na
+    `Edicao` (`peso_banca`, `peso_convidados`, `peso_publico`, somando 1),
+    travados depois de aberta a votação, como hoje.
+  - **Dois recortes do mesmo ranking:** **geral** (todos os projetos
+    publicados da edição juntos — Fatec, Etec e Ensino Médio — com a
+    normalização e a média do público sobre todos) e **por curso** (DSM,
+    GTUR, cada curso da Etec separado e o 3º ano do Ensino Médio, com as
+    duas escolas estaduais — E.E. Wilquem e E.E. Reis Neves — juntas;
+    normalização local ao curso, todas as turmas do curso juntas). A média
+    bayesiana do público (ADR-012) usa `m` do recorte: da edição no geral,
+    do curso no por curso.
+  - **Jurados por curso:** com a comparação dentro do curso, a mesma banca
+    (e os mesmos convidados) cobre todas as turmas do curso — senão a nota
+    mediria o jurado, não o projeto. Regra de distribuição da coordenação;
+    a conferência mostra a cobertura.
+  - **Escolas estaduais:** unidade nova "Ensino Médio" no `Curso`, curso
+    "3º ano do Ensino Médio" com uma turma por escola (campo `escola` na
+    turma). Alunos menores de idade: as mesmas regras da Etec (só o
+    primeiro nome, sem fotos de pessoas).
+  - **Nota do boletim** = `0,70·banca + 0,30·convidados`, sobre as notas
+    **brutas** (0 a 10), **sem normalização**: a nota de um aluno não pode
+    depender de quem ficou em último na turma, que é o que o min-max faria.
+    Peso na `Edicao` (`peso_boletim_banca`; convidados = 1 − ele).
+  - **Pendência:** projeto sem avaliação de banca **ou** sem avaliação de
+    convidado não tem nota final nem nota de boletim. No recorte por curso,
+    só o curso dele fica pendente; no geral, o ranking inteiro fica
+    pendente (a normalização é sobre todos). A coordenação distribui banca
+    e convidados para cobrir todos os projetos.
+- Consequências:
+  - Substitui a parte do ADR-007 que fixava 70/30 banca/público por turma
+    (o ranking por turma deixa de existir; vira por curso);
+    o resto do ADR-007 (média entre jurados, critérios divulgados antes,
+    travas) continua.
+  - Jurados e critérios já cadastrados viram `banca` na migration; nada se
+    perde.
+  - Mais fichas para imprimir e digitar no mesmo dia; a conferência cobre
+    os dois tipos.
+  - Pendência no geral é mais frágil que por curso: um projeto sem
+    convidado trava o geral. A página de conferência mostra a cobertura
+    por tipo antes de concluir.
+  - Fica fora desta edição: pesos diferentes por critério, convidados pelo
+    celular, nota do boletim em outra escala.
