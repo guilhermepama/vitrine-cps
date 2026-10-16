@@ -23,7 +23,7 @@ from cadastro.models import Curso, Edicao, ImagemProjeto, Integrante, Projeto, T
 from cadastro.seguranca import hash_ra
 
 MOTIVO_FOTOS_ETEC = (
-    "Retire as fotos em que aparecem pessoas (regra da Etec para menores de idade)"
+    "Retire as fotos em que aparecem pessoas (regra para menores de idade: Etec e Ensino Médio)"
 )
 
 
@@ -50,7 +50,16 @@ class SoSuperusuarioMixin:
 class EdicaoForm(forms.ModelForm):
     class Meta:
         model = Edicao
-        fields = ["nome", "data_evento", "ativa", "prazo_edicao", "peso_banca", "peso_publico"]
+        fields = [
+            "nome",
+            "data_evento",
+            "ativa",
+            "prazo_edicao",
+            "peso_banca",
+            "peso_convidados",
+            "peso_publico",
+            "peso_boletim_banca",
+        ]
 
     def clean(self):
         dados = super().clean()
@@ -162,7 +171,7 @@ class ProjetoForm(forms.ModelForm):
         ]
         help_texts = {
             "motivo_ajustes": (
-                "Mostrado ao grupo ao devolver para ajustes. Projeto da Etec com foto de pessoa: "
+                "Mostrado ao grupo ao devolver para ajustes. Projeto da Etec ou do Ensino Médio com foto de pessoa: "
                 f"“{MOTIVO_FOTOS_ETEC}”."
             ),
         }

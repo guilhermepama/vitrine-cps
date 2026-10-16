@@ -25,6 +25,7 @@ COLUNAS = {
     "ra": "RA do representante",
 }
 COLUNA_TURNO = "Turno"  # opcional (a planilha de 2026/2 foi sem ela)
+COLUNA_ESCOLA = "Escola"  # opcional: escola externa do Ensino Médio (ADR-013)
 
 PERIODOS = {"semestre": Turma.TipoPeriodo.SEMESTRE, "ano": Turma.TipoPeriodo.ANO, "modulo": Turma.TipoPeriodo.MODULO}
 TURNOS = {"manha": Turma.Turno.MANHA, "tarde": Turma.Turno.TARDE, "noite": Turma.Turno.NOITE, "integral": Turma.Turno.INTEGRAL}
@@ -107,6 +108,8 @@ def ler_csv(conteudo):
     tem_turno = _chave_coluna(COLUNA_TURNO) in nomes
     if tem_turno:
         posicao["turno"] = nomes.index(_chave_coluna(COLUNA_TURNO))
+    if _chave_coluna(COLUNA_ESCOLA) in nomes:
+        posicao["escola"] = nomes.index(_chave_coluna(COLUNA_ESCOLA))
 
     registros = []
     for celulas in leitor:
@@ -167,12 +170,15 @@ def analisar(edicao, registros):
                 erro("turno deve ser manhã, tarde, noite ou integral")
                 continue
             turmas = turmas.filter(turno=turno)
+        texto_escola = " ".join(reg.get("escola", "").split())
+        if texto_escola:
+            turmas = turmas.filter(escola__iexact=texto_escola)
         turmas = list(turmas)
         if not turmas:
             erro("turma inexistente nesta edição")
             continue
         if len(turmas) > 1:
-            erro("turma ambígua — informe o turno")
+            erro("turma ambígua — informe o turno ou a escola")
             continue
         turma = turmas[0]
 
