@@ -183,6 +183,7 @@ def test_chamada_da_fatec_leva_aos_sites_oficiais(client):
     assert 'href="https://fatecolimpia.cps.sp.gov.br/"' in html
     assert 'href="https://vestibular.fatec.sp.gov.br/"' in html
     assert "Queremos ver seu nome nos próximos projetos" in html
+    assert html.index("vestibular.fatec.sp.gov.br") < html.index('href="https://fatecolimpia.cps.sp.gov.br/" rel="noopener noreferrer">Conheça')
 
 
 # --- Guardrails ------------------------------------------------------------------------

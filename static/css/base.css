@@ -452,10 +452,12 @@ a { color: inherit; }
 .chamada strong { font-weight: 600; }
 .chamada .mono { color: inherit; opacity: .75; margin-bottom: 16px; }
 .chamada__lado { display: grid; gap: 20px; }
-.chamada__data { display: flex; align-items: baseline; gap: 12px; border-top: 1px solid var(--cor-acento-texto); padding-top: 12px; }
-.chamada__data .mono { margin: 0; }
-.chamada__data .display { color: inherit; font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
-.chamada__data .display span { opacity: .55; }
+.chamada__datas { border-top: 1px solid var(--cor-acento-texto); }
+.chamada__data { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding-block: 10px; border-bottom: 1px solid rgba(255, 255, 255, .35); }
+.chamada__data .display { color: inherit; }
+.chamada__rotulo { font-size: var(--texto-26); }
+.chamada__dia { font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
+.chamada__dia span { opacity: .55; }
 .chamada__acoes { display: flex; flex-wrap: wrap; gap: 12px; }
 @media (min-width: 900px) { .chamada__acoes { flex-direction: column; align-items: stretch; } }
 .chamada .botao--branco { background: var(--cor-acento-texto); border-color: var(--cor-acento-texto); color: var(--cor-acento); }
