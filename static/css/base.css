@@ -442,16 +442,21 @@ a { color: inherit; }
 .tecnica h3 { font-size: var(--texto-22); }
 .tecnica p { font-size: var(--texto-14); color: var(--cor-texto-suave); }
 
-/* ---------- BLOCO DA ÁREA DO GRUPO (vermelho) ---------- */
-.grupo { background: var(--cor-acento); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
-.grupo__grade { display: grid; gap: 24px; padding-block: var(--esp-12); }
-@media (min-width: 900px) { .grupo__grade { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); align-items: end; justify-items: start; } }
-.grupo h2 { font-size: var(--texto-h2); color: inherit; }
-.grupo h2 span { opacity: .55; }
-.grupo p:not(.mono) { margin-top: 16px; opacity: .85; max-width: 36em; }
-.grupo .mono { color: inherit; opacity: .75; margin-bottom: 16px; }
-.grupo .botao--vazado { color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
-.grupo .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
+/* ---------- CHAMADA DA FATEC / VESTIBULAR (vermelho) ---------- */
+.chamada { background: var(--cor-acento); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
+.chamada__grade { display: grid; gap: 24px; padding-block: var(--esp-12); }
+@media (min-width: 900px) { .chamada__grade { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); align-items: end; } }
+.chamada h2 { font-size: var(--texto-h2); color: inherit; }
+.chamada h2 span { opacity: .55; }
+.chamada p:not(.mono) { margin-top: 16px; opacity: .9; max-width: 38em; }
+.chamada strong { font-weight: 600; }
+.chamada .mono { color: inherit; opacity: .75; margin-bottom: 16px; }
+.chamada__acoes { display: flex; flex-wrap: wrap; gap: 12px; }
+@media (min-width: 900px) { .chamada__acoes { flex-direction: column; align-items: stretch; } }
+.chamada .botao--branco { background: var(--cor-acento-texto); border-color: var(--cor-acento-texto); color: var(--cor-acento); }
+.chamada .botao--branco:hover { background: var(--cor-texto); border-color: var(--cor-texto); color: var(--cor-sobre-tinta); }
+.chamada .botao--vazado { color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
+.chamada .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 

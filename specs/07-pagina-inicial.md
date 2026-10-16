@@ -29,7 +29,10 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   Bloco novo `scripts` no fim do `body`.
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
   fachada, ficha do evento, faixa Fatec/Etec, 01 A Mostra, 02 Projetos,
-  03 Quem faz e o bloco da Área do grupo.
+  03 Quem faz e a chamada da Fatec com o convite ao vestibular (links para
+  o site oficial da Fatec Olímpia e o portal do vestibular; datas do
+  1º semestre de 2027 em texto fixo, revistas a cada edição). A Área do
+  grupo continua no topo e no rodapé.
 - **Filtro por curso** em JavaScript (`static/js/`), como melhoria
   progressiva: sem JavaScript, todas as turmas aparecem e o filtro fica
   escondido.

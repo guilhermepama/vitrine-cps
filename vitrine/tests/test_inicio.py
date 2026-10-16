@@ -177,6 +177,13 @@ def test_depois_do_evento_vira_realizada_em(client):
     assert "Realizada em" in html and "a partir das 19h" not in html
 
 
+@pytest.mark.django_db
+def test_chamada_da_fatec_leva_aos_sites_oficiais(client):
+    html = _html(client)
+    assert 'href="https://fatecolimpia.cps.sp.gov.br/"' in html
+    assert 'href="https://vestibular.fatec.sp.gov.br/"' in html
+
+
 # --- Guardrails ------------------------------------------------------------------------
 
 

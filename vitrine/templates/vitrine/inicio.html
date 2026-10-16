@@ -148,14 +148,18 @@ nenhum caminho de voto (G8).
   </div>
 </section>
 
-<section class="grupo">
-  <div class="container grupo__grade">
+{# Convite ao vestibular. Datas do 1º semestre de 2027: conferir com o calendário oficial a cada edição. #}
+<section class="chamada" id="fatec">
+  <div class="container chamada__grade">
     <div>
-      <p class="mono">Área do grupo</p>
-      <h2 class="display">É representante de um grupo<span>?</span></h2>
-      <p>Entre com o RA para receber o link de edição do seu projeto. O link aparece uma única vez: guarde-o. A coordenação do curso aprova a página antes de ela ficar pública.</p>
+      <p class="mono">Vestibular Fatec · 1º semestre de 2027</p>
+      <h2 class="display">Faculdade pública e gratuita, aqui em Olímpia<span>.</span></h2>
+      <p>Os projetos desta Mostra nasceram na Fatec Olímpia, faculdade de tecnologia do Centro Paula Souza. São dois cursos superiores: <strong>Desenvolvimento de Software Multiplataforma</strong> e <strong>Gestão de Turismo</strong>. As inscrições para o vestibular vão até 6 de novembro de 2026, e a prova é em 13 de dezembro.</p>
     </div>
-    <a class="botao botao--vazado" href="{% url 'vitrine:grupo' %}">Acessar a área do grupo</a>
+    <div class="chamada__acoes">
+      <a class="botao botao--branco" href="https://fatecolimpia.cps.sp.gov.br/" rel="noopener noreferrer">Conheça a Fatec Olímpia</a>
+      <a class="botao botao--vazado" href="https://vestibular.fatec.sp.gov.br/" rel="noopener noreferrer">Inscrições do vestibular</a>
+    </div>
   </div>
 </section>
 {% endblock %}
