@@ -50,6 +50,20 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
 - O ensaio geral (22/10) é uma **edição própria** ("Ensaio 2026/2"), com
   turmas, projetos e estações próprios. Nada do ensaio entra na edição do
   evento.
+- **ADR-013 (16/10):** pesos de três partes (`peso_banca`,
+  `peso_convidados`, `peso_publico`, somando 1) mais `peso_boletim_banca`
+  (nota do boletim, sem o público). `peso_banca > peso_publico` continua.
+  Padrões das colunas novas (convidados 0, boletim 1) mantêm o cálculo das
+  edições antigas igual ao de antes.
+- **ADR-013 — escolas estaduais:** `Curso.unidade` ganha `medio`
+  ("Ensino Médio"), ao lado de `fatec` e `etec`. Curso "EM — 3º ano do
+  Ensino Médio" com **uma turma por escola**: campo novo `Turma.escola`
+  (char 80, opcional, só para escola externa), que entra no rótulo
+  ("EM — 3º ano · E.E. Wilquem") e na unicidade da turma. Escolas desta
+  edição: E.E. Wilquem e E.E. Reis Neves.
+- **Menores de idade:** as regras que hoje valem para a Etec (só o
+  primeiro nome do integrante; aviso "Não envie fotos de pessoas") passam
+  a valer para `etec` **e** `medio`.
 - **Pesos** (ADR-007): cada um entre 0 e 1 e `peso_banca + peso_publico
   = 1,00` (constraints no banco — `1,70 / −0,70` é recusado). Padrão
   0,70 / 0,30. `peso_banca > peso_publico` é **validação** (`clean()`),
@@ -248,8 +262,14 @@ desproporcional para esta edição (revisão do Renan no #17).
 - **Turno**: coluna "Turno" opcional (a planilha desta edição foi sem
   ela). Com turno, casa exatamente. Sem turno, casa com a única turma
   daquele curso e período; se houver mais de uma (ex: manhã e tarde), a
-  linha é erro "turma ambígua — informe o turno" (revisão do Renan no
-  PR #16).
+  linha é erro "turma ambígua — informe o turno ou a escola" (revisão do
+  Renan no PR #16; mensagem ampliada no ADR-013).
+- **Escola** (ADR-013): coluna "Escola" opcional, para as turmas do
+  Ensino Médio. Com escola, filtra por `Turma.escola` (sem diferenciar
+  maiúsculas; espaços extras ignorados); escola que não casa → "turma
+  inexistente nesta edição". Sem a coluna ou vazia, vale a regra do turno.
+  As duas escolas estaduais estão no mesmo curso, período e turno: sem a
+  escola, a linha delas é "turma ambígua".
 - **RA único por edição**: um RA representa no máximo um projeto na
   edição. RA que já representa outro projeto da edição (de importação
   anterior ou de outra linha do arquivo) → erro de linha, sem mostrar o
@@ -287,7 +307,9 @@ desproporcional para esta edição (revisão do Renan no #17).
 | ativa | bool | **unique quando `ativa = true`** (constraint parcial) |
 | prazo_edicao | datetime | |
 | peso_banca | decimal(3,2) | padrão 0,70 |
-| peso_publico | decimal(3,2) | padrão 0,30; **check: cada peso ≥ 0 e `peso_banca + peso_publico = 1`** (logo, cada um ≤ 1) |
+| peso_publico | decimal(3,2) | padrão 0,30; **check: cada peso ≥ 0 e `peso_banca + peso_publico = 1`** (logo, cada um ≤ 1) — **ADR-013:** a soma passa a incluir `peso_convidados` |
+| peso_convidados | decimal(3,2) | **ADR-013**; padrão 0,00 (edições antigas sem convidados); nesta edição 0,20 com banca 0,50 e público 0,30; check: ≥ 0 e `peso_banca + peso_convidados + peso_publico = 1` |
+| peso_boletim_banca | decimal(3,2) | **ADR-013**; padrão 1,00; nesta edição 0,70 (convidados = 1 − ele); check 0 ≤ valor ≤ 1; travado com os outros pesos depois de aberta a votação |
 | votacao_aberta_em | datetime, null | preenchido pela spec 03; depois disso, não muda |
 | votacao_encerrada_em | datetime, null | **check: só com `votacao_aberta_em` e ≥ ela** |
 | banca_conferida_em | datetime, null, `editable=False` | escrito só pela conferência da spec 06, com `update_fields`; o `save()` preserva o valor do banco nos demais saves; nasce vazio. Corrigir nota depois disso **apaga** a conferência (spec 06) |

@@ -10,6 +10,12 @@
   spec 03 (tokens, votos, estações, visitantes), spec 06 (função
   `nota_banca_por_projeto` e formato das notas da banca)
 
+> **Emenda ADR-013 (16/10):** três partes (banca, convidados e público),
+> ranking **geral** e **por curso**, e a **nota do boletim** — ver
+> "Nota composta, ranking geral e boletim (ADR-013)". Onde esta spec fala em
+> 70/30 banca/público **por turma**, vale a emenda: o recorte passa a ser
+> **por curso** (todas as turmas do curso juntas).
+
 ## Objetivo
 Dar ao administrador, ao encerrar a votação, o ranking de cada turma pela
 **nota composta da ADR-007** (70% banca + 30% público, min-max dentro da
@@ -126,6 +132,46 @@ qualquer consulta aos dados de negócio:
      posições `1, 1, 3`.
 - A normalização é **local à turma**: o máximo e o mínimo de uma turma
   não influenciam outra.
+
+### Nota composta, ranking geral e boletim (ADR-013)
+- Três partes por projeto: `b` (banca), `c` (convidados) e `p` (público),
+  cada uma normalizada min-max no recorte (maior = menor → 1).
+  `final = peso_banca·b + peso_convidados·c + peso_publico·p`, com os
+  pesos da `Edicao` (0,50, 0,20 e 0,30 nesta edição).
+- **Dois recortes, na mesma página:**
+  - **Geral**: todos os projetos publicados da edição juntos (Fatec, Etec,
+    Ensino Médio). Normalização, `m` da média bayesiana e ordem sobre
+    todos. Vem primeiro na página — é o que se apresenta ao público.
+  - **Por curso**: DSM, GTUR, cada curso da Etec e o 3º ano do Ensino
+    Médio (as duas escolas juntas — é um curso só, com uma turma por
+    escola). Normalização e `m` locais ao curso; as turmas do curso
+    concorrem juntas. Substitui o recorte por turma.
+- Desempate (os dois recortes): final → nota de banca bruta → nota de
+  convidados bruta → mais avaliações do público; empate em tudo → mesma
+  posição e marca "empate".
+- **Nota do boletim** (por projeto, mesma para todos os integrantes):
+  `peso_boletim_banca·banca + (1 − peso_boletim_banca)·convidados`, sobre as
+  notas **brutas** de 0 a 10, **sem normalização** (0,70/0,30 nesta
+  edição). Tabela própria na página (projeto, turma, banca, convidados,
+  nota do boletim, ordem por curso, turma e título) e no CSV
+  `/resultados/<edicao_id>/boletim.csv` (permissão `ver_resultados`). Não
+  leva o público.
+- **Pendência:** projeto sem nota de banca **ou** sem nota de convidados
+  (ausente no retorno de `nota_banca_por_projeto(edicao, tipo)`) fica sem
+  final e sem boletim. A nota de convidados só é exigida onde tem peso:
+  no ranking quando `peso_convidados > 0`, no boletim quando
+  `peso_boletim_banca < 1` (revisão do Renan no #80). Com peso 0, a parte
+  de convidados não entra na conta nem trava nada — edição sem convidados
+  (padrões 0 e 1) calcula como antes. Por curso: só o curso dele fica pendente (aviso de
+  hoje). Geral: o ranking inteiro fica pendente, com o aviso e a lista dos
+  projetos que faltam. Boletim: a linha do projeto mostra "pendente".
+  `banca_conferida_em` vazio → tudo pendente, como hoje.
+- Pesos: `peso_banca + peso_convidados + peso_publico = 1` e
+  `0 ≤ peso_boletim_banca ≤ 1`, senão "Pesos da edição não configurados".
+- **Escopo:** o ranking geral e por curso é o do evento desta edição. A
+  página aplica a mesma regra a qualquer edição (o recorte por turma sai
+  do código); como o histórico aparece no portal público fica para
+  depois (coordenação, 16/10) — fora desta spec.
 
 ### Público (ADR-012)
 - Cada avaliação do público (spec 03) dá notas **de 0 a 5** em três
