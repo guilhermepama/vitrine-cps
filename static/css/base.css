@@ -69,6 +69,9 @@
 
 /* ---------- RESET MÍNIMO ---------- */
 * { box-sizing: border-box; }
+/* Âncoras (#mostra, #projetos…): rolagem suave e o destino para abaixo do topo fixo (56 px). */
+html { scroll-behavior: smooth; scroll-padding-top: 64px; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body {
   margin: 0;
   font-family: var(--fonte);
