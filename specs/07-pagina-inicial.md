@@ -26,7 +26,8 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 - **`templates/base.html`**: topo com a marca (logo SVG, link para `/`),
   bloco `menu` vazio por padrão e rodapé institucional. Os blocos existentes
   (`titulo`, `meta`, `conteudo`, `topo`, `rodape`, `classe_main`) não mudam.
-  Bloco novo `scripts` no fim do `body`.
+  Bloco novo `scripts` no fim do `body`. Favicon (`static/img/favicon.svg`,
+  vermelho CPS) no bloco novo `icone`, que a ficha da banca zera (papel sem links).
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
   fachada, ficha do evento, faixa dos cursos (DSM, GTUR), 01 A Mostra, 02 Projetos,
   03 Quem faz e a chamada da Fatec com o convite ao vestibular (links para
