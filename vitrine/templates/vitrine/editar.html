@@ -1,111 +1,221 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block titulo %}Edição do projeto — Vitrine CPS{% endblock %}
 
+{% block classe_main %}edicao{% endblock %}
+
 {% block conteudo %}
-<p>ÁREA DO GRUPO</p>
-<h1>{{ projeto.titulo }}</h1>
-<p>
-  {{ projeto.turma.rotulo }}
-  · Situação: {{ projeto.get_status_display }}
-</p>
+{% comment %}
+Tela de edição do grupo (spec 02; layout da spec 07). Só visual: nomes de campos,
+`acao` (salvar/enviar), formsets e mensagens são os da view. Os botões do painel
+lateral ficam fora do <form> e o apontam pelo atributo `form`.
+{% endcomment %}
+<header class="edicao__cabeca">
+  <div class="container">
+    <p class="mono">Área do grupo · edição do projeto</p>
+    <h1 class="display">{{ projeto.titulo }}<span class="ponto">.</span></h1>
+    <div class="edicao__ficha">
+      <span class="mono">{{ projeto.turma.rotulo }}</span>
+      <span class="mono">Situação</span>
+      {% if projeto.status == "publicado" %}<span class="selo selo--publicado">{{ projeto.get_status_display }}</span>
+      {% elif projeto.status == "em_revisao" %}<span class="selo selo--em-revisao">{{ projeto.get_status_display }}</span>
+      {% elif projeto.status == "ajustes" %}<span class="selo selo--ajustes">{{ projeto.get_status_display }}</span>
+      {% else %}<span class="selo selo--pre-cadastrado">{{ projeto.get_status_display }}</span>{% endif %}
+      {% if projeto.status == "publicado" %}<a class="edicao__publica" href="{% url 'vitrine:projeto' projeto.slug %}">Ver página pública</a>{% endif %}
+    </div>
+  </div>
+</header>
 
-{% if messages %}
-{% for mensagem in messages %}<p class="aviso" role="status">{{ mensagem }}</p>{% endfor %}
-{% endif %}
-
-{% if projeto.status == "ajustes" and projeto.motivo_ajustes %}
-<div class="aviso" role="alert">
-  <strong>A coordenação pediu ajustes:</strong>
-  {{ projeto.motivo_ajustes|linebreaksbr }}
+<div class="container edicao__avisos">
+  {% for mensagem in messages %}<p class="alerta alerta--ok" role="status">{{ mensagem }}</p>{% endfor %}
+  {% if projeto.status == "ajustes" and projeto.motivo_ajustes %}
+  <div class="alerta" role="alert">
+    <strong>A coordenação pediu ajustes:</strong>
+    <p>{{ projeto.motivo_ajustes|linebreaksbr }}</p>
+  </div>
+  {% endif %}
+  {% if motivo_somente_leitura %}<p class="alerta alerta--neutro" role="alert">{{ motivo_somente_leitura }}</p>{% endif %}
 </div>
-{% endif %}
 
 {% if motivo_somente_leitura %}
-<p class="aviso" role="alert">{{ motivo_somente_leitura }}</p>
-
-{% if projeto.resumo %}<h2>Resumo</h2><p>{{ projeto.resumo }}</p>{% endif %}
-{% if projeto.descricao %}<h2>Descrição</h2>{{ projeto.descricao|linebreaks }}{% endif %}
-{% if projeto.componente_origem %}<h2>Componente de origem</h2><p>{{ projeto.componente_origem }}</p>{% endif %}
-{% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
-<h2>Links</h2>
-<ul>
-  {% if projeto.link_repositorio %}<li>Repositório: {{ projeto.link_repositorio }}</li>{% endif %}
-  {% if projeto.link_demo %}<li>Demonstração: {{ projeto.link_demo }}</li>{% endif %}
-  {% if projeto.link_video %}<li>Vídeo: {{ projeto.link_video }}</li>{% endif %}
-</ul>
-{% endif %}
-{% if projeto.capa %}<h2>Capa</h2><img src="{{ projeto.capa.url }}" alt="Capa do projeto">{% endif %}
-{% if imagens %}<h2>Galeria</h2>{% for imagem in imagens %}<img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">{% endfor %}{% endif %}
-{% if integrantes %}<h2>Equipe</h2><ul>{% for integrante in integrantes %}<li>{{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% comment %} Somente leitura: o que o grupo enviou, sem nenhum formulário. {% endcomment %}
+<div class="container">
+  {% if projeto.capa %}
+  <div class="edicao-leitura__capa"><img class="edicao-capa__img" src="{{ projeto.capa.url }}" alt="Capa do projeto"></div>
+  {% endif %}
+  <dl class="edicao-leitura">
+    {% if projeto.resumo %}<div class="edicao-leitura__linha"><dt class="mono">Resumo</dt><dd>{{ projeto.resumo }}</dd></div>{% endif %}
+    {% if projeto.descricao %}<div class="edicao-leitura__linha"><dt class="mono">Descrição</dt><dd class="prosa">{{ projeto.descricao|linebreaks }}</dd></div>{% endif %}
+    {% if projeto.componente_origem %}<div class="edicao-leitura__linha"><dt class="mono">Componente de origem</dt><dd>{{ projeto.componente_origem }}</dd></div>{% endif %}
+    {% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+    <div class="edicao-leitura__linha">
+      <dt class="mono">Links</dt>
+      <dd>
+        <ul class="edicao-leitura__lista">
+          {% if projeto.link_repositorio %}<li>Repositório: {{ projeto.link_repositorio }}</li>{% endif %}
+          {% if projeto.link_demo %}<li>Demonstração: {{ projeto.link_demo }}</li>{% endif %}
+          {% if projeto.link_video %}<li>Vídeo: {{ projeto.link_video }}</li>{% endif %}
+        </ul>
+      </dd>
+    </div>
+    {% endif %}
+    {% if integrantes %}
+    <div class="edicao-leitura__linha">
+      <dt class="mono">Equipe</dt>
+      <dd><ul class="edicao-leitura__lista">{% for integrante in integrantes %}<li>{{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}</li>{% endfor %}</ul></dd>
+    </div>
+    {% endif %}
+  </dl>
+  {% if imagens %}
+  <p class="lado__titulo edicao-leitura__titulo">Galeria</p>
+  <div class="edicao-galeria">
+    {% for imagem in imagens %}<figure class="edicao-galeria__item"><img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">{% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}</figure>{% endfor %}
+  </div>
+  {% endif %}
+</div>
 
 {% else %}
 
-<h2>O que falta para a publicação</h2>
-{% if pendencias %}
-<ul>{% for item in pendencias %}<li>{{ item }}</li>{% endfor %}</ul>
-{% else %}
-<p>Tudo pronto: você já pode enviar o projeto para a revisão.</p>
-{% endif %}
+<div class="container edicao__grade">
+  <div class="edicao__principal">
 
-<form method="post" action="{% url 'vitrine:editar' token %}">
-  {% csrf_token %}
-  <h2>O projeto</h2>
-  <p>O nome do projeto é definido pela coordenação e não pode ser alterado aqui.</p>
-  {{ form.as_div }}
+    {% comment %}
+    Imagens primeiro: cada envio recarrega a página, então quem segue a ordem
+    da tela manda as fotos antes de digitar o texto e não perde nada.
+    {% endcomment %}
+    <section class="edicao__secao" id="imagens" aria-labelledby="titulo-imagens">
+      <div class="edicao__titulo">
+        <span class="edicao__idx" aria-hidden="true">01</span>
+        <h2 class="display" id="titulo-imagens">Imagens</h2>
+      </div>
+      <p class="alerta alerta--neutro">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
+      {% if etec %}<p class="alerta alerta--neutro"><strong>Não envie fotos de pessoas.</strong></p>{% endif %}
+      {% if erro_imagem %}<p class="alerta" role="alert">{{ erro_imagem }}</p>{% endif %}
 
-  <h2>Equipe (1 a 10 integrantes{% if etec %} — só o primeiro nome{% endif %})</h2>
-  {{ formset.management_form }}
-  {% if formset.non_form_errors %}<div class="erro">{{ formset.non_form_errors }}</div>{% endif %}
-  {% for form_integrante in formset %}
-  <fieldset>
-    <legend>Integrante {{ forloop.counter }}</legend>
-    {{ form_integrante.as_div }}
-  </fieldset>
-  {% endfor %}
-  <p>Precisa de mais linhas? Salve e volte a esta página.</p>
+      <div class="edicao-capa">
+        <div class="edicao-capa__quadro">
+          {% if projeto.capa %}<img class="edicao-capa__img" src="{{ projeto.capa.url }}" alt="Capa atual do projeto">
+          {% else %}<div class="edicao-capa__img edicao-capa__vazia"><span class="mono">Sem capa</span></div>{% endif %}
+        </div>
+        <form class="edicao-upload" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <h3 class="rotulo">Capa (obrigatória para publicar)</h3>
+          <input type="hidden" name="tipo" value="capa">
+          <input class="campo-arquivo" type="file" name="arquivo" id="arquivo-capa" accept="image/jpeg,image/png,image/webp" required aria-describedby="capa-ajuda" aria-label="Arquivo da capa">
+          <p class="ajuda" id="capa-ajuda">JPG, PNG ou WebP, até 3 MB. Proporção ideal: 1,91:1 (por exemplo, 1200×630 px) para a prévia do WhatsApp.</p>
+          <button class="botao" type="submit">{% if projeto.capa %}Trocar capa{% else %}Adicionar capa{% endif %}</button>
+        </form>
+      </div>
 
-  <button type="submit" name="acao" value="salvar">Salvar</button>
-  <button type="submit" name="acao" value="enviar"{% if not pode_enviar %} disabled{% endif %}>Enviar para revisão</button>
-  {% if not pode_enviar %}<p>O envio para revisão fica disponível quando não houver pendências.</p>{% endif %}
-  <p>A coordenação revisa e publica. Depois de publicado, o grupo não edita mais.</p>
-</form>
+      <div class="edicao__subtitulo">
+        <h3 class="rotulo">Galeria (até {{ maximo_imagens }} imagens)</h3>
+        <span class="mono">{{ imagens|length }} de {{ maximo_imagens }}</span>
+      </div>
+      <div class="edicao-galeria">
+        {% for imagem in imagens %}
+        <figure class="edicao-galeria__item">
+          <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
+          <div class="edicao-galeria__pe">
+            {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% else %}<figcaption class="mono">Sem legenda</figcaption>{% endif %}
+            <form method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
+              {% csrf_token %}
+              <button class="botao botao--perigo botao--pequeno" type="submit">Remover</button>
+            </form>
+          </div>
+        </figure>
+        {% endfor %}
+        {% if imagens|length < maximo_imagens %}
+        <form class="edicao-galeria__item edicao-upload edicao-upload--nova" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+          {% csrf_token %}
+          <input type="hidden" name="tipo" value="extra">
+          <label class="rotulo" for="arquivo-extra">Nova imagem</label>
+          <input class="campo-arquivo" type="file" name="arquivo" id="arquivo-extra" accept="image/jpeg,image/png,image/webp" required>
+          <label class="rotulo" for="legenda-extra">Legenda (opcional)</label>
+          <input class="campo" type="text" name="legenda" id="legenda-extra" maxlength="120" placeholder="Legenda (opcional)">
+          <button class="botao" type="submit">Adicionar imagem</button>
+        </form>
+        {% endif %}
+      </div>
+    </section>
 
-<h2>Imagens</h2>
-<p class="aviso">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
-{% if etec %}<p>Não envie fotos de pessoas.</p>{% endif %}
-{% if erro_imagem %}<p class="erro" role="alert">{{ erro_imagem }}</p>{% endif %}
+    <form id="form-projeto" class="edicao__form" method="post" action="{% url 'vitrine:editar' token %}">
+      {% csrf_token %}
+      <section class="edicao__secao" aria-labelledby="titulo-projeto">
+        <div class="edicao__titulo">
+          <span class="edicao__idx" aria-hidden="true">02</span>
+          <h2 class="display" id="titulo-projeto">O projeto</h2>
+        </div>
+        <p class="edicao__nota">O nome do projeto é definido pela coordenação e não pode ser alterado aqui.</p>
+        {% if form.non_field_errors %}<div class="alerta" role="alert">{{ form.non_field_errors|join:" " }}</div>{% endif %}
+        <div class="edicao__campos">
+          {% for campo in form %}
+          <div class="edicao__campo{% if campo.errors %} edicao__campo--erro{% endif %}{% if campo.name == 'resumo' or campo.name == 'descricao' %} edicao__campo--largo{% endif %}">
+            <label class="rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+            {{ campo }}
+            {% if campo.help_text %}<p class="ajuda" id="{{ campo.auto_id }}_helptext">{{ campo.help_text }}</p>{% endif %}
+            {% for erro in campo.errors %}<p class="erro-campo">{{ erro }}</p>{% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+      </section>
 
-<h3>Capa (obrigatória para publicar)</h3>
-{% if projeto.capa %}<img src="{{ projeto.capa.url }}" alt="Capa atual do projeto">{% endif %}
-<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
-  {% csrf_token %}
-  <input type="hidden" name="tipo" value="capa">
-  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
-  <p>JPG, PNG ou WebP, até 3 MB. Proporção ideal: 1,91:1 (por exemplo, 1200×630 px) para a prévia do WhatsApp.</p>
-  <button type="submit">{% if projeto.capa %}Trocar capa{% else %}Adicionar capa{% endif %}</button>
-</form>
+      <section class="edicao__secao" aria-labelledby="titulo-equipe">
+        <div class="edicao__titulo">
+          <span class="edicao__idx" aria-hidden="true">03</span>
+          <h2 class="display" id="titulo-equipe">Equipe</h2>
+        </div>
+        <p class="edicao__nota">De 1 a 10 integrantes{% if etec %}, <strong>só o primeiro nome</strong>{% endif %}. O nome aparece assim na página pública.</p>
+        {{ formset.management_form }}
+        {% if formset.non_form_errors %}<div class="alerta" role="alert">{{ formset.non_form_errors|join:" " }}</div>{% endif %}
+        <div class="edicao-equipe">
+          {% for form_integrante in formset %}
+          <fieldset class="integrante{% if form_integrante.errors %} integrante--erro{% endif %}">
+            <legend class="so-leitor">Integrante {{ forloop.counter }}</legend>
+            {% for oculto in form_integrante.hidden_fields %}{{ oculto }}{% endfor %}
+            <div class="integrante__linha">
+            <span class="integrante__num" aria-hidden="true">{% if forloop.counter < 10 %}0{% endif %}{{ forloop.counter }}</span>
+            {% for erro in form_integrante.non_field_errors %}<p class="erro-campo integrante__largo">{{ erro }}</p>{% endfor %}
+            <div class="integrante__campo">
+              <label class="rotulo" for="{{ form_integrante.nome.id_for_label }}">Nome</label>
+              {{ form_integrante.nome }}
+              <p class="so-leitor" id="{{ form_integrante.nome.auto_id }}_helptext">{{ form_integrante.nome.help_text }}</p>
+              {% for erro in form_integrante.nome.errors %}<p class="erro-campo">{{ erro }}</p>{% endfor %}
+            </div>
+            <div class="integrante__campo">
+              <label class="rotulo" for="{{ form_integrante.papel.id_for_label }}">Papel (opcional)</label>
+              {{ form_integrante.papel }}
+              {% for erro in form_integrante.papel.errors %}<p class="erro-campo">{{ erro }}</p>{% endfor %}
+            </div>
+            {% if form_integrante.instance.pk %}
+            <label class="integrante__remover" for="{{ form_integrante.DELETE.id_for_label }}">{{ form_integrante.DELETE }} Remover</label>
+            {% endif %}
+            </div>
+          </fieldset>
+          {% endfor %}
+        </div>
+        <p class="edicao__nota">Precisa de mais linhas? Salve e volte a esta página.</p>
+      </section>
+    </form>
+  </div>
 
-<h3>Galeria (até {{ maximo_imagens }} imagens)</h3>
-{% for imagem in imagens %}
-<figure>
-  <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
-  {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
-  <form method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
-    {% csrf_token %}
-    <button type="submit">Remover</button>
-  </form>
-</figure>
-{% endfor %}
-{% if imagens|length < maximo_imagens %}
-<form method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
-  {% csrf_token %}
-  <input type="hidden" name="tipo" value="extra">
-  <input type="file" name="arquivo" accept="image/jpeg,image/png,image/webp" required>
-  <input type="text" name="legenda" maxlength="120" placeholder="Legenda (opcional)">
-  <button type="submit">Adicionar imagem</button>
-</form>
-{% endif %}
+  <aside class="envio" aria-labelledby="titulo-envio">
+    <h2 class="lado__titulo" id="titulo-envio">O que falta para a publicação</h2>
+    {% if pendencias %}
+    <ul class="envio__falta">{% for item in pendencias %}<li>{{ item }}</li>{% endfor %}</ul>
+    {% else %}
+    <p class="envio__pronto">Tudo pronto: você já pode enviar o projeto para a revisão.</p>
+    {% endif %}
+    <div class="envio__acoes">
+      <button class="botao botao--vazado botao--bloco" type="submit" form="form-projeto" name="acao" value="salvar">Salvar</button>
+      <button class="botao botao--vermelho botao--bloco" type="submit" form="form-projeto" name="acao" value="enviar"{% if not pode_enviar %} disabled aria-describedby="envio-bloqueado"{% endif %}>Enviar para revisão</button>
+    </div>
+    {% if not pode_enviar %}<p class="ajuda" id="envio-bloqueado">O envio para revisão fica disponível quando não houver pendências.</p>{% endif %}
+    <p class="ajuda">A coordenação revisa e publica. Depois de publicado, o grupo não edita mais.</p>
+  </aside>
+</div>
 
 {% endif %}
 {% endblock %}
+
+{% block scripts %}{% if not motivo_somente_leitura %}<script src="{% static 'js/contador.js' %}" defer></script>{% endif %}{% endblock %}
