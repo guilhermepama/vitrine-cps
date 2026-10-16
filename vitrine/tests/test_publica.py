@@ -338,3 +338,18 @@ def test_pagina_publica_liga_o_base_css_e_nao_tem_largura_fixa_no_html(client):
             assert int(largura) <= 360
         for largura in re.findall(r"width:\s*(\d+)px", html):
             assert int(largura) <= 360
+
+
+def test_atributo_hidden_vence_o_display_das_classes():
+    """Revisão do #74: `.botao` tem display inline-flex e mostrava o "Copiar" com
+    `hidden` (sem JS ou sem Clipboard API). Uma regra global garante o `hidden`."""
+    regras = _lista_regras(CSS.read_text(encoding="utf-8"))
+    assert ("[hidden]", {"display": "none !important"}) in regras
+
+
+def test_nenhum_titulo_desfaz_a_quebra_de_palavra_longa():
+    """Revisões do #75 e #78: `overflow-wrap: normal` num h1 desfazia o `anywhere`
+    do `.display`, e título de até 120 caracteres sem espaço (ou palavra longa em
+    caixa alta) estourava os 360 px. `break-word` só quebra quando não cabe."""
+    regras = _lista_regras(CSS.read_text(encoding="utf-8"))
+    assert [seletor for seletor, props in regras if props.get("overflow-wrap") == "normal"] == []
