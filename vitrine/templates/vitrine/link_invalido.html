@@ -2,9 +2,14 @@
 
 {% block titulo %}Link não encontrado — Vitrine CPS{% endblock %}
 
+{% block classe_main %}tela-cheia{% endblock %}
+
 {% block conteudo %}
-<h1>Link não encontrado</h1>
-<p>
-  Esse link de edição não existe ou foi substituído. Use o link que foi guardado ou procure a coordenação.
-</p>
+<section class="acesso acesso--aviso">
+  <div class="container">
+    <p class="mono">Área do grupo</p>
+    <h1 class="display">Link não encontrado<span class="ponto">.</span></h1>
+    <p>Esse link de edição não existe ou foi substituído. Use o link que foi guardado ou procure a coordenação.</p>
+  </div>
+</section>
 {% endblock %}

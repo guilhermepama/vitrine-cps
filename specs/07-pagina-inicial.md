@@ -38,6 +38,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   escondido.
 - **Menu do celular** (hambúrguer) em `static/js/menu.js`.
 - **Rolagem suave** nas âncoras da página (CSS `scroll-behavior`), desligada para quem pede menos movimento no sistema (`prefers-reduced-motion`); o destino para abaixo do topo fixo.
+- **Telas da área do grupo** (`/grupo/`, link único, 429 e link inválido) no layout novo, sem mudar comportamento nem os textos que a spec 02 exige; o script do "Copiar" sai do template para `static/js/copiar-link.js`.
 - O 404 da página de projeto passa a ter "Conhecer a Mostra" apontando
   para `/` (antes ia para `/como-votar/` porque não havia página inicial).
 
