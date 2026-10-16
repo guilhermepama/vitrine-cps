@@ -410,7 +410,8 @@ a { color: inherit; }
 .cartao-projeto:hover { background: var(--cor-acento); color: var(--cor-acento-texto); }
 .cartao-projeto:hover .display, .cartao-projeto:hover .mono, .cartao-projeto:hover p { color: inherit; }
 .cartao-projeto__capa { width: 100%; aspect-ratio: 1.91 / 1; object-fit: cover; border-bottom: 1px solid var(--cor-borda); background: var(--cor-texto); }
-.cartao-projeto__corpo { display: grid; gap: 10px; flex: 1; padding: 16px var(--gutter) 20px; }
+/* flex, não grid: a grade esticava as linhas e o resumo cortado em 2 linhas mostrava a 3ª */
+.cartao-projeto__corpo { display: flex; flex-direction: column; gap: 10px; flex: 1; padding: 16px var(--gutter) 20px; }
 .cartao-projeto__meta { display: flex; justify-content: space-between; gap: 12px; }
 .cartao-projeto h3 { font-size: var(--texto-cartao); }
 .cartao-projeto p { font-size: var(--texto-14); line-height: 1.45; color: var(--cor-texto-suave); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
