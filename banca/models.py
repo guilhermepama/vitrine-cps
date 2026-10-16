@@ -94,18 +94,25 @@ class Jurado(models.Model):
 
     def clean(self):
         super().clean()
-        self._verificar_edicao()
+        # No admin, o POST roda numa transação: a trava vale até gravar.
+        self._verificar_edicao(travar=transaction.get_connection().in_atomic_block)
 
     def save(self, *args, **kwargs):
-        self._verificar_edicao()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            self._verificar_edicao(travar=True)
+            super().save(*args, **kwargs)
 
-    def _verificar_edicao(self):
+    def _verificar_edicao(self, travar=False):
         """Jurado com avaliação não muda de edição (as avaliações iriam junto)
-        nem de tipo (as notas ficariam com critérios do outro tipo — ADR-013)."""
+        nem de tipo (as notas ficariam com critérios do outro tipo — ADR-013).
+
+        Com `travar`, a linha do jurado fica travada até o fim da transação; a
+        primeira ficha dele trava a mesma linha (`Avaliacao`), então trocar o
+        tipo e digitar a primeira ficha ao mesmo tempo não passam os dois."""
         if not self.pk:
             return
-        antes = Jurado.objects.filter(pk=self.pk).values("edicao_id", "tipo").first()
+        consulta = Jurado.objects.select_for_update() if travar else Jurado.objects
+        antes = consulta.filter(pk=self.pk).values("edicao_id", "tipo").first()
         if antes is None or not self.avaliacoes.exists():
             return
         if antes["edicao_id"] != self.edicao_id:
@@ -155,11 +162,25 @@ class Avaliacao(models.Model):
             raise ValidationError("A votação desta edição ainda não foi aberta.")
         if not Criterio.objects.filter(edicao_id=jurado.edicao_id, tipo=jurado.tipo).exists():
             raise ValidationError(f"A edição não tem critérios{_de_tipo(jurado.tipo)} cadastrados.")
+        if self.pk is None:
+            self._conferir_tipo_do_jurado(travar=transaction.get_connection().in_atomic_block)
 
     def save(self, *args, **kwargs):
         # Atômico: o desfazer da conferência (sinais) entra na mesma transação.
         with transaction.atomic():
+            if self.pk is None:
+                self._conferir_tipo_do_jurado(travar=True)
             super().save(*args, **kwargs)
+
+    def _conferir_tipo_do_jurado(self, travar):
+        """A ficha foi validada com os critérios do tipo que o jurado tinha ao
+        abrir. Relê o tipo com a linha do jurado travada (a mesma trava do
+        `Jurado.save`): se mudou nesse meio-tempo, recusa; se não, ninguém
+        muda até gravar (revisão do Renan no #82)."""
+        consulta = Jurado.objects.select_for_update() if travar else Jurado.objects
+        atual = consulta.filter(pk=self.jurado_id).values_list("tipo", flat=True).first()
+        if atual != self.jurado.tipo:
+            raise ValidationError("O tipo deste jurado mudou enquanto a ficha era digitada. Recarregue a ficha.")
 
 
 class Nota(models.Model):

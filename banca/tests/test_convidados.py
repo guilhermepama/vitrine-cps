@@ -86,6 +86,81 @@ def test_jurado_sem_avaliacao_pode_mudar_de_tipo():
     assert Jurado.objects.get(pk=jurado.pk).tipo == Tipo.CONVIDADO
 
 
+# --- Corrida entre trocar o tipo e digitar a primeira ficha (revisão do Renan no #82)
+
+
+def test_ficha_validada_com_tipo_antigo_e_recusada():
+    """O tipo mudou entre abrir a ficha e gravar: clean e save recusam."""
+    edicao, turma, projetos = _cenario()
+    jurado = fabricas.jurado(edicao, turma)  # objeto com o tipo de quando a ficha abriu
+    Jurado.objects.filter(pk=jurado.pk).update(tipo=Tipo.CONVIDADO)
+    avaliacao = Avaliacao(jurado=jurado, projeto=projetos[0], digitado_por=fabricas.digitador())
+    with pytest.raises(ValidationError, match="tipo deste jurado mudou"):
+        avaliacao.full_clean()
+    with pytest.raises(ValidationError, match="tipo deste jurado mudou"):
+        avaliacao.save()
+    assert not Avaliacao.objects.exists()
+
+
+def test_digitacao_volta_com_erro_se_o_tipo_muda_no_meio_do_post(digitacao, monkeypatch):
+    edicao, turma, projetos = _cenario()
+    ana = fabricas.jurado(edicao, turma)
+    original = Avaliacao.clean
+
+    def clean(self):  # outra pessoa troca o tipo depois que o formulário leu o jurado
+        Jurado.objects.filter(pk=ana.pk).update(tipo=Tipo.CONVIDADO)
+        original(self)
+
+    monkeypatch.setattr(Avaliacao, "clean", clean)
+    da_banca = list(Criterio.objects.filter(edicao=edicao, tipo=Tipo.BANCA).order_by("ordem"))
+    resposta = digitacao.post(f"{ADD}?jurado={ana.pk}", _post(projetos[0], da_banca, ["7,0", "8,0"]))
+    assert resposta.status_code == 200
+    assert "tipo deste jurado mudou" in resposta.content.decode()
+    assert not Avaliacao.objects.exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_trocar_tipo_espera_a_primeira_ficha_e_e_recusado():
+    """A primeira ficha trava a linha do jurado: a troca de tipo espera a
+    gravação e então encontra a avaliação."""
+    import threading
+    import time
+
+    from django.db import connection
+
+    edicao, turma, projetos = _cenario()
+    ana = fabricas.jurado(edicao, turma)
+    usuario = fabricas.digitador()
+    travou, erros = threading.Event(), []
+
+    def digitar_primeira_ficha():
+        try:
+            with transaction.atomic():
+                avaliacao = Avaliacao(jurado=Jurado.objects.get(pk=ana.pk), projeto=projetos[0], digitado_por=usuario)
+                avaliacao.full_clean()  # trava a linha do jurado
+                travou.set()
+                time.sleep(0.5)  # a troca de tipo tenta agora e precisa esperar
+                avaliacao.save()
+                for criterio, valor in zip(Criterio.objects.filter(edicao=edicao, tipo=Tipo.BANCA).order_by("ordem"), [7, 8]):
+                    Nota.objects.create(avaliacao=avaliacao, criterio=criterio, valor=D(valor))
+        except Exception as erro:  # pragma: no cover - aparece na asserção
+            erros.append(erro)
+        finally:
+            connection.close()
+
+    t = threading.Thread(target=digitar_primeira_ficha)
+    t.start()
+    assert travou.wait(5)
+    outra_aba = Jurado.objects.get(pk=ana.pk)
+    outra_aba.tipo = Tipo.CONVIDADO
+    with pytest.raises(ValidationError, match="não muda de tipo"):
+        outra_aba.save()
+    t.join(5)
+    assert not erros
+    assert Jurado.objects.get(pk=ana.pk).tipo == Tipo.BANCA
+    assert Nota.objects.filter(avaliacao__jurado=ana, criterio__tipo=Tipo.BANCA).count() == 2
+
+
 # --- Nota por tipo -----------------------------------------------------------------
 
 
