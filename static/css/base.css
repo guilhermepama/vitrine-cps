@@ -87,7 +87,18 @@ svg { max-width: 100%; display: block; }
 h1, h2, h3, p, figure { margin: 0; }
 h1, h2, h3 { line-height: 1.2; }
 a { color: inherit; }
+/* `hidden` sempre esconde: classe com `display` (ex.: .botao, inline-flex) venceria o
+   atributo e mostraria controle que só funciona com JS (revisão do Renan no #74). */
+[hidden] { display: none !important; }
 :focus-visible { outline: 3px solid var(--cor-acento); outline-offset: -3px; }
+/* Em fundo vermelho o contorno vermelho some (revisão do #73): ali o foco é branco.
+   O botão branco da chamada volta ao vermelho, que aparece sobre o branco. */
+.marca:focus-visible, .nav a:focus-visible:hover, .nav a.nav__botao:focus-visible,
+.botao:focus-visible:hover, .botao--vermelho:focus-visible, .chip--ativo:focus-visible,
+.cartao-projeto:focus-visible:hover, .chamada :focus-visible, .faixa--vermelha :focus-visible {
+  outline-color: var(--cor-acento-texto);
+}
+.chamada .botao--branco:focus-visible:not(:hover) { outline-color: var(--cor-acento); }
 
 /* ---------- TIPOS ---------- */
 .display {
@@ -304,7 +315,7 @@ a { color: inherit; }
 .hero__esq { padding-block: var(--esp-10) 0; }
 @media (min-width: 900px) { .hero__esq { padding-block: var(--esp-10); padding-right: clamp(32px, 6vw, 96px); border-right: 1px solid var(--cor-linha); } }
 .hero__edicao { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; margin-bottom: var(--esp-6); }
-.hero h1 { font-size: var(--texto-hero); overflow-wrap: normal; hyphens: manual; max-width: 100%; }
+.hero h1 { font-size: var(--texto-hero); overflow-wrap: break-word; hyphens: manual; max-width: 100%; }
 .hero__texto { margin-top: var(--esp-6); max-width: 48em; line-height: 1.45; color: var(--cor-texto-suave); }
 .hero__texto strong { color: var(--cor-texto); font-weight: 600; }
 .hero__acoes { display: flex; flex-wrap: wrap; gap: 12px; margin-top: var(--esp-6); }
@@ -494,7 +505,7 @@ a { color: inherit; }
 .proj__ficha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-bottom: var(--esp-6); }
 .proj__ficha .mono strong { color: var(--cor-texto); font-weight: 500; }
 .proj__ficha .monograma--m { width: 56px; height: 56px; font-size: 20px; background: var(--cor-acento); color: var(--cor-acento-texto); }
-.proj h1 { font-size: clamp(2.75rem, 1rem + 6vw, 5.5rem); overflow-wrap: normal; hyphens: manual; max-width: 16ch; }
+.proj h1 { font-size: clamp(2.75rem, 1rem + 6vw, 5.5rem); overflow-wrap: break-word; hyphens: manual; max-width: 16ch; }
 .proj__resumo { margin-top: var(--esp-6); max-width: 36em; font-size: 1.125rem; line-height: 1.45; color: var(--cor-texto-suave); }
 .proj__links { display: flex; flex-wrap: wrap; margin-top: auto; padding-top: var(--esp-8); }
 .proj__links .botao { margin: 0 -1px -1px 0; } /* bordas encaixam também quando quebra linha */
