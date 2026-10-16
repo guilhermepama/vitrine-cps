@@ -45,7 +45,7 @@
       <p class="mono">Mostra de Projetos · Edição {{ edicao.nome }}</p>
       <h2 class="display">Venha conhecer ao vivo<span class="ponto">.</span></h2>
       <p>Na noite da Mostra o grupo está no campus para apresentar, responder e ouvir. A votação do público acontece só presencialmente, durante o evento: este link divulga, não vota.</p>
-      <a class="botao botao--vazado" href="{% url 'vitrine:como_votar' %}">Como funciona a avaliação</a>
+      <a class="botao botao--vazado" href="{% url 'vitrine:como_votar' %}">Como votar</a>
     </div>
     <div>
       <p class="convite__data">{{ edicao.data_evento|date:"d.m" }}<small>{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"d/m/Y" }}, às 19h<br>Campus da Fatec Olímpia — Av. Governador Adhemar Pereira de Barros, km 3, Recanto Bela Vista, Olímpia/SP</small></p>
