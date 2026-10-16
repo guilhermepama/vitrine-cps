@@ -1,8 +1,9 @@
-"""Dados da página inicial (spec 07), separados da view para testar sem HTTP.
+"""Dados da página inicial e da página de projetos (spec 07), separados da view para testar sem HTTP.
 
 Só leitura: projetos publicados da edição ativa, agrupados por turma.
 """
 
+import random
 from dataclasses import dataclass, field
 
 from django.db.models import Count
@@ -69,25 +70,63 @@ def links_do_projeto(projeto):
     return texto[0].upper() + texto[1:]
 
 
-def contexto_da_pagina_inicial():
+# Quantos cartões a home mostra; a lista completa fica em /projetos/.
+QUANTIDADE_NA_HOME = 4
+
+
+def _projetos_da_edicao_ativa():
+    """Edição ativa, turmas com os projetos já prontos para o cartão, total e título da seção."""
     edicao = Edicao.objects.ativa()
     turmas = turmas_publicadas(edicao) if edicao else []
     for grupo in turmas:
         for projeto in grupo.projetos:
             projeto.links_resumo = links_do_projeto(projeto)
-    cursos = []
-    for grupo in turmas:
-        if grupo.curso not in cursos:
-            cursos.append(grupo.curso)
+            projeto.periodo_curto = grupo.periodo_curto
     total = sum(len(grupo.projetos) for grupo in turmas)
-    contexto = {"edicao": edicao, "turmas": turmas, "cursos": cursos}
-    if edicao:
-        contexto["evento_passou"] = edicao.data_evento < timezone.localdate()
-        contexto["percentual_banca"] = round(edicao.peso_banca * 100)
-        contexto["percentual_publico"] = round(edicao.peso_publico * 100)
+    contexto = {"edicao": edicao, "turmas": turmas, "total_projetos": total}
     if total:
         contexto["titulo_projetos"] = (
             f"{contagem(total, 'projeto', 'projetos').capitalize()}, "
             f"{contagem(len(turmas), 'turma', 'turmas', feminino=True)}"
         )
+    return contexto
+
+
+def sortear_destaques(turmas, quantidade=QUANTIDADE_NA_HOME, sorteio=None):
+    """Sorteia os cartões da home a cada visita, mantendo a ordem das turmas entre eles.
+
+    Sorteio e não "os primeiros": pela ordem das turmas, a home mostraria sempre
+    a mesma turma, e numa mostra com votação a vitrine fixa favorece um grupo.
+    """
+    sorteio = sorteio or random.sample
+    todos = [projeto for grupo in turmas for projeto in grupo.projetos]
+    escolhidos = sorted(sorteio(range(len(todos)), min(quantidade, len(todos))))
+    return [todos[i] for i in escolhidos]
+
+
+def contexto_da_pagina_inicial():
+    contexto = _projetos_da_edicao_ativa()
+    contexto["destaques"] = sortear_destaques(contexto.pop("turmas"))
+    edicao = contexto["edicao"]
+    if edicao:
+        contexto["evento_passou"] = edicao.data_evento < timezone.localdate()
+        contexto["percentual_banca"] = round(edicao.peso_banca * 100)
+        contexto["percentual_publico"] = round(edicao.peso_publico * 100)
+    return contexto
+
+
+def contexto_da_pagina_da_semana():
+    """Semana da Tecnologia: edição ativa e os mesmos 4 sorteados da home, com o total para o botão."""
+    contexto = _projetos_da_edicao_ativa()
+    contexto["destaques"] = sortear_destaques(contexto.pop("turmas"))
+    return contexto
+
+
+def contexto_da_pagina_de_projetos():
+    contexto = _projetos_da_edicao_ativa()
+    cursos = []
+    for grupo in contexto["turmas"]:
+        if grupo.curso not in cursos:
+            cursos.append(grupo.curso)
+    contexto["cursos"] = cursos
     return contexto

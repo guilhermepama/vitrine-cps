@@ -408,3 +408,23 @@ Formato:
   coordenador perto do evento; o prazo menor de 18/10 a 29/10 e a
   exceção cobrem a urgência. Em aberto: um check no `convencoes-pr` que
   exija a aprovação ou o marcador.
+
+## ADR-011 — Programação da Semana da Tecnologia no Vitrine
+- Status: proposta
+- Data: 2026-10-16
+- Contexto: a Mostra de Projetos (29/10) é um dos dias da Semana da
+  Tecnologia da Fatec Olímpia, que reúne oficinas, apresentações,
+  palestras e workshops. O Vitrine divulga a Semana inteira, mas hoje só
+  sabe da Mostra. Nesta edição só os textos mudaram (spec 07); a lista
+  de eventos ficou para a próxima.
+- Decisão (proposta): programação cadastrada no admin, não fixa no
+  template. Model `Evento` ligado à `Edicao` (dia, horário, tipo —
+  oficina, palestra, workshop, apresentação, mostra —, título, local,
+  descrição), editado pela coordenação sem deploy, e página pública
+  `/programacao/` com os eventos por dia, a Mostra em destaque.
+- Consequências: a programação costuma mudar até a véspera; no admin,
+  mudar um horário não exige PR nem deploy. Custo: spec nova, migration
+  e um app ou model a mais para manter. Texto fixo no template foi
+  descartado por esse motivo. A decidir na spec: inscrição em oficina
+  (fica fora, a princípio), quem cadastra os eventos e se cada evento
+  tem página própria.
