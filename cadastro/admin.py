@@ -19,7 +19,7 @@ from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, reverse
 from django.utils.cache import add_never_cache_headers
 
-from cadastro.models import Curso, Edicao, ImagemProjeto, Integrante, Projeto, Turma
+from cadastro.models import CAMPOS_DE_PESO, Curso, Edicao, ImagemProjeto, Integrante, Projeto, Turma
 from cadastro.seguranca import hash_ra
 
 MOTIVO_FOTOS_ETEC = (
@@ -82,7 +82,7 @@ class EdicaoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         campos = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.votacao_aberta_em is not None:
-            campos += ["peso_banca", "peso_publico"]  # ADR-007: não mudam depois de abrir
+            campos += list(CAMPOS_DE_PESO)  # ADR-007/ADR-013: nenhum peso muda depois de abrir
         return campos
 
 

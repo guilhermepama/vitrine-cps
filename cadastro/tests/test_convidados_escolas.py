@@ -8,9 +8,11 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.core.management import CommandError, call_command
 from django.db import IntegrityError, transaction
+from django.urls import reverse
 from django.utils import timezone
 
-from cadastro.models import Curso, Edicao, Integrante, Projeto, Turma
+from cadastro.models import CAMPOS_DE_PESO, Curso, Edicao, Integrante, Projeto, Turma
+from cadastro.tests.test_admin import _dados_edicao
 from cadastro.tests import fabricas
 
 pytestmark = pytest.mark.django_db
@@ -58,6 +60,22 @@ def test_pesos_novos_travam_depois_de_aberta_a_votacao(campo, valor):
         e.save()
     e.refresh_from_db()
     assert (e.peso_convidados, e.peso_boletim_banca) == (D("0.20"), D("0.70"))
+
+
+
+@pytest.mark.parametrize("campo,valor", [("peso_convidados", "0.10"), ("peso_boletim_banca", "0.60")])
+def test_admin_trava_todos_os_pesos_depois_de_aberta_a_votacao(admin_client, campo, valor):
+    """Revisão do Renan no #81: os pesos novos ficavam editáveis e o POST dava 500."""
+    e = fabricas.edicao(peso_banca=D("0.50"), peso_convidados=D("0.20"), peso_publico=D("0.30"), peso_boletim_banca=D("0.70"))
+    Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=timezone.now())
+    e.refresh_from_db()
+    url = reverse("admin:cadastro_edicao_change", args=[e.pk])
+    campos_do_form = admin_client.get(url).context["adminform"].form.fields
+    assert not set(CAMPOS_DE_PESO) & set(campos_do_form)
+    resposta = admin_client.post(url, _dados_edicao(e, **{campo: valor}))
+    assert resposta.status_code in (200, 302)
+    e.refresh_from_db()
+    assert (e.peso_banca, e.peso_convidados, e.peso_publico, e.peso_boletim_banca) == (D("0.50"), D("0.20"), D("0.30"), D("0.70"))
 
 
 # --- Ensino Médio, escola e menores ------------------------------------------------
