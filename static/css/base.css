@@ -88,6 +88,14 @@ h1, h2, h3, p, figure { margin: 0; }
 h1, h2, h3 { line-height: 1.2; }
 a { color: inherit; }
 :focus-visible { outline: 3px solid var(--cor-acento); outline-offset: -3px; }
+/* Em fundo vermelho o contorno vermelho some (revisão do #73): ali o foco é branco.
+   O botão branco da chamada volta ao vermelho, que aparece sobre o branco. */
+.marca:focus-visible, .nav a:focus-visible:hover, .nav a.nav__botao:focus-visible,
+.botao:focus-visible:hover, .botao--vermelho:focus-visible, .chip--ativo:focus-visible,
+.cartao-projeto:focus-visible:hover, .chamada :focus-visible, .faixa--vermelha :focus-visible {
+  outline-color: var(--cor-acento-texto);
+}
+.chamada .botao--branco:focus-visible:not(:hover) { outline-color: var(--cor-acento); }
 
 /* ---------- TIPOS ---------- */
 .display {
