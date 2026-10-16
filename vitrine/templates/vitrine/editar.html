@@ -133,7 +133,7 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
         {% endfor %}
         {% if imagens|length < maximo_imagens %}
         {% comment %}
-        Card "+": com JavaScript (static/js/previa-imagem.js) a imagem sobe assim que o
+        Card "+": com JavaScript (static/js/imagens.js) a imagem sobe assim que o
         arquivo é escolhido e o botão some; sem JavaScript, escolhe e clica no botão.
         A legenda é escrita depois, na própria imagem.
         {% endcomment %}
@@ -235,4 +235,4 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if not motivo_somente_leitura %}<script src="{% static 'js/contador.js' %}" defer></script><script src="{% static 'js/salvar-antes.js' %}" defer></script><script src="{% static 'js/previa-imagem.js' %}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if not motivo_somente_leitura %}<script src="{% static 'js/contador.js' %}" defer></script><script src="{% static 'js/aviso-ao-sair.js' %}" defer></script><script src="{% static 'js/imagens.js' %}" defer></script>{% endif %}{% endblock %}
