@@ -443,10 +443,19 @@ Formato:
     (~4,8), um projeto com muitas avaliações nessa média fica *abaixo* da
     média da turma, e uma avaliação única 5 passa um pouco à frente
     (4,82 × 4,80 no teste); com a média da turma menor, o de muitas
-    avaliações vence. (2) Um grupo de amigos ainda pesa: com C = 10, 8
-    avaliações 5 empatam com 40 avaliações honestas de 4,5 (4,44 × 4,40,
-    média da turma 4,0); com C = 5 os amigos venceriam. O token físico
-    (ADR-001) limita, não zera.
+    avaliações vence. (2) **Um grupo de amigos vence por pouco**: com
+    C = 10 e média da turma 4,0, 8 avaliações 5 ficam com 4,44 e 40
+    avaliações honestas de média 4,5 ficam com 4,40 — os amigos passam à
+    frente (teste com o ranking completo). Com C maior a ordem inverte,
+    mas cada projeto novo demora mais a sair da média; ficou C = 10. O
+    token físico (ADR-001) limita, não zera. (3) **Uma nota abaixo da média
+    da turma nem sempre baixa o valor.** Com `m` fixo, uma avaliação abaixo
+    do *valor atual* do projeto sempre o baixa; mas `m` inclui a própria
+    avaliação, e isso soma `C·(x − m)/(N + 1)` (N = avaliações da turma).
+    Num projeto bem abaixo da média, uma nota baixa que ainda está acima do
+    valor dele o sobe: A com 10 avaliações 0 e B com 10 avaliações 5
+    (m = 2,5) dão A = 1,25; uma avaliação 2 em A leva o valor a ≈ 1,27.
+    Com dezenas de avaliações na turma, o termo de `m` some.
   - O relatório mostra nº de avaliações, média simples, valor do público,
     `p` e final, para que qualquer contestação seja respondida com os
     números.

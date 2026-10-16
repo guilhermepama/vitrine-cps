@@ -84,11 +84,25 @@ def test_quarenta_notas_2_nao_vencem_quinze_notas_5():
     assert pub[101].valor > pub[100].valor  # na soma, 80 venceria 75
 
 
-def test_nota_abaixo_da_media_baixa_o_valor():
+def test_nota_abaixo_do_valor_atual_baixa_o_valor():
     t = turma(1, "A", "B")
     antes = publico_por_media_bayesiana([t], {100: iguais(4, 5), 101: iguais(4, 5)})[100].valor
     depois = publico_por_media_bayesiana([t], {100: avaliacoes(*[(4, 4, 4)] * 5, (0, 0, 0)), 101: iguais(4, 5)})[100]
     assert depois.valor < antes and depois.avaliacoes == 6
+
+
+def test_limite_nota_abaixo_da_media_pode_subir_projeto_fraco():
+    """Limite (3) do ADR-012, contraexemplo do revisor: m inclui a própria
+    avaliação. A tem 10 notas 0, B 10 notas 5 (m = 2,5, A = 1,25); uma
+    avaliação 2 — abaixo da média da turma — sobe A para ≈ 1,274."""
+    t = turma(1, "A", "B")
+    antes = publico_por_media_bayesiana([t], {100: iguais(0, 10), 101: iguais(5, 10)})[100]
+    assert antes.valor == F(5, 4)
+    depois = publico_por_media_bayesiana([t], {100: avaliacoes(*[(0, 0, 0)] * 10, (2, 2, 2)), 101: iguais(5, 10)})[100]
+    m = F(150 + 6, 3 * 21)
+    assert m < F(5, 2) and 2 < m  # a nota 2 está abaixo da média da turma...
+    assert depois.valor == (10 * m + 2) / 21 and depois.valor > antes.valor  # ...e mesmo assim sobe o valor
+    assert round(float(depois.valor), 3) == 1.274
 
 
 def test_projeto_sem_avaliacao_fica_com_a_media_da_turma():
@@ -171,3 +185,15 @@ def test_contagem_int_continua_aceita_como_regra_anterior():
 def test_publico_invalido_e_recusado(ruim):
     with pytest.raises(TypeError):
         calcular_ranking([turma(1, "A")], {100: ruim}, {100: D(7)}, PB, PP, True)
+
+
+def test_limite_grupo_de_amigos_vence_por_pouco_no_ranking():
+    """Limite (2) do ADR-012: com C = 10 e média da turma 4,0, 8 avaliações 5
+    (4,44) passam à frente de 40 avaliações honestas de média 4,5 (4,40)."""
+    t = turma(1, "Amigos", "Honesto", "Resto")
+    honesto = avaliacoes(*[(5, 5, 5)] * 20, *[(4, 4, 4)] * 20)  # média 4,5
+    pub = publico_por_media_bayesiana([t], {100: iguais(5, 8), 101: honesto, 102: iguais(3, 28)})
+    assert pub[100].valor == F(40, 9) and pub[101].valor == F(22, 5)  # m = 912/228 = 4
+    [r] = calcular_ranking([t], pub, {100: D(7), 101: D(7), 102: D(7)}, PB, PP, True)
+    assert [(linha.titulo, linha.posicao) for linha in r.linhas] == [("Amigos", 1), ("Honesto", 2), ("Resto", 3)]
+    assert not any(linha.empate for linha in r.linhas)
