@@ -186,9 +186,15 @@ a { color: inherit; }
   .js .nav.aberto { display: flex; }
   .js .nav a { display: flex; min-height: 52px; padding: 0 var(--gutter); border-left: 0; border-top: 1px solid var(--cor-borda); font-size: var(--texto-14); }
   .js .nav a.nav__botao { margin-left: 0; border-top: 1px solid var(--cor-linha); }
-  /* sem JavaScript o menu fica visível e só o essencial cabe na linha */
+  /* Sem JavaScript o menu fica visível: só o essencial, numa segunda linha
+     abaixo da marca (na mesma linha não cabe a 360 px — revisão do #77). */
   .nav .so-desktop { display: none; }
   .js .nav .so-desktop { display: flex; }
+  html:not(.js) .topo__linha { flex-wrap: wrap; }
+  html:not(.js) .marca { min-height: 56px; }
+  html:not(.js) .nav { flex: 1 0 100%; margin-inline: calc(-1 * var(--gutter)); border-top: 1px solid var(--cor-linha); }
+  html:not(.js) .nav a { flex: 1 1 0; justify-content: center; min-height: 48px; padding: 0 12px; white-space: normal; text-align: center; }
+  html:not(.js) .nav a.nav__botao { margin-left: 0; }
 }
 
 /* ---------- RODAPÉ (base.html) ---------- */
