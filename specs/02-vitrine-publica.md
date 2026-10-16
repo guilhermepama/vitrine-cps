@@ -30,7 +30,8 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   (integrantes). O **título não é editável** pelo grupo: vem da lista das
   coordenações (ver "Wireframes e decisões").
 - **Imagens enviadas uma a uma**, em requisições próprias: capa e até 6
-  imagens extras, com legenda opcional, e remoção individual. Trocar a
+  imagens extras, com legenda opcional (no envio ou depois, imagem por
+  imagem), e remoção individual. Trocar a
   capa ou remover uma extra **apaga o arquivo antigo do storage** depois
   de confirmada a gravação.
 - Mensagem do admin (`motivo_ajustes`) exibida ao grupo quando o projeto
@@ -257,6 +258,10 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   `ImagemProjeto`; a 7ª extra é recusada.
 - `POST .../imagem/<id>/remover/` remove uma imagem extra **do próprio
   projeto**; `<id>` de outro projeto responde 404.
+- `POST .../imagem/<id>/legenda/` troca a legenda de uma imagem extra **do
+  próprio projeto** (até 120 caracteres; vazia apaga), com a mesma trava do
+  upload. O arquivo não muda. `<id>` de outro projeto responde 404. Assim a
+  imagem pode subir sem legenda e o grupo escreve depois.
 - **Arquivo antigo apagado do bucket.** Ao trocar a capa ou remover uma
   extra, o arquivo anterior é apagado do storage por
   `transaction.on_commit` — só **depois** de a gravação ser confirmada. Se a
@@ -385,6 +390,7 @@ testada sem HTTP.
 | `vitrine:editar` | POST | `/grupo/editar/<token>/` | campos + integrantes + `acao` (`salvar` ou `enviar`) | confirmação | 400 validação ou pendências; 403 não editável; 404 token inválido |
 | `vitrine:imagem` | POST | `/grupo/editar/<token>/imagem/` | `arquivo` (1), `tipo`, `legenda?` (multipart) | página de edição atualizada | 400 imagem inválida ou 7ª extra; 403 não editável; 404 token inválido |
 | `vitrine:imagem_remover` | POST | `/grupo/editar/<token>/imagem/<id>/remover/` | — | página de edição atualizada | 403 não editável; 404 token ou imagem inválidos |
+| `vitrine:imagem_legenda` | POST | `/grupo/editar/<token>/imagem/<id>/legenda/` | `legenda` | página de edição atualizada | 400 legenda > 120; 403 não editável; 404 token ou imagem inválidos |
 
 Rotas em `vitrine/urls.py` (`app_name = "vitrine"`); o include raiz já
 existe. CSRF ligado nos POSTs. Templates em `vitrine/templates/vitrine/`,
@@ -444,6 +450,7 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] Falha do storage ao apagar o arquivo antigo não desfaz a gravação nem derruba a resposta, e fica registrada em log sem token nem RA
 - [ ] Com 5 extras, 2 uploads **simultâneos** → só um grava; o projeto termina com 6 extras (teste de concorrência)
 - [ ] 7ª imagem extra, arquivo `.jpg` que não é imagem, GIF e imagem > 3 MB → recusados (400), nada gravado
+- [ ] Legenda trocada depois do envio grava só a legenda; > 120 caracteres → 400; imagem de outro projeto → 404; projeto não editável → 403; nada muda nos casos recusados
 - [ ] PNG renomeado para `.jpg` → aceito e gravado como `.png`
 - [ ] Nome gravado = `projetos/<uuid>.<ext>`, sem o nome original
 - [ ] Remover imagem de **outro** projeto → 404, nada muda
