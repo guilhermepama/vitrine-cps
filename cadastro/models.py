@@ -21,6 +21,10 @@ class EdicaoQuerySet(models.QuerySet):
         return self.filter(ativa=True).first()
 
 
+# Travados juntos depois de aberta a votação (ADR-007, ADR-013).
+CAMPOS_DE_PESO = ("peso_banca", "peso_convidados", "peso_publico", "peso_boletim_banca")
+
+
 class Edicao(models.Model):
     nome = models.CharField(max_length=60, unique=True)
     data_evento = models.DateField()
@@ -28,6 +32,15 @@ class Edicao(models.Model):
     prazo_edicao = models.DateTimeField(help_text="Depois disso, o link do grupo só mostra o conteúdo.")
     peso_banca = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0.70"))
     peso_publico = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0.30"))
+    # ADR-013: avaliadores convidados e nota do boletim. Os padrões (0 e 1)
+    # deixam as edições antigas com o cálculo de antes (só banca e público).
+    peso_convidados = models.DecimalField(max_digits=3, decimal_places=2, default=Decimal("0.00"))
+    peso_boletim_banca = models.DecimalField(
+        max_digits=3,
+        decimal_places=2,
+        default=Decimal("1.00"),
+        help_text="Peso da banca na nota do boletim; o dos convidados é 1 − este (ADR-013).",
+    )
     # Preenchidos pela votação (spec 03). Depois de aberta, a edição trava.
     votacao_aberta_em = models.DateTimeField(null=True, blank=True, editable=False)
     votacao_encerrada_em = models.DateTimeField(null=True, blank=True, editable=False)
@@ -44,9 +57,13 @@ class Edicao(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["ativa"], condition=Q(ativa=True), name="uma_edicao_ativa"),
             models.CheckConstraint(
-                condition=Exact(F("peso_banca") + F("peso_publico"), Decimal("1.00"))
-                & Q(peso_banca__gte=0, peso_publico__gte=0),
+                condition=Exact(F("peso_banca") + F("peso_convidados") + F("peso_publico"), Decimal("1.00"))
+                & Q(peso_banca__gte=0, peso_convidados__gte=0, peso_publico__gte=0),
                 name="pesos_somam_um",
+            ),
+            models.CheckConstraint(
+                condition=Q(peso_boletim_banca__gte=0, peso_boletim_banca__lte=1),
+                name="peso_boletim_entre_0_e_1",
             ),
             models.CheckConstraint(
                 condition=Q(votacao_encerrada_em__isnull=True)
@@ -91,9 +108,7 @@ class Edicao(models.Model):
         if not self.pk:
             return None
         consulta = Edicao.objects.select_for_update() if travar_linha else Edicao.objects
-        antes = consulta.filter(pk=self.pk).values(
-            "peso_banca", "peso_publico", "votacao_aberta_em", "votacao_encerrada_em", "banca_conferida_em"
-        ).first()
+        antes = consulta.filter(pk=self.pk).values(*CAMPOS_DE_PESO, "votacao_aberta_em", "votacao_encerrada_em", "banca_conferida_em").first()
         if not antes or antes["votacao_aberta_em"] is None:
             return antes
         erros = {}
@@ -102,8 +117,8 @@ class Edicao(models.Model):
         encerrada = antes["votacao_encerrada_em"]
         if encerrada is not None and self.votacao_encerrada_em != encerrada:
             erros["votacao_encerrada_em"] = "O encerramento da votação não pode ser alterado nem apagado."
-        pesos = (Decimal(str(self.peso_banca)), Decimal(str(self.peso_publico)))
-        if pesos != (antes["peso_banca"], antes["peso_publico"]):
+        pesos = tuple(Decimal(str(getattr(self, campo))) for campo in CAMPOS_DE_PESO)
+        if pesos != tuple(antes[campo] for campo in CAMPOS_DE_PESO):
             erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
         if erros:
             raise ValidationError(erros)
@@ -114,6 +129,7 @@ class Curso(models.Model):
     class Unidade(models.TextChoices):
         FATEC = "fatec", "Fatec"
         ETEC = "etec", "Etec"
+        MEDIO = "medio", "Ensino Médio"  # escolas estaduais convidadas (ADR-013)
 
     sigla = models.CharField(max_length=10, unique=True)
     nome = models.CharField(max_length=120)
@@ -125,6 +141,11 @@ class Curso(models.Model):
 
     def __str__(self):
         return f"{self.sigla} — {self.nome}"
+
+    @property
+    def atende_menores(self):
+        """Etec e Ensino Médio: alunos menores de idade (só o primeiro nome, sem fotos de pessoas)."""
+        return self.unidade in (self.Unidade.ETEC, self.Unidade.MEDIO)
 
 
 class Turma(models.Model):
@@ -144,12 +165,19 @@ class Turma(models.Model):
     numero_periodo = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)])
     tipo_periodo = models.CharField(max_length=8, choices=TipoPeriodo.choices)
     turno = models.CharField(max_length=8, choices=Turno.choices, blank=True)
+    escola = models.CharField(
+        max_length=80,
+        blank=True,
+        default="",
+        help_text="Só para escola externa, ex.: E.E. Wilquem (ADR-013). Entra no rótulo da turma.",
+    )
 
     class Meta:
         ordering = ["curso__sigla", "tipo_periodo", "numero_periodo"]
         constraints = [
             models.UniqueConstraint(
-                fields=["edicao", "curso", "numero_periodo", "tipo_periodo", "turno"], name="turma_unica_na_edicao"
+                fields=["edicao", "curso", "numero_periodo", "tipo_periodo", "turno", "escola"],
+                name="turma_unica_na_edicao",
             ),
             models.CheckConstraint(condition=Q(numero_periodo__gte=1, numero_periodo__lte=12), name="periodo_1_a_12"),
         ]
@@ -179,6 +207,8 @@ class Turma(models.Model):
         texto = f"{self.curso.sigla} — {self.numero_periodo}º {self.get_tipo_periodo_display()}"
         if self.turno:
             texto += f" ({self.get_turno_display()})"
+        if self.escola:
+            texto += f" · {self.escola}"
         return texto
 
 
@@ -356,14 +386,14 @@ class Integrante(models.Model):
         return self.nome
 
     def clean(self):
-        # Regra provisória (ADR-009): Etec mostra só o primeiro nome.
+        # Regra provisória (ADR-009; ADR-013): Etec e Ensino Médio mostram só o primeiro nome.
         # `self.projeto`, não `projeto_id`: no admin, o projeto novo ainda não tem pk
         # quando o formset dos integrantes valida, e a regra não pode ser pulada.
         nome = self.nome.strip()
         projeto = getattr(self, "projeto", None)
         turma = getattr(projeto, "turma", None) if projeto is not None else None
-        if turma is not None and turma.curso.unidade == Curso.Unidade.ETEC and len(nome.split()) > 1:
-            raise ValidationError({"nome": "Para cursos da Etec, informe só o primeiro nome."})
+        if turma is not None and turma.curso.atende_menores and len(nome.split()) > 1:
+            raise ValidationError({"nome": "Para cursos da Etec e do Ensino Médio, informe só o primeiro nome."})
 
 
 class ImagemProjeto(models.Model):
