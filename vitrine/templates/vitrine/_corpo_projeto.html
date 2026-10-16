@@ -1,49 +1,98 @@
+{% load vitrine_extras %}
 {% comment %}
-  Corpo do projeto (spec 02). Sem nenhum link ou formulário de voto (guardrail 8):
-  outro app pode incluir este partial, mas a página pública nunca leva à cédula.
+  Corpo do projeto (spec 02; layout do protótipo v1, spec 07). Sem nenhum link ou
+  formulário de voto (guardrail 8): outro app pode incluir este partial, mas a
+  página pública nunca leva à cédula. Seção "Impacto" do protótipo fica para a
+  próxima edição (não há campos no model).
 {% endcomment %}
-{% if projeto.capa %}<img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">{% endif %}
+<div class="area-projeto">
+<section class="proj">
+  <div class="container proj__grade">
+    <div class="proj__esq">
+      <div class="proj__ficha">
+        <span class="monograma monograma--m" aria-hidden="true">{{ projeto.turma.curso.sigla|slice:":3" }}</span>
+        <span class="mono">Edição <strong>{{ projeto.turma.edicao.nome }}</strong></span>
+        <span class="mono">{{ projeto.turma.rotulo }}</span>
+      </div>
+      <h1 class="display">{{ projeto.titulo }}<span class="ponto">.</span></h1>
+      {% if projeto.resumo %}<p class="proj__resumo">{{ projeto.resumo }}</p>{% endif %}
+      {% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+      <div class="proj__links">
+        {% if projeto.link_repositorio %}<a class="botao botao--vazado" href="{{ projeto.link_repositorio }}" target="_blank" rel="noopener noreferrer nofollow">Repositório</a>{% endif %}
+        {% if projeto.link_demo %}<a class="botao botao--vazado" href="{{ projeto.link_demo }}" target="_blank" rel="noopener noreferrer nofollow">Demonstração</a>{% endif %}
+        {% if projeto.link_video %}<a class="botao botao--vazado" href="{{ projeto.link_video }}" target="_blank" rel="noopener noreferrer nofollow">Vídeo</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    <figure class="capa">
+      <div class="capa__quadro">
+        <div class="capa__prancha">
+          <span class="capa__canto capa__canto--a" aria-hidden="true"></span>
+          {% if projeto.capa %}<img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">{% else %}<span class="banner capa__vazia" aria-hidden="true">{{ projeto.turma.curso.sigla }}</span>{% endif %}
+          <span class="capa__canto capa__canto--b" aria-hidden="true"></span>
+        </div>
+      </div>
+    </figure>
+  </div>
+</section>
 
-<p>
-  <span class="monograma monograma--m" aria-hidden="true">{{ projeto.turma.curso.sigla|slice:":3" }}</span>
-  {{ projeto.turma.rotulo }}{% if projeto.componente_origem %} · {{ projeto.componente_origem }}{% endif %}
-</p>
-
-<h1>{{ projeto.titulo }}</h1>
-{% if projeto.resumo %}<p>{{ projeto.resumo }}</p>{% endif %}
-
-{% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
-<h2>Links do projeto</h2>
-<ul>
-  {% if projeto.link_repositorio %}<li><a href="{{ projeto.link_repositorio }}" target="_blank" rel="noopener noreferrer nofollow">Repositório</a></li>{% endif %}
-  {% if projeto.link_demo %}<li><a href="{{ projeto.link_demo }}" target="_blank" rel="noopener noreferrer nofollow">Demonstração</a></li>{% endif %}
-  {% if projeto.link_video %}<li><a href="{{ projeto.link_video }}" target="_blank" rel="noopener noreferrer nofollow">Vídeo</a></li>{% endif %}
-</ul>
-{% endif %}
+<div class="faixa faixa--preta">
+  <div class="container ficha-tec" aria-label="Ficha técnica">
+    <div class="ficha-tec__cel"><span class="mono">Curso</span><strong>{{ projeto.turma.curso.nome }}</strong></div>
+    <div class="ficha-tec__cel"><span class="mono">Turma</span><strong>{{ projeto.turma.rotulo }}</strong></div>
+    <div class="ficha-tec__cel"><span class="mono">Componente</span><strong>{{ projeto.componente_origem|default:"—" }}</strong></div>
+    {% with total=projeto.integrantes.all|length %}<div class="ficha-tec__cel"><span class="mono">Equipe</span><strong>{{ total }} integrante{{ total|pluralize }}</strong></div>{% endwith %}
+  </div>
+</div>
 
 {% if projeto.descricao %}
-<h2>Sobre o projeto</h2>
-{{ projeto.descricao|linebreaks }}
+<section id="sobre">
+  <div class="container">
+    <div class="secao__cabeca"><div><p class="mono">01 — Sobre o projeto</p><h2 class="display">O projeto<span class="ponto">.</span></h2></div></div>
+    <div class="sobre-proj">
+      <div class="prosa">{{ projeto.descricao|linebreaks }}</div>
+      {% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
+      <aside>
+        <p class="lado__titulo">Links do projeto</p>
+        {% if projeto.link_repositorio %}<a class="link-linha" href="{{ projeto.link_repositorio }}" target="_blank" rel="noopener noreferrer nofollow">Repositório <span class="mono">{{ projeto.link_repositorio|dominio }}</span></a>{% endif %}
+        {% if projeto.link_demo %}<a class="link-linha" href="{{ projeto.link_demo }}" target="_blank" rel="noopener noreferrer nofollow">Demonstração <span class="mono">{{ projeto.link_demo|dominio }}</span></a>{% endif %}
+        {% if projeto.link_video %}<a class="link-linha" href="{{ projeto.link_video }}" target="_blank" rel="noopener noreferrer nofollow">Vídeo <span class="mono">{{ projeto.link_video|dominio }}</span></a>{% endif %}
+      </aside>
+      {% endif %}
+    </div>
+  </div>
+</section>
 {% endif %}
 
 {% if projeto.imagens.all %}
-<h2>Galeria</h2>
-{% for imagem in projeto.imagens.all %}
-<figure>
-  <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
-  {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
-</figure>
-{% endfor %}
+<section id="galeria">
+  <div class="container">
+    <div class="secao__cabeca"><div><p class="mono">02 — Galeria</p><h2 class="display">Telas e bastidores<span class="ponto">.</span></h2></div></div>
+    <div class="galeria">
+      {% for imagem in projeto.imagens.all %}
+      <figure>
+        <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}" loading="lazy" decoding="async">
+        {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
+      </figure>
+      {% endfor %}
+    </div>
+  </div>
+</section>
 {% endif %}
 
 {% if projeto.integrantes.all %}
-<h2>Equipe</h2>
-<ul>
-  {% for integrante in projeto.integrantes.all %}
-  <li>
-    <span class="monograma monograma--m" aria-hidden="true">{{ integrante.nome|slice:":1"|upper }}</span>
-    {{ integrante.nome }}{% if integrante.papel %} — {{ integrante.papel }}{% endif %}
-  </li>
-  {% endfor %}
-</ul>
+<section id="equipe">
+  <div class="container">
+    <div class="secao__cabeca"><div><p class="mono">{% if projeto.imagens.all %}03{% else %}02{% endif %} — Equipe</p><h2 class="display">Quem fez<span class="ponto">.</span></h2></div></div>
+    <div class="equipe">
+      {% for integrante in projeto.integrantes.all %}
+      <div class="pessoa">
+        <span class="monograma monograma--pessoa" aria-hidden="true">{{ integrante.nome|slice:":1"|upper }}</span>
+        <div><div class="pessoa__nome">{{ integrante.nome }}</div>{% if integrante.papel %}<div class="pessoa__papel">{{ integrante.papel }}</div>{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
 {% endif %}
+</div>
