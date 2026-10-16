@@ -1,20 +1,28 @@
 """Cálculo do ranking por turma (specs/04-resultados.md, ADR-007).
 
 Função pura: não toca no banco nem em HTTP. A view busca os dados (projetos
-publicados por turma, votos, `banca.servicos.nota_banca_por_projeto`, pesos
-e `Edicao.banca_conferida_em`) e chama `calcular_ranking`.
+publicados por turma, avaliações do público, `banca.servicos.nota_banca_por_projeto`,
+pesos e `Edicao.banca_conferida_em`) e chama `calcular_ranking`.
+
+Público (ADR-012): cada avaliação dá notas de 0 a 5 em três critérios; a nota
+da avaliação é a média das três. O valor do público de um projeto é a média
+bayesiana `(C·m + soma das notas) / (C + nº de avaliações)`, com `m` = média
+de todas as avaliações da turma e `C = AVALIACOES_DE_REFERENCIA` — ver
+`publico_por_media_bayesiana`. `calcular_ranking` recebe o valor pronto
+(`Publico`); um `int` ainda é aceito como contagem de votos (regra anterior,
+usada pela view até o `Voto` ter as notas — spec 03).
 
 Regra (por turma, normalização local):
-- `p = (votos - menor) / (maior - menor)`; se maior = menor, `p = 1`;
+- `p = (público - menor) / (maior - menor)`; se maior = menor, `p = 1`;
 - `b` igual, sobre a nota de banca bruta;
 - `final = peso_banca·b + peso_publico·p`;
-- ordem: `final` desc, banca bruta desc, votos desc; empate em tudo →
+- ordem: `final` desc, banca bruta desc, mais avaliações; empate em tudo →
   mesma posição, marca "empate", ordem alfabética e a posição seguinte
   pula os empatados (1, 1, 3).
 
 Banca pendente: banca não conferida → todas as turmas; conferida mas algum
-projeto da turma sem nota → só aquela turma. Turma pendente mostra só votos
-e `p`, sem banca, `b`, nota final nem posição. O projeto nunca entra com
+projeto da turma sem nota → só aquela turma. Turma pendente mostra só o
+público e `p`, sem banca, `b`, nota final nem posição. O projeto nunca entra com
 `b = 0` nem sai do ranking.
 
 Números: tudo em `Decimal`, sem arredondamento (a tela mostra 2 casas). A
@@ -30,6 +38,13 @@ from decimal import Decimal
 from fractions import Fraction
 
 UM = Decimal(1)
+
+# ADR-012: três critérios por avaliação (impacto social, inovação, impacto
+# ambiental), cada um de 0 a 5; C = avaliações "na média da turma" com que
+# todo projeto começa.
+CRITERIOS = 3
+NOTA_MAXIMA = 5
+AVALIACOES_DE_REFERENCIA = 10
 
 
 class PesosInvalidos(ValueError):
@@ -59,6 +74,31 @@ class TurmaEntrada:
     projetos: Sequence[ProjetoEntrada]
 
 
+@dataclass(frozen=True)
+class NotasDoProjeto:
+    """Avaliações do público de um projeto, já somadas pelo banco.
+
+    `pontos` é a soma das três notas de todas as avaliações (0 a 15 por
+    avaliação), o que basta para a média de cada avaliação sem arredondar.
+    """
+
+    avaliacoes: int
+    pontos: int
+
+
+@dataclass(frozen=True)
+class Publico:
+    """Parte do público de um projeto, pronta para o ranking.
+
+    `valor` é o número que vai para a normalização; `avaliacoes` desempata e
+    aparece na tabela; `media` (média simples das notas) é só exibição.
+    """
+
+    valor: Fraction
+    avaliacoes: int
+    media: Fraction | None = None
+
+
 # --- Saída -------------------------------------------------------------------
 
 
@@ -73,8 +113,10 @@ class LinhaRanking:
 
     projeto_id: int
     titulo: str
-    votos: int
+    votos: int  # nº de avaliações (ou de votos, na regra anterior)
     p: Decimal
+    publico: Decimal | None = None  # valor do público antes da normalização
+    media: Decimal | None = None  # média simples das notas; None sem avaliação
     banca: Decimal | None = None
     b: Decimal | None = None
     final: Decimal | None = None
@@ -93,9 +135,46 @@ class RankingTurma:
 # --- Cálculo -----------------------------------------------------------------
 
 
+def publico_por_media_bayesiana(
+    turmas: Sequence[TurmaEntrada],
+    notas: Mapping[int, NotasDoProjeto],
+    referencia: int = AVALIACOES_DE_REFERENCIA,
+) -> dict:
+    """{projeto_id: Publico} pela média bayesiana do ADR-012, turma a turma.
+
+    - `m` é a média de todas as avaliações da turma (normalização local).
+    - Projeto sem avaliação fica com `m` (só as avaliações de referência).
+    - Turma sem nenhuma avaliação: valor 0 para todos (a normalização dá
+      `p = 1` a todos, como na regra de valores iguais).
+    - Uma nota abaixo de `m` sempre baixa o valor do projeto.
+
+    Levanta `ValueError` para soma impossível (o banco já barra notas fora
+    de 0–5; aqui é a última conferência antes do resultado oficial).
+    """
+    if not isinstance(referencia, int) or referencia < 1:
+        raise ValueError("referência da média bayesiana inválida")
+    resultado = {}
+    for turma in turmas:
+        dados = {pr.id: notas.get(pr.id, NotasDoProjeto(0, 0)) for pr in turma.projetos}
+        for d in dados.values():
+            if d.avaliacoes < 0 or not 0 <= d.pontos <= CRITERIOS * NOTA_MAXIMA * d.avaliacoes:
+                raise ValueError("soma de notas impossível para o número de avaliações")
+        total = sum(d.avaliacoes for d in dados.values())
+        if total == 0:
+            resultado.update({pid: Publico(Fraction(0), 0) for pid in dados})
+            continue
+        m = Fraction(sum(d.pontos for d in dados.values()), CRITERIOS * total)
+        for pid, d in dados.items():
+            soma = Fraction(d.pontos, CRITERIOS)  # soma das notas das avaliações
+            valor = (referencia * m + soma) / (referencia + d.avaliacoes)
+            media = soma / d.avaliacoes if d.avaliacoes else None
+            resultado[pid] = Publico(valor, d.avaliacoes, media)
+    return resultado
+
+
 def calcular_ranking(
     turmas: Sequence[TurmaEntrada],
-    votos: Mapping[int, int],
+    publico: Mapping[int, "Publico | int"],
     notas_banca: Mapping[int, Decimal],
     peso_banca: Decimal | None,
     peso_publico: Decimal | None,
@@ -103,7 +182,8 @@ def calcular_ranking(
 ) -> tuple:
     """Ranking de cada turma, na ordem recebida; turma sem projetos é omitida.
 
-    - `votos`: {projeto_id: votos}; projeto ausente = 0 votos.
+    - `publico`: {projeto_id: Publico} (ADR-012) ou {projeto_id: votos}
+      (int, regra anterior); projeto ausente = 0.
     - `notas_banca`: retorno de `nota_banca_por_projeto`; ausente = sem nota.
     - `banca_conferida`: `Edicao.banca_conferida_em is not None`.
 
@@ -115,12 +195,28 @@ def calcular_ranking(
         if not turma.projetos:
             continue
         pendente = not banca_conferida or any(pr.id not in notas_banca for pr in turma.projetos)
+        dados = [_publico(publico.get(pr.id)) for pr in turma.projetos]
         if pendente:
-            linhas = _so_publico(turma.projetos, votos)
+            linhas = _so_publico(turma.projetos, dados)
         else:
-            linhas = _oficial(turma.projetos, votos, notas_banca, peso_banca, peso_publico)
+            linhas = _oficial(turma.projetos, dados, notas_banca, peso_banca, peso_publico)
         resultado.append(RankingTurma(turma.id, turma.nome, pendente, tuple(linhas)))
     return tuple(resultado)
+
+
+def _publico(valor):
+    """Publico de um projeto; `int` = contagem de votos (regra anterior)."""
+    if valor is None:
+        return Publico(Fraction(0), 0)
+    if isinstance(valor, Publico):
+        return valor
+    if isinstance(valor, bool) or not isinstance(valor, int) or valor < 0:
+        raise TypeError("público precisa ser Publico ou contagem (int >= 0)")
+    return Publico(Fraction(valor), valor)
+
+
+def _decimal_ou_none(fracao):
+    return None if fracao is None else _decimal(fracao)
 
 
 def _validar_pesos(peso_banca, peso_publico):
@@ -162,30 +258,38 @@ def chave_alfabetica(titulo):
     return (sem_acento.casefold(), titulo)
 
 
-def _so_publico(projetos, votos):
-    """Banca pendente: votos e `p`, ordenados por votos (desc) e título."""
-    brutos = [votos.get(pr.id, 0) for pr in projetos]
-    ps = _normalizar(brutos)
+def _so_publico(projetos, dados):
+    """Banca pendente: público e `p`, ordenados pelo público (desc), avaliações e título."""
+    ps = _normalizar([d.valor for d in dados])
     linhas = [
-        LinhaRanking(projeto_id=pr.id, titulo=pr.titulo, votos=v, p=_decimal(p))
-        for pr, v, p in zip(projetos, brutos, ps)
+        LinhaRanking(
+            projeto_id=pr.id,
+            titulo=pr.titulo,
+            votos=d.avaliacoes,
+            p=_decimal(p),
+            publico=_decimal(d.valor),
+            media=_decimal_ou_none(d.media),
+        )
+        for pr, d, p in zip(projetos, dados, ps)
     ]
-    linhas.sort(key=lambda linha: (-linha.votos, chave_alfabetica(linha.titulo), linha.projeto_id))
+    valores = {pr.id: d.valor for pr, d in zip(projetos, dados)}
+    linhas.sort(
+        key=lambda linha: (-valores[linha.projeto_id], -linha.votos, chave_alfabetica(linha.titulo), linha.projeto_id)
+    )
     return linhas
 
 
-def _oficial(projetos, votos, notas_banca, peso_banca, peso_publico):
-    brutos_v = [votos.get(pr.id, 0) for pr in projetos]
+def _oficial(projetos, dados, notas_banca, peso_banca, peso_publico):
     brutos_b = [_nota_exata(notas_banca[pr.id]) for pr in projetos]
-    ps = _normalizar(brutos_v)
+    ps = _normalizar([d.valor for d in dados])
     bs = _normalizar(brutos_b)
     pb, pp = Fraction(peso_banca), Fraction(peso_publico)
 
     itens = []
-    for pr, v, nb, p, b in zip(projetos, brutos_v, brutos_b, ps, bs):
+    for pr, d, nb, p, b in zip(projetos, dados, brutos_b, ps, bs):
         final = pb * b + pp * p
-        # Chave de empate total: final, banca bruta (exata) e votos.
-        itens.append(((final, nb, v), pr, v, notas_banca[pr.id], p, b, final))
+        # Chave de empate total: final, banca bruta (exata) e nº de avaliações.
+        itens.append(((final, nb, d.avaliacoes), pr, d, notas_banca[pr.id], p, b, final))
     itens.sort(key=lambda it: (-it[0][0], -it[0][1], -it[0][2], chave_alfabetica(it[1].titulo), it[1].id))
 
     contagem = {}
@@ -193,15 +297,17 @@ def _oficial(projetos, votos, notas_banca, peso_banca, peso_publico):
         contagem[it[0]] = contagem.get(it[0], 0) + 1
 
     linhas, posicao, chave_anterior = [], 0, None
-    for indice, (chave, pr, v, nb, p, b, final) in enumerate(itens, start=1):
+    for indice, (chave, pr, d, nb, p, b, final) in enumerate(itens, start=1):
         if chave != chave_anterior:
             posicao, chave_anterior = indice, chave
         linhas.append(
             LinhaRanking(
                 projeto_id=pr.id,
                 titulo=pr.titulo,
-                votos=v,
+                votos=d.avaliacoes,
                 p=_decimal(p),
+                publico=_decimal(d.valor),
+                media=_decimal_ou_none(d.media),
                 banca=nb,
                 b=_decimal(b),
                 final=_decimal(final),
