@@ -98,7 +98,7 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
           {% if projeto.capa %}<img class="edicao-capa__img" src="{{ projeto.capa.url }}" alt="Capa atual do projeto">
           {% else %}<div class="edicao-capa__img edicao-capa__vazia"><span class="mono">Sem capa</span></div>{% endif %}
         </div>
-        <form class="edicao-upload" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-capa">
+        <form class="edicao-upload" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-capa" data-envio-automatico>
           {% csrf_token %}
           <h3 class="rotulo">Capa (obrigatória para publicar)</h3>
           <input type="hidden" name="tipo" value="capa">
@@ -118,8 +118,13 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
         <figure class="edicao-galeria__item">
           <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}">
           <div class="edicao-galeria__pe">
-            {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% else %}<figcaption class="mono">Sem legenda</figcaption>{% endif %}
-            <form method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
+            <form class="legenda" method="post" action="{% url 'vitrine:imagem_legenda' token imagem.pk %}">
+              {% csrf_token %}
+              <label class="so-leitor" for="legenda-{{ imagem.pk }}">Legenda da imagem {{ forloop.counter }}</label>
+              <input class="legenda__campo" type="text" name="legenda" id="legenda-{{ imagem.pk }}" maxlength="120" value="{{ imagem.legenda }}" placeholder="Escreva uma legenda (opcional)">
+              <button class="botao botao--vazado botao--pequeno" type="submit">Salvar legenda</button>
+            </form>
+            <form class="edicao-galeria__remover" method="post" action="{% url 'vitrine:imagem_remover' token imagem.pk %}">
               {% csrf_token %}
               <button class="botao botao--perigo botao--pequeno" type="submit">Remover</button>
             </form>
@@ -127,16 +132,25 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
         </figure>
         {% endfor %}
         {% if imagens|length < maximo_imagens %}
-        <form class="edicao-galeria__item edicao-upload edicao-upload--nova" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-extra">
+        {% comment %}
+        Card "+": com JavaScript (static/js/previa-imagem.js) a imagem sobe assim que o
+        arquivo é escolhido e o botão some; sem JavaScript, escolhe e clica no botão.
+        A legenda é escrita depois, na própria imagem.
+        {% endcomment %}
+        <form class="edicao-galeria__item edicao-upload--nova" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-extra" data-envio-automatico>
           {% csrf_token %}
-          <div class="edicao-upload__slot" id="previa-extra" hidden></div>
           <input type="hidden" name="tipo" value="extra">
-          <label class="rotulo" for="arquivo-extra">Nova imagem</label>
-          <input class="campo-arquivo" type="file" name="arquivo" id="arquivo-extra" accept="image/jpeg,image/png,image/webp" required>
-          <label class="rotulo" for="legenda-extra">Legenda (opcional)</label>
-          <input class="campo" type="text" name="legenda" id="legenda-extra" maxlength="120" placeholder="Legenda (opcional)">
-          <p class="edicao-upload__estado" role="status" hidden></p>
-          <button class="botao" type="submit">Adicionar imagem</button>
+          <div class="edicao-upload__slot" id="previa-extra" hidden></div>
+          <input class="campo-arquivo adicionar__campo" type="file" name="arquivo" id="arquivo-extra" accept="image/jpeg,image/png,image/webp" required>
+          <label class="adicionar" for="arquivo-extra">
+            <span class="adicionar__mais" aria-hidden="true">+</span>
+            <span class="adicionar__texto">Adicionar imagem</span>
+            <span class="adicionar__ajuda">JPG, PNG ou WebP, até 3 MB</span>
+          </label>
+          <div class="adicionar__pe">
+            <p class="edicao-upload__estado" role="status" hidden></p>
+            <button class="botao botao--bloco" type="submit">Adicionar imagem</button>
+          </div>
         </form>
         {% endif %}
       </div>

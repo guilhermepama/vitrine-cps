@@ -39,6 +39,14 @@
     }, function () { return false; });
   }
 
+  // Imagem não enviada por erro no texto: tira o arquivo escolhido e a prévia.
+  function limparArquivo(form) {
+    var campo = form.querySelector('input[type="file"]');
+    if (!campo || !campo.value) return;
+    campo.value = "";
+    campo.dispatchEvent(new Event("change"));
+  }
+
   Array.prototype.forEach.call(secao.querySelectorAll("form"), function (form) {
     form.addEventListener("submit", function (evento) {
       if (!mexido) return;
@@ -46,21 +54,26 @@
       var botao = form.querySelector('button[type="submit"]');
       var rotulo = botao ? botao.textContent : "";
       var estado = estadoDo(form);
-      if (botao) { botao.disabled = true; botao.textContent = "Salvando o texto…"; }
+      var visivel = botao && !botao.hidden && botao.type === "submit";
+      if (botao) botao.disabled = true;
+      if (visivel) botao.textContent = "Salvando o texto…";
       estado.classList.remove("edicao-upload__estado--erro");
       estado.textContent = "Salvando o texto antes de enviar…";
       estado.hidden = false;
       salvarTexto().then(function (salvou) {
         if (salvou) {
-          if (botao) botao.textContent = "Enviando…";
+          if (visivel) botao.textContent = "Enviando…";
           estado.textContent = "Texto salvo. Enviando…";
           saindoPeloSalvar = true;
           form.submit(); // envio nativo: não passa de novo por este handler
           return;
         }
-        if (botao) { botao.disabled = false; botao.textContent = rotulo; }
+        if (botao) botao.disabled = false;
+        if (visivel) botao.textContent = rotulo;
+        limparArquivo(form);
+        estado.hidden = false;
         estado.classList.add("edicao-upload__estado--erro");
-        estado.textContent = "O texto tem algum erro e não foi salvo, então a imagem não foi enviada. Clique em Salvar para ver o que corrigir.";
+        estado.textContent = "O texto tem algum erro e não foi salvo, então a imagem não foi enviada. Clique em Salvar para ver o que corrigir e escolha a imagem de novo.";
       });
     });
   });

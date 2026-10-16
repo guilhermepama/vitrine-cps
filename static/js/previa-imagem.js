@@ -1,8 +1,10 @@
-// Tela de edição do grupo (spec 02; layout da spec 07). Opcional: ao escolher
-// um arquivo, mostra a prévia no próprio espaço da imagem e avisa que ainda
-// falta enviar. Recusa na hora formato e tamanho que o servidor recusaria
-// (cadastro/imagens.py: JPG, PNG ou WebP, até 3 MB). Sem JavaScript, o
-// formulário funciona igual e o servidor faz a mesma checagem.
+// Tela de edição do grupo (spec 02; layout da spec 07). Opcional.
+// Ao escolher um arquivo, mostra a prévia no próprio espaço da imagem. Nos
+// formulários com `data-envio-automatico` (capa e card "+" da galeria) a
+// imagem sobe na hora: o botão de enviar some (na capa ele passa a abrir o
+// seletor). Recusa na hora formato e tamanho que o servidor recusaria
+// (cadastro/imagens.py: JPG, PNG ou WebP, até 3 MB). Sem JavaScript, escolhe e
+// clica no botão, e o servidor faz a mesma checagem.
 (function () {
   var TAMANHO_MAXIMO = 3 * 1024 * 1024;
   var FORMATOS = ["image/jpeg", "image/png", "image/webp"];
@@ -14,10 +16,24 @@
     var estado = form.querySelector(".edicao-upload__estado");
     var alvo = document.getElementById(form.getAttribute("data-previa"));
     if (!campo || !botao || !estado || !alvo || !window.URL) return;
+    var automatico = form.hasAttribute("data-envio-automatico");
     var textoDoBotao = botao.textContent;
     var originais = Array.prototype.slice.call(alvo.children);
     var previa = null;
+    var etiqueta = null;
     var endereco = null;
+
+    if (automatico) {
+      form.classList.add("edicao-upload--auto");
+      if (form.querySelector(".adicionar")) {
+        botao.hidden = true; // o card inteiro é o seletor (label do campo)
+      } else {
+        // capa: o botão abre o seletor e o campo de arquivo fica escondido
+        botao.type = "button";
+        campo.classList.add("campo-arquivo--oculto");
+        botao.addEventListener("click", function () { campo.click(); });
+      }
+    }
 
     function avisa(texto, erro) {
       estado.textContent = texto;
@@ -44,16 +60,16 @@
       img.className = "edicao-capa__img";
       img.src = endereco;
       img.alt = "Prévia da imagem escolhida";
-      var etiqueta = document.createElement("span");
+      etiqueta = document.createElement("span");
       etiqueta.className = "previa__etiqueta";
-      etiqueta.textContent = "Prévia · ainda não enviada";
+      etiqueta.textContent = automatico ? "Enviando…" : "Prévia · ainda não enviada";
       previa.appendChild(img);
       previa.appendChild(etiqueta);
       originais.forEach(function (el) { el.hidden = true; });
       alvo.appendChild(previa);
       alvo.hidden = false;
       form.classList.add("edicao-upload--pronta");
-      botao.classList.add("botao--vermelho");
+      if (!automatico) botao.classList.add("botao--vermelho");
     }
 
     campo.addEventListener("change", function () {
@@ -72,16 +88,21 @@
         return;
       }
       mostra(arquivo);
+      if (automatico) {
+        // passa pelo evento submit: salvar-antes.js salva o texto mexido antes
+        if (form.requestSubmit) form.requestSubmit(); else form.submit();
+        return;
+      }
       avisa("Imagem escolhida, ainda não enviada. Clique em “" + textoDoBotao + "” para enviar.");
     });
 
     form.addEventListener("submit", function (evento) {
-      // salvar-antes.js segurou o envio para salvar o texto primeiro: ele cuida do botão.
+      // salvar-antes.js segurou o envio para salvar o texto primeiro: ele cuida do aviso.
       if (evento.defaultPrevented || !campo.files || !campo.files[0]) return;
       // Só depois que o envio começou: o botão não tem name, então desabilitar não muda o POST.
       setTimeout(function () {
         botao.disabled = true;
-        botao.textContent = "Enviando…";
+        if (!automatico) botao.textContent = "Enviando…";
       }, 0);
       avisa("Enviando a imagem…");
     });
