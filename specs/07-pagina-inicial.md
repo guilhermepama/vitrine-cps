@@ -39,6 +39,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 - **Menu do celular** (hambúrguer) em `static/js/menu.js`.
 - **Rolagem suave** nas âncoras da página (CSS `scroll-behavior`), desligada para quem pede menos movimento no sistema (`prefers-reduced-motion`); o destino para abaixo do topo fixo.
 - **Página do projeto** (`/projeto/<slug>/`) no layout do protótipo: capa em prancha, ficha técnica preta, 01 Sobre (com os links), 02 Galeria, 03 Equipe, convite vermelho e registro preto em edição passada. Menu: "Ver todos os projetos" e "Área do grupo". **Sem a seção "Impacto"** do protótipo nesta edição (não há campos no model; decisão do coordenador, 16/10). O botão do convite diz "Como votar" (no lugar do "Quero votar" da spec 02) e continua indo só para `/como-votar/`.
+- **Cédula do visitante** (`/votar`, spec 03) no visual novo, **com a regra atual** (1 toque = 1 voto): estilos saem do `<style>` do template para o `base.css`; o script continua no template (o teste da spec 03 o lê do HTML), com uma linha a mais em `marcar()` para o CSS separar "enviando" de "votado". O `votar.html` do protótipo (notas 1–5) entra junto com o backend novo (tarefa do Renan).
 - **Telas da área do grupo** (`/grupo/`, link único, 429 e link inválido) no layout novo, sem mudar comportamento nem os textos que a spec 02 exige; o script do "Copiar" sai do template para `static/js/copiar-link.js`.
 - O 404 da página de projeto passa a ter "Conhecer a Mostra" apontando
   para `/` (antes ia para `/como-votar/` porque não havia página inicial).
