@@ -28,7 +28,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   (`titulo`, `meta`, `conteudo`, `topo`, `rodape`, `classe_main`) não mudam.
   Bloco novo `scripts` no fim do `body`.
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
-  fachada, ficha do evento, faixa Fatec/Etec, 01 A Mostra, 02 Projetos,
+  fachada, ficha do evento, faixa dos cursos (DSM, GTUR), 01 A Mostra, 02 Projetos,
   03 Quem faz e a chamada da Fatec com o convite ao vestibular (links para
   o site oficial da Fatec Olímpia e o portal do vestibular; datas do
   1º semestre de 2027 em texto fixo, revistas a cada edição). A Área do
@@ -42,6 +42,8 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   para `/` (antes ia para `/como-votar/` porque não havia página inicial).
 
 ## Fora de escopo
+- Citar a Etec nos textos da home e do rodapé (decisão do coordenador, 16/10). Turmas da Etec
+  cadastradas continuam listadas pelos dados, depois das da Fatec.
 - Portar `projeto.html` e `votar.html` do protótipo (próximos PRs).
 - Tema escuro e escolha de tema (o protótipo deixou como proposta para a
   próxima edição). A página é sempre clara; nada segue o tema do aparelho.
@@ -100,7 +102,7 @@ Rota em `vitrine/urls.py`; o include raiz em `""` já existe.
 RA, token ou representante na página), 13 (só ORM), 17.
 
 ## Critérios de aceite
-- [ ] `GET /` responde 200 com `<title>` "Vitrine CPS — Mostra de Projetos Fatec e Etec Olímpia"
+- [ ] `GET /` responde 200 com `<title>` "Vitrine CPS — Mostra de Projetos Fatec Olímpia"
 - [ ] Lista só projetos `publicado` da edição ativa; `pre_cadastrado`, `em_revisao`, `ajustes` e projetos de outra edição não aparecem
 - [ ] Turmas na ordem da spec; contagem por extenso no título da seção 02
 - [ ] Sem edição ativa e sem projeto publicado → 200 com o aviso, sem filtro

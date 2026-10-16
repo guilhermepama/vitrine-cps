@@ -54,7 +54,7 @@ def test_rota_inicio_e_a_raiz():
 
 @pytest.mark.django_db
 def test_titulo_da_pagina(client):
-    assert "<title>Vitrine CPS — Mostra de Projetos Fatec e Etec Olímpia</title>" in _html(client)
+    assert "<title>Vitrine CPS — Mostra de Projetos Fatec Olímpia</title>" in _html(client)
 
 
 # --- O que aparece ---------------------------------------------------------------------

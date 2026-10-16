@@ -353,7 +353,7 @@ a { color: inherit; }
 .ficha__valor { font-weight: 500; line-height: 1.35; font-size: var(--texto-14); }
 .ficha__valor small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-13); }
 
-/* ---------- FAIXA FATEC / ETEC em vermelho ---------- */
+/* ---------- FAIXA DOS CURSOS em vermelho ---------- */
 .faixa--vermelha { background: var(--cor-acento); color: var(--cor-acento-texto); }
 .unidades { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .unidade { display: flex; gap: 12px; align-items: center; min-width: 0; padding: 14px var(--gutter); border-right: 1px solid var(--cor-linha); }

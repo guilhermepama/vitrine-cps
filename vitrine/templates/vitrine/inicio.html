@@ -6,12 +6,12 @@ Links só para âncoras desta página, /projeto/…, /grupo/ e /como-votar/:
 nenhum caminho de voto (G8).
 {% endcomment %}
 
-{% block titulo %}Vitrine CPS — Mostra de Projetos Fatec e Etec Olímpia{% endblock %}
+{% block titulo %}Vitrine CPS — Mostra de Projetos Fatec Olímpia{% endblock %}
 
 {% block meta %}
-  <meta name="description" content="Mostra de Projetos da Fatec e da Etec Olímpia: conheça os projetos dos alunos e venha ao evento.">
+  <meta name="description" content="Mostra de Projetos da Fatec Olímpia: conheça os projetos dos alunos e venha ao evento.">
   <meta property="og:title" content="Vitrine CPS — Mostra de Projetos">
-  <meta property="og:description" content="Conheça os projetos dos alunos da Fatec e da Etec Olímpia e venha ao evento.">
+  <meta property="og:description" content="Conheça os projetos dos alunos da Fatec Olímpia e venha ao evento.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <script src="{% static 'js/menu.js' %}"></script>
@@ -35,10 +35,10 @@ nenhum caminho de voto (G8).
     <div class="hero__esq">
       <div class="hero__edicao mono">
         <span>Mostra de Projetos{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</span>
-        <span>Fatec + Etec Olímpia</span>
+        <span>Fatec Olímpia</span>
       </div>
       <h1 class="display">Venha ver a <span class="destaque">inovação crescendo em Olímpia</span> com seus próprios olhos<span class="ponto">.</span></h1>
-      <p class="hero__texto">Turismo e tecnologia movem Olímpia, e são exatamente os cursos que a Fatec trouxe para a cidade. Na <strong>Mostra de Projetos</strong>, os alunos da <strong>Fatec</strong> e da <strong>Etec Olímpia</strong> apresentam o que criaram neste semestre: software, soluções para problemas reais da cidade, roteiros e eventos para quem vive aqui e para quem nos visita. Uma noite para a comunidade ver de perto o que está nascendo em Olímpia, conversar com quem fez e escolher seus favoritos.</p>
+      <p class="hero__texto">Turismo e tecnologia movem Olímpia, e são exatamente os cursos que a Fatec trouxe para a cidade. Na <strong>Mostra de Projetos</strong>, os alunos da <strong>Fatec Olímpia</strong> apresentam o que criaram neste semestre: software, soluções para problemas reais da cidade, roteiros e eventos para quem vive aqui e para quem nos visita. Uma noite para a comunidade ver de perto o que está nascendo em Olímpia, conversar com quem fez e escolher seus favoritos.</p>
       <div class="hero__acoes">
         <a class="botao botao--vermelho" href="#projetos">Ver os projetos</a>
         <a class="botao botao--vazado" href="#mostra">Sobre a Mostra</a>
@@ -68,9 +68,9 @@ nenhum caminho de voto (G8).
 {% endif %}
 
 <div class="faixa faixa--vermelha">
-  <div class="container unidades" aria-label="Instituições participantes">
-    <div class="unidade"><span class="unidade__sigla">FATEC</span><span class="unidade__nome">Desenvolvimento de Software Multiplataforma · Gestão de Turismo</span></div>
-    <div class="unidade"><span class="unidade__sigla">ETEC</span><span class="unidade__nome">Cursos técnicos · Etec Olímpia</span></div>
+  <div class="container unidades" aria-label="Cursos da Fatec Olímpia">
+    <div class="unidade"><span class="unidade__sigla">DSM</span><span class="unidade__nome">Desenvolvimento de Software Multiplataforma</span></div>
+    <div class="unidade"><span class="unidade__sigla">GTUR</span><span class="unidade__nome">Gestão de Turismo</span></div>
   </div>
 </div>
 
@@ -78,7 +78,7 @@ nenhum caminho de voto (G8).
   <div class="container">
     <div class="mostra__cabeca">
       <div><p class="mono">01 — A Mostra</p><h2 class="display">Uma noite para ver, conversar e avaliar<span class="ponto">.</span></h2></div>
-      <p>O <strong>Vitrine CPS</strong> mostra o que acontece dentro da Fatec e da Etec. Na noite da Mostra{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço, os grupos apresentam o que construíram e a comunidade circula livremente. Uma <strong>banca de avaliadores</strong> avalia os projetos tecnicamente, e o público também participa, avaliando o impacto e a relevância para a sociedade.</p>
+      <p>O <strong>Vitrine CPS</strong> mostra o que acontece dentro da Fatec Olímpia. Na noite da Mostra{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço, os grupos apresentam o que construíram e a comunidade circula livremente. Uma <strong>banca de avaliadores</strong> avalia os projetos tecnicamente, e o público também participa, avaliando o impacto e a relevância para a sociedade.</p>
     </div>
     <ol class="passos">
       <li class="passo"><span class="passo__num" aria-hidden="true">01</span><h3 class="display">Conheça os projetos</h3><p>Software, aplicativos, roteiros turísticos, eventos e soluções para problemas reais da cidade, apresentados por quem os fez. Pergunte, teste, opine.</p></li>
@@ -136,7 +136,7 @@ nenhum caminho de voto (G8).
       <div><p class="mono">03 — Quem faz</p><h2 class="display">Na Fatec Olímpia, em casa de ferreiro o espeto é de ferro<span class="ponto">.</span> <span class="destaque">O Vitrine CPS é feito pelos alunos.</span></h2></div>
       <div class="quem__texto">
         <p>Esta edição conta com um sistema de publicação e avaliação dos projetos de forma digital e segura. A plataforma foi desenvolvida em conjunto por alunos do <strong>1º, 2º e 3º semestre de Desenvolvimento de Software Multiplataforma</strong> da Fatec Olímpia, aplicando o aprendizado adquirido em sala, com mentoria de professores. Ela dá a cada projeto uma página pública para divulgar, organiza o evento e registra a avaliação; a coordenação modera o conteúdo.</p>
-        <p>É software livre: o código fica público no GitHub, e a cada semestre uma nova turma pode melhorá-lo. A ideia é que, com o tempo, vire o portal permanente dos projetos da comunidade Fatec e Etec Olímpia.</p>
+        <p>É software livre: o código fica público no GitHub, e a cada semestre uma nova turma pode melhorá-lo. A ideia é que, com o tempo, vire o portal permanente dos projetos da comunidade da Fatec Olímpia.</p>
       </div>
     </div>
     <div class="tecnica">
