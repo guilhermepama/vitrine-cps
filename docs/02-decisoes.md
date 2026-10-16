@@ -508,7 +508,10 @@ Formato:
     depender de quem ficou em último na turma, que é o que o min-max faria.
     Peso na `Edicao` (`peso_boletim_banca`; convidados = 1 − ele).
   - **Pendência:** projeto sem avaliação de banca **ou** sem avaliação de
-    convidado não tem nota final nem nota de boletim. No recorte por curso,
+    convidado não tem nota final nem nota de boletim. A de convidado só é
+    exigida onde tem peso (`peso_convidados > 0` no ranking,
+    `peso_boletim_banca < 1` no boletim); edição sem convidados calcula
+    como antes. No recorte por curso,
     só o curso dele fica pendente; no geral, o ranking inteiro fica
     pendente (a normalização é sobre todos). A coordenação distribui banca
     e convidados para cobrir todos os projetos.
@@ -524,5 +527,19 @@ Formato:
   - Pendência no geral é mais frágil que por curso: um projeto sem
     convidado trava o geral. A página de conferência mostra a cobertura
     por tipo antes de concluir.
+  - **Limite conhecido — o geral compara bancas diferentes.** A mesma
+    banca cobre um curso, não a edição: no geral, projetos de cursos
+    diferentes, julgados por bancas diferentes, entram na mesma
+    normalização, e a banca pesa 50%. Uma banca mais rigorosa num curso
+    puxa todos os projetos dele para baixo no geral. Considerado e aceito
+    pelo coordenador (16/10, revisão do Renan no #80): banca comum para
+    finalistas exigiria uma segunda rodada de avaliação no mesmo dia, e
+    montar o geral só com as partes já normalizadas por curso daria 1 ao
+    melhor de cada curso, inclusive de curso com 2 projetos. O recorte por
+    curso é o comparável; o geral é a vitrine do evento.
+  - **Escopo:** este ranking (geral e por curso) é o do evento desta
+    edição; o recorte por turma sai do código e a página aplica a mesma
+    regra a qualquer edição. Como o histórico aparece no portal público
+    fica para depois (coordenação, 16/10).
   - Fica fora desta edição: pesos diferentes por critério, convidados pelo
     celular, nota do boletim em outra escala.

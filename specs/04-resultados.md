@@ -158,12 +158,20 @@ qualquer consulta aos dados de negócio:
   leva o público.
 - **Pendência:** projeto sem nota de banca **ou** sem nota de convidados
   (ausente no retorno de `nota_banca_por_projeto(edicao, tipo)`) fica sem
-  final e sem boletim. Por curso: só o curso dele fica pendente (aviso de
+  final e sem boletim. A nota de convidados só é exigida onde tem peso:
+  no ranking quando `peso_convidados > 0`, no boletim quando
+  `peso_boletim_banca < 1` (revisão do Renan no #80). Com peso 0, a parte
+  de convidados não entra na conta nem trava nada — edição sem convidados
+  (padrões 0 e 1) calcula como antes. Por curso: só o curso dele fica pendente (aviso de
   hoje). Geral: o ranking inteiro fica pendente, com o aviso e a lista dos
   projetos que faltam. Boletim: a linha do projeto mostra "pendente".
   `banca_conferida_em` vazio → tudo pendente, como hoje.
 - Pesos: `peso_banca + peso_convidados + peso_publico = 1` e
   `0 ≤ peso_boletim_banca ≤ 1`, senão "Pesos da edição não configurados".
+- **Escopo:** o ranking geral e por curso é o do evento desta edição. A
+  página aplica a mesma regra a qualquer edição (o recorte por turma sai
+  do código); como o histórico aparece no portal público fica para
+  depois (coordenação, 16/10) — fora desta spec.
 
 ### Público (ADR-012)
 - Cada avaliação do público (spec 03) dá notas **de 0 a 5** em três

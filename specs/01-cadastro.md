@@ -262,8 +262,14 @@ desproporcional para esta edição (revisão do Renan no #17).
 - **Turno**: coluna "Turno" opcional (a planilha desta edição foi sem
   ela). Com turno, casa exatamente. Sem turno, casa com a única turma
   daquele curso e período; se houver mais de uma (ex: manhã e tarde), a
-  linha é erro "turma ambígua — informe o turno" (revisão do Renan no
-  PR #16).
+  linha é erro "turma ambígua — informe o turno ou a escola" (revisão do
+  Renan no PR #16; mensagem ampliada no ADR-013).
+- **Escola** (ADR-013): coluna "Escola" opcional, para as turmas do
+  Ensino Médio. Com escola, filtra por `Turma.escola` (sem diferenciar
+  maiúsculas; espaços extras ignorados); escola que não casa → "turma
+  inexistente nesta edição". Sem a coluna ou vazia, vale a regra do turno.
+  As duas escolas estaduais estão no mesmo curso, período e turno: sem a
+  escola, a linha delas é "turma ambígua".
 - **RA único por edição**: um RA representa no máximo um projeto na
   edição. RA que já representa outro projeto da edição (de importação
   anterior ou de outra linha do arquivo) → erro de linha, sem mostrar o
