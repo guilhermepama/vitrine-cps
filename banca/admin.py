@@ -30,10 +30,10 @@ def _edicao_aberta(edicao):
 
 @admin.register(Criterio)
 class CriterioAdmin(admin.ModelAdmin):
-    list_display = ["nome", "edicao", "ordem"]
-    list_filter = ["edicao"]
-    ordering = ["edicao", "ordem"]
-    fields = ["edicao", "nome", "apoio", "ordem"]
+    list_display = ["nome", "tipo", "edicao", "ordem"]
+    list_filter = ["edicao", "tipo"]
+    ordering = ["edicao", "tipo", "ordem"]
+    fields = ["edicao", "tipo", "nome", "apoio", "ordem"]
 
     def get_actions(self, request):
         # Sem "apagar selecionados": a exclusão em lote passaria por cima da trava.
@@ -68,7 +68,7 @@ class JuradoForm(forms.ModelForm):
 
     class Meta:
         model = Jurado
-        fields = ["edicao", "nome", "turmas"]
+        fields = ["edicao", "tipo", "nome", "turmas"]
 
     def clean(self):
         dados = super().clean()
@@ -97,8 +97,8 @@ class JuradoForm(forms.ModelForm):
 @admin.register(Jurado)
 class JuradoAdmin(admin.ModelAdmin):
     form = JuradoForm
-    list_display = ["nome", "edicao", "lista_turmas"]
-    list_filter = ["edicao"]
+    list_display = ["nome", "tipo", "edicao", "lista_turmas"]
+    list_filter = ["edicao", "tipo"]
     search_fields = ["nome"]
 
     @admin.display(description="turmas")
@@ -252,7 +252,10 @@ class NotaForm(forms.ModelForm):
 
 
 def _criterios_do(jurado):
-    return Criterio.objects.filter(edicao_id=jurado.edicao_id) if jurado else Criterio.objects.none()
+    """Critérios do tipo do jurado na edição dele (ADR-013)."""
+    if not jurado:
+        return Criterio.objects.none()
+    return Criterio.objects.filter(edicao_id=jurado.edicao_id, tipo=jurado.tipo)
 
 
 class NotasFormSet(BaseInlineFormSet):
@@ -271,7 +274,9 @@ class NotasFormSet(BaseInlineFormSet):
             enviados = [getattr(form, "cleaned_data", {}).get("criterio") for form in self.forms]
             esperados = sorted(self._criterios().values_list("pk", flat=True))
             if None in enviados or sorted(c.pk for c in enviados) != esperados:
-                raise forms.ValidationError("A ficha tem de ter uma nota para cada critério da edição do jurado.")
+                raise forms.ValidationError(
+                    "A ficha tem de ter uma nota para cada critério do tipo do jurado na edição dele."
+                )
         self._conferir_linhas_gravadas()
         super().clean()
 

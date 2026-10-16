@@ -30,7 +30,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_http_methods
 
 from banca.fichas import ORDEM_TURMA, exige_permissao
-from banca.models import Avaliacao, Criterio, Jurado, Nota
+from banca.models import Avaliacao, Criterio, Jurado, Nota, Tipo
 from cadastro.models import Edicao, Projeto, Turma
 
 CONCLUIR_CONFERENCIA = "banca.concluir_conferencia"
@@ -99,9 +99,42 @@ def conferencia(request, id, admin_site=admin.site):
     return render(request, "banca/conferencia.html", {**admin_site.each_context(request), **contexto})
 
 
+def _tipos_da_edicao(edicao, jurados, criterios):
+    """Banca sempre; convidados quando a edição os usa (peso, jurado ou critério — ADR-013)."""
+    usa_convidados = (
+        edicao.peso_convidados > 0
+        or any(j.tipo == Tipo.CONVIDADO for j in jurados)
+        or any(c.tipo == Tipo.CONVIDADO for c in criterios)
+    )
+    return [Tipo.BANCA, Tipo.CONVIDADO] if usa_convidados else [Tipo.BANCA]
+
+
+def _cobertura_parcial_de_curso(jurados, turmas_do_jurado, turmas, publicados):
+    """Avisos de jurado que avalia só parte das turmas (com publicados) de um
+    curso: com a normalização por curso, a nota mediria o jurado (ADR-013)."""
+    turmas_do_curso = defaultdict(list)
+    for turma in turmas:
+        if publicados[turma.pk]:
+            turmas_do_curso[turma.curso_id].append(turma)
+    avisos = []
+    for jurado in jurados:
+        for curso_id, do_curso in turmas_do_curso.items():
+            cobertas = [t for t in do_curso if t.pk in turmas_do_jurado[jurado.pk]]
+            if cobertas and len(cobertas) < len(do_curso):
+                faltam = [t.rotulo for t in do_curso if t.pk not in turmas_do_jurado[jurado.pk]]
+                avisos.append(
+                    f"{jurado.nome} ({jurado.get_tipo_display().lower()}) avalia "
+                    f"{', '.join(t.rotulo for t in cobertas)}, mas não {', '.join(faltam)}."
+                )
+    return avisos
+
+
 def _contexto(edicao, digitador):
     turmas = list(Turma.objects.filter(edicao=edicao).select_related("curso").order_by(*ORDEM_TURMA))
     jurados = list(Jurado.objects.filter(edicao=edicao).order_by("nome"))
+    tipo_do_jurado = {j.pk: j.tipo for j in jurados}
+    criterios_todos = list(Criterio.objects.filter(edicao=edicao).order_by("tipo", "ordem"))
+    tipos = _tipos_da_edicao(edicao, jurados, criterios_todos)
     pares = Jurado.turmas.through.objects.filter(jurado__edicao=edicao, turma__edicao=edicao)
     jurados_da_turma, turmas_do_jurado = defaultdict(set), defaultdict(set)
     for jurado_id, turma_id in pares.values_list("jurado_id", "turma_id"):
@@ -120,33 +153,54 @@ def _contexto(edicao, digitador):
         )
     )
     por_jurado = Counter(a[1] for a in avaliacoes)
-    por_projeto = Counter(a[2] for a in avaliacoes)
+    por_projeto = Counter((a[2], tipo_do_jurado.get(a[1])) for a in avaliacoes)
     digitadores = Counter((a[3], a[4]) for a in avaliacoes)
 
     cobertura_turmas = []
     for turma in turmas:
-        n_jurados = len(jurados_da_turma[turma.pk])
         projetos = publicados[turma.pk]
+        por_tipo = []
+        for tipo in tipos:
+            n = sum(1 for j in jurados_da_turma[turma.pk] if tipo_do_jurado.get(j) == tipo)
+            por_tipo.append(
+                {
+                    "tipo": tipo,
+                    "convidado": tipo == Tipo.CONVIDADO,
+                    "jurados": n,
+                    "sem_avaliacao": [p for p in projetos if not por_projeto[(p.pk, tipo)]],
+                    "incompletos": [
+                        (p, por_projeto[(p.pk, tipo)]) for p in projetos if 0 < por_projeto[(p.pk, tipo)] < n
+                    ],
+                }
+            )
         cobertura_turmas.append(
             {
                 "turma": turma,
-                "jurados": n_jurados,
                 "publicados": len(projetos),
-                "sem_avaliacao": [p for p in projetos if not por_projeto[p.pk]],
-                "incompletos": [(p, por_projeto[p.pk]) for p in projetos if 0 < por_projeto[p.pk] < n_jurados],
+                "jurados": por_tipo[0]["jurados"],
+                "tipos": por_tipo,
+                "completa": not any(t["sem_avaliacao"] or t["incompletos"] for t in por_tipo),
             }
         )
-    cobertura_jurados = [
-        (jurado, por_jurado[jurado.pk], sum(len(publicados[t]) for t in turmas_do_jurado[jurado.pk]))
-        for jurado in jurados
+    grupos_jurados = [
+        {
+            "tipo": tipo,
+            "rotulo": "Avaliadores convidados" if tipo == Tipo.CONVIDADO else "Banca",
+            "linhas": [
+                (jurado, por_jurado[jurado.pk], sum(len(publicados[t]) for t in turmas_do_jurado[jurado.pk]))
+                for jurado in jurados
+                if jurado.tipo == tipo
+            ],
+        }
+        for tipo in tipos
     ]
 
     if digitador is None:
         ids = sortear_amostra(edicao.pk, [a[0] for a in avaliacoes])
     else:
         ids = [a[0] for a in avaliacoes if a[3] == digitador]
-    criterios = list(Criterio.objects.filter(edicao=edicao).order_by("ordem"))
-    linhas = []
+    criterios = {tipo: [c for c in criterios_todos if c.tipo == tipo] for tipo in tipos}
+    linhas = defaultdict(list)
     notas = Prefetch("notas", queryset=Nota.objects.only("avaliacao_id", "criterio_id", "valor"))
     for avaliacao in (
         Avaliacao.objects.filter(pk__in=ids)
@@ -155,20 +209,32 @@ def _contexto(edicao, digitador):
         .order_by("jurado__nome", "projeto_id")
     ):
         valores = {nota.criterio_id: nota.valor for nota in avaliacao.notas.all()}
-        linhas.append((avaliacao, [valores.get(c.pk) for c in criterios]))
+        tipo = avaliacao.jurado.tipo
+        linhas[tipo].append((avaliacao, [valores.get(c.pk) for c in criterios.get(tipo, [])]))
+    amostras = [
+        {
+            "tipo": tipo,
+            "convidado": tipo == Tipo.CONVIDADO,
+            "criterios": criterios[tipo],
+            "colunas": len(criterios[tipo]) + 3,  # jurado, projeto, digitador e uma por critério
+            "linhas": linhas[tipo],
+        }
+        for tipo in tipos
+    ]
 
     return {
         "title": f"Conferência da banca — {edicao.nome}",
         "edicao": edicao,
-        "criterios": criterios,
-        "colunas": len(criterios) + 3,  # jurado, projeto, digitador e uma por critério
-        "cobertura_jurados": cobertura_jurados,
+        "varios_tipos": len(tipos) > 1,
+        "grupos_jurados": grupos_jurados,
         "cobertura_turmas": cobertura_turmas,
-        "total_sem_avaliacao": sum(len(t["sem_avaliacao"]) for t in cobertura_turmas),
+        "cobertura_parcial": _cobertura_parcial_de_curso(jurados, turmas_do_jurado, turmas, publicados),
+        "total_sem_avaliacao": sum(len(t["sem_avaliacao"]) for item in cobertura_turmas for t in item["tipos"]),
         "total_avaliacoes": len(avaliacoes),
+        "total_na_amostra": sum(len(a["linhas"]) for a in amostras),
         "digitadores": sorted(digitadores.items(), key=lambda item: item[0][1]),
         "digitador": digitador,
-        "linhas": linhas,
+        "amostras": amostras,
         "versao": versao_da_banca(edicao.pk),
     }
 

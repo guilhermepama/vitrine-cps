@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 
-from banca.models import Avaliacao, Criterio, Jurado, Nota
+from banca.models import Avaliacao, Criterio, Jurado, Nota, Tipo
 from cadastro.models import Projeto
 from cadastro.tests import fabricas as cadastro
 from votacao.servicos import abrir_votacao
@@ -35,14 +35,26 @@ def cenario(criterios=2, projetos=2, nome="2026/2", sigla="DSM"):
     return edicao, turma, lista
 
 
-def jurado(edicao, turma, nome="Ana"):
-    j = Jurado.objects.create(edicao=edicao, nome=nome)
+def jurado(edicao, turma, nome="Ana", tipo=Tipo.BANCA):
+    j = Jurado.objects.create(edicao=edicao, nome=nome, tipo=tipo)
     j.turmas.add(turma)
     return j
 
 
 def avaliar(jurado_, projeto, valores, usuario=None):
     avaliacao = Avaliacao.objects.create(jurado=jurado_, projeto=projeto, digitado_por=usuario or digitador())
-    for criterio, valor in zip(Criterio.objects.filter(edicao=jurado_.edicao), valores, strict=True):
+    criterios = Criterio.objects.filter(edicao=jurado_.edicao, tipo=jurado_.tipo).order_by("ordem")
+    for criterio, valor in zip(criterios, valores, strict=True):
         Nota.objects.create(avaliacao=avaliacao, criterio=criterio, valor=Decimal(str(valor)))
     return avaliacao
+
+
+CRITERIOS_CONVIDADO = ("Impacto ambiental", "Impacto social", "Inovação", "Viabilidade econômica")
+
+
+def criterios_de_convidado(edicao):
+    """Os quatro critérios dos avaliadores convidados (ADR-013), antes de abrir a votação."""
+    return [
+        Criterio.objects.create(edicao=edicao, tipo=Tipo.CONVIDADO, nome=nome, ordem=i)
+        for i, nome in enumerate(CRITERIOS_CONVIDADO, start=1)
+    ]
