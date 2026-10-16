@@ -50,17 +50,40 @@
     relogio = setTimeout(function () { caixa.classList.remove("aviso-flutuante--visivel"); }, erro ? 7000 : 4000);
   }
 
+  // Legendas digitadas e ainda não salvas, pela rota de cada uma (menos a do
+  // formulário que acabou de ir: o servidor manda o valor gravado).
+  function legendasMexidas(atual, enviado) {
+    var mexidas = {};
+    Array.prototype.forEach.call(atual.querySelectorAll("form.legenda"), function (form) {
+      var campo = form.querySelector(".legenda__campo");
+      if (form !== enviado && campo && campo.value !== campo.defaultValue) mexidas[form.getAttribute("action")] = campo.value;
+    });
+    return mexidas;
+  }
+
+  function devolverLegendas(nova, mexidas) {
+    Array.prototype.forEach.call(nova.querySelectorAll("form.legenda"), function (form) {
+      var valor = mexidas[form.getAttribute("action")];
+      var campo = form.querySelector(".legenda__campo");
+      if (valor !== undefined && campo) campo.value = valor; // continua "mexido": o aviso ao sair vale
+    });
+  }
+
   // Troca a seção de Imagens e o painel lateral pelos da página que voltou.
-  function aplicar(html) {
+  // Salvar uma legenda, enviar ou remover imagem não apaga as outras legendas
+  // ainda não salvas (revisão do Renan no #75).
+  function aplicar(html, enviado) {
     var doc = new DOMParser().parseFromString(html, "text/html");
     var nova = doc.getElementById("imagens");
     var atual = document.getElementById("imagens");
     if (!nova || !atual) return false; // virou somente leitura ou link inválido
+    var mexidas = legendasMexidas(atual, enviado);
     var envioNovo = doc.querySelector(".envio");
     var envioAtual = document.querySelector(".envio");
     if (envioNovo && envioAtual) envioAtual.replaceWith(document.adoptNode(envioNovo));
     var ok = doc.querySelector(".edicao__avisos .alerta--ok");
     nova = document.adoptNode(nova);
+    devolverLegendas(nova, mexidas);
     atual.replaceWith(nova);
     var erro = nova.querySelector(".alerta[role=alert]");
     if (erro) flutuante(erro.textContent.trim(), true);
@@ -69,7 +92,9 @@
     return true;
   }
 
-  function enviar(form, botao) {
+  // `aoFalhar`: desfaz o estado de envio (prévia "Enviando…", card escondido)
+  // para a pessoa poder tentar de novo sem recarregar (revisão do #75).
+  function enviar(form, botao, aoFalhar) {
     if (ocupado) return;
     ocupado = true;
     if (botao) botao.disabled = true;
@@ -77,11 +102,14 @@
       .then(function (r) { return r.text().then(function (html) { return { r: r, html: html }; }); })
       .then(function (res) {
         ocupado = false;
-        if (!aplicar(res.html)) window.location.reload();
+        if (!aplicar(res.html, form)) window.location.reload();
       }, function () {
         ocupado = false;
         if (botao) botao.disabled = false;
-        avisa(form, "Não foi possível falar com o servidor. Confira a conexão e tente de novo.", true);
+        if (aoFalhar) aoFalhar();
+        var texto = "Não foi possível falar com o servidor. Confira a conexão e tente de novo.";
+        avisa(form, texto, true);
+        flutuante(texto, true);
       });
   }
 
@@ -155,7 +183,7 @@
       mostra(arquivo);
       if (automatico) {
         avisa(form, "Enviando a imagem…");
-        enviar(form, botao);
+        enviar(form, botao, function () { limpa(); campo.value = ""; });
         return;
       }
       avisa(form, "Imagem escolhida, ainda não enviada. Clique em “" + botao.textContent + "” para enviar.");
@@ -173,8 +201,9 @@
         var campo = form.querySelector('input[type="file"]');
         if (campo && !(campo.files && campo.files[0])) return;
         if (campo) avisa(form, "Enviando a imagem…");
+        var rotulo = botao && botao.textContent;
         if (botao && botao.type === "submit" && !botao.hidden) botao.textContent = campo ? "Enviando…" : "Salvando…";
-        enviar(form, botao);
+        enviar(form, botao, function () { if (botao) botao.textContent = rotulo; });
       });
     });
   }

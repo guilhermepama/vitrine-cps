@@ -224,7 +224,6 @@ a { color: inherit; }
   border: 1px dashed var(--cor-erro);
 }
 .botao--bloco { display: flex; width: 100%; }
-.botao[hidden] { display: none; }
 
 /* ---------- CHIPS (filtros, opções) ---------- */
 .filtros { display: flex; flex-wrap: wrap; border: 1px solid var(--cor-linha); width: max-content; max-width: 100%; }
@@ -646,7 +645,7 @@ a { color: inherit; }
 .edicao__cabeca { border-bottom: 1px solid var(--cor-linha); }
 .edicao__cabeca .container { padding-block: var(--esp-8); }
 .edicao__cabeca .mono { margin-bottom: 12px; }
-.edicao__cabeca h1 { font-size: var(--texto-h2); overflow-wrap: normal; hyphens: manual; }
+.edicao__cabeca h1 { font-size: var(--texto-h2); overflow-wrap: break-word; hyphens: manual; }
 .edicao__ficha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: var(--esp-5); }
 .edicao__ficha .mono { margin-bottom: 0; }
 .edicao__publica { font-family: var(--fonte-mono); font-size: var(--texto-13); text-transform: uppercase; letter-spacing: .04em; text-decoration-color: var(--cor-acento); text-underline-offset: 3px; }
@@ -711,9 +710,7 @@ a { color: inherit; }
 .edicao-upload .botao { margin-top: var(--esp-2); }
 /* prévia da imagem escolhida e ainda não enviada (static/js/imagens.js) */
 .previa { position: relative; }
-.edicao-capa__quadro > [hidden] { display: none; }
 .previa__etiqueta { position: absolute; left: 0; bottom: 0; padding: 6px 10px; background: var(--cor-acento); color: var(--cor-acento-texto); font: 500 var(--texto-12)/1.2 var(--fonte-mono); text-transform: uppercase; letter-spacing: .04em; }
-.edicao-upload__slot[hidden] { display: none; }
 .edicao-upload__estado { padding: var(--esp-2) var(--esp-3); border-left: 4px solid var(--cor-acento); background: var(--cor-fundo); font-size: var(--texto-13); font-weight: 500; }
 .edicao-upload__estado--erro { border-color: var(--cor-erro); background: var(--cor-erro-fundo); color: #6E0E0E; }
 .botao:disabled.botao--vermelho { cursor: wait; }
