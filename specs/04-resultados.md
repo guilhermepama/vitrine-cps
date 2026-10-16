@@ -108,16 +108,17 @@ qualquer consulta aos dados de negócio:
 - Quando a votação está encerrada, o sistema, para cada turma:
   1. considera os projetos da turma na edição com status `publicado` —
      o mesmo filtro da cédula da spec 03 (decisão do coordenador no
-     PR #14); projeto sem voto entra com 0 votos;
-  2. calcula `p = (votos - menor) / (maior - menor)` entre os projetos da
-     turma; se maior = menor, `p = 1` para todos;
+     PR #14); projeto sem avaliação continua no ranking (ver "Público");
+  2. calcula `p = (público - menor) / (maior - menor)` entre os projetos
+     da turma, sobre o valor do público definido em "Público (ADR-012)";
+     se maior = menor, `p = 1` para todos;
   3. calcula `b` da mesma forma sobre a nota de banca do projeto
      (ADR-007); se maior = menor, `b = 1`;
   4. `final = peso_banca·b + peso_publico·p`, com os pesos lidos de
      `Edicao.peso_banca` e `Edicao.peso_publico` (0,70 e 0,30 nesta
      edição — ADR-007);
   5. ordena por `final` decrescente; desempate por maior nota de banca
-     bruta, depois mais votos do público;
+     bruta, depois mais avaliações do público;
   6. se ainda houver empate em tudo, os projetos recebem a **mesma
      posição** e a linha é marcada "empate" (ordem de exibição
      alfabética pelo título) — decisão do coordenador no PR #14. A
@@ -125,6 +126,31 @@ qualquer consulta aos dados de negócio:
      posições `1, 1, 3`.
 - A normalização é **local à turma**: o máximo e o mínimo de uma turma
   não influenciam outra.
+
+### Público (ADR-012)
+- Cada avaliação do público (spec 03) dá notas **de 0 a 5** em três
+  critérios — impacto social, inovação e impacto ambiental. A **nota da
+  avaliação** é a média das três.
+- O **valor do público** de um projeto é a média bayesiana:
+  `(C·m + soma das notas das avaliações) / (C + nº de avaliações)`, com
+  `m` = média das notas de **todas as avaliações da turma** e
+  `C = 10` (constante `AVALIACOES_DE_REFERENCIA` em `resultados/calculo.py`).
+  Cada projeto começa com 10 avaliações "na média da turma": poucas
+  avaliações puxam o valor para a média; muitas o levam à média real do
+  projeto; uma nota abaixo da média sempre baixa o valor.
+- Projeto sem avaliação fica com `m`. Turma sem nenhuma avaliação: valor 0
+  para todos (e `p = 1`, pela regra de valores iguais).
+- A view soma por projeto, numa consulta agregada, o nº de avaliações e a
+  soma das três notas; a média de cada avaliação sai exata dessa soma
+  (`Fraction`), sem arredondar.
+- A tabela mostra, por projeto: nº de avaliações, média simples das notas
+  (só referência), valor do público, `p` e — com a banca conferida — `b`,
+  final e posição. É o que responde a uma contestação.
+- **Transição:** enquanto o `Voto` não tiver as três notas (spec 03, tarefa
+  do Renan), a view continua passando a contagem de votos como valor do
+  público (`calcular_ranking` aceita `int`) e a regra anterior vale. A troca
+  da view (consulta das notas + `publico_por_media_bayesiana`) entra junto
+  com o model novo, antes do pré-ensaio de 21/10.
 - Turma com 1 projeto: `p = 1`. Se a nota da banca dele estiver
   disponível, `b = 1`, final = 1, posição 1. Sem nota de banca, vale a
   regra de banca pendente abaixo.
@@ -139,7 +165,7 @@ qualquer consulta aos dados de negócio:
 - **Banca pendente** (decisão do coordenador no PR #14):
   - Quando `Edicao.banca_conferida_em` está vazio, a conferência das
     notas (30/10) não terminou: **todas** as turmas mostram só a parte do
-    público (votos e `p`), com o aviso "Nota da banca pendente — este não
+    público (avaliações, valor do público e `p`), com o aviso "Nota da banca pendente — este não
     é o resultado oficial", e **nenhuma** nota final.
   - Quando a conferência está registrada mas algum projeto da turma não
     tem nota de banca (ausente no retorno de `nota_banca_por_projeto`),
@@ -284,7 +310,10 @@ permissões, nenhuma tabela.
 - [ ] Teste do cálculo: turma com 1 projeto e nota de banca → final = 1, posição 1; sem nota de banca → turma com banca pendente
 - [ ] Teste do cálculo: duas turmas com escalas diferentes (turma A votos {100, 50, 0}; turma B votos {4, 2, 0}) → `p` = {1; 0,5; 0} nas duas (normalização local)
 - [ ] Teste do cálculo: com pesos 0,70/0,30, projeto com `b = 1, p = 0` (0,70) fica acima de `b = 0, p = 1` (0,30)
-- [ ] Teste do desempate: mesma nota final → maior banca bruta vence; mesma banca → mais votos vence; tudo igual → mesma posição e marca "empate"
+- [ ] Teste do desempate: mesma nota final → maior banca bruta vence; mesma banca → mais avaliações vence; tudo igual → mesma posição e marca "empate"
+- [ ] Teste da média bayesiana (ADR-012): fórmula com `m` da turma e `C = 10`; nota da avaliação = média dos 3 critérios; nota 0 conta; projeto sem avaliação = `m`; turma sem avaliações → `p = 1` para todos; `m` local à turma; uma nota abaixo da média baixa o valor
+- [ ] Teste da média bayesiana: numa turma com média ~4,2, 1 avaliação 5 fica abaixo de 60 avaliações de média 4,8; 40 avaliações nota 2 ficam abaixo de 15 avaliações nota 5; com a turma inteira perto de 4,8, a avaliação única fica um pouco acima (limite registrado no ADR-012)
+- [ ] Soma de notas impossível para o nº de avaliações (fora de 0–15 por avaliação) → erro, sem resultado
 - [ ] Teste de posição após empate: dois empatados em 1º e um terceiro projeto → posições `1, 1, 3`
 - [ ] Projeto sem voto aparece com 0 votos (não some do ranking)
 - [ ] `banca_conferida_em` vazio → todas as turmas com aviso "não é o resultado oficial" e nenhuma nota final exibida
