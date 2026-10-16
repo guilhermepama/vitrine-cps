@@ -89,21 +89,22 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
         <span class="edicao__idx" aria-hidden="true">01</span>
         <h2 class="display" id="titulo-imagens">Imagens</h2>
       </div>
-      <p class="alerta alerta--neutro">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
+      <p class="alerta alerta--neutro" id="aviso-salvar-texto">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
       {% if etec %}<p class="alerta alerta--neutro"><strong>Não envie fotos de pessoas.</strong></p>{% endif %}
       {% if erro_imagem %}<p class="alerta" role="alert">{{ erro_imagem }}</p>{% endif %}
 
       <div class="edicao-capa">
-        <div class="edicao-capa__quadro">
+        <div class="edicao-capa__quadro" id="previa-capa">
           {% if projeto.capa %}<img class="edicao-capa__img" src="{{ projeto.capa.url }}" alt="Capa atual do projeto">
           {% else %}<div class="edicao-capa__img edicao-capa__vazia"><span class="mono">Sem capa</span></div>{% endif %}
         </div>
-        <form class="edicao-upload" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+        <form class="edicao-upload" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-capa">
           {% csrf_token %}
           <h3 class="rotulo">Capa (obrigatória para publicar)</h3>
           <input type="hidden" name="tipo" value="capa">
           <input class="campo-arquivo" type="file" name="arquivo" id="arquivo-capa" accept="image/jpeg,image/png,image/webp" required aria-describedby="capa-ajuda" aria-label="Arquivo da capa">
           <p class="ajuda" id="capa-ajuda">JPG, PNG ou WebP, até 3 MB. Proporção ideal: 1,91:1 (por exemplo, 1200×630 px) para a prévia do WhatsApp.</p>
+          <p class="edicao-upload__estado" role="status" hidden></p>
           <button class="botao" type="submit">{% if projeto.capa %}Trocar capa{% else %}Adicionar capa{% endif %}</button>
         </form>
       </div>
@@ -126,13 +127,15 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
         </figure>
         {% endfor %}
         {% if imagens|length < maximo_imagens %}
-        <form class="edicao-galeria__item edicao-upload edicao-upload--nova" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data">
+        <form class="edicao-galeria__item edicao-upload edicao-upload--nova" method="post" action="{% url 'vitrine:imagem' token %}" enctype="multipart/form-data" data-previa="previa-extra">
           {% csrf_token %}
+          <div class="edicao-upload__slot" id="previa-extra" hidden></div>
           <input type="hidden" name="tipo" value="extra">
           <label class="rotulo" for="arquivo-extra">Nova imagem</label>
           <input class="campo-arquivo" type="file" name="arquivo" id="arquivo-extra" accept="image/jpeg,image/png,image/webp" required>
           <label class="rotulo" for="legenda-extra">Legenda (opcional)</label>
           <input class="campo" type="text" name="legenda" id="legenda-extra" maxlength="120" placeholder="Legenda (opcional)">
+          <p class="edicao-upload__estado" role="status" hidden></p>
           <button class="botao" type="submit">Adicionar imagem</button>
         </form>
         {% endif %}
@@ -218,4 +221,4 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
 {% endif %}
 {% endblock %}
 
-{% block scripts %}{% if not motivo_somente_leitura %}<script src="{% static 'js/contador.js' %}" defer></script>{% endif %}{% endblock %}
+{% block scripts %}{% if not motivo_somente_leitura %}<script src="{% static 'js/contador.js' %}" defer></script><script src="{% static 'js/salvar-antes.js' %}" defer></script><script src="{% static 'js/previa-imagem.js' %}" defer></script>{% endif %}{% endblock %}

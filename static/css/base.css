@@ -698,6 +698,16 @@ a { color: inherit; }
 .edicao-upload--nova { padding: var(--esp-4) var(--esp-3); }
 .edicao-upload .rotulo { margin: 0; }
 .edicao-upload .botao { margin-top: var(--esp-2); }
+/* prévia da imagem escolhida e ainda não enviada (static/js/previa-imagem.js) */
+.previa { position: relative; }
+.edicao-capa__quadro > [hidden] { display: none; }
+.previa__etiqueta { position: absolute; left: 0; bottom: 0; padding: 6px 10px; background: var(--cor-acento); color: var(--cor-acento-texto); font: 500 var(--texto-12)/1.2 var(--fonte-mono); text-transform: uppercase; letter-spacing: .04em; }
+.edicao-upload__slot { margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-3)) var(--esp-2); border-bottom: 1px solid var(--cor-linha); background: var(--cor-texto); }
+.edicao-upload__slot[hidden] { display: none; }
+.edicao-upload__estado { padding: var(--esp-2) var(--esp-3); border-left: 4px solid var(--cor-acento); background: var(--cor-fundo); font-size: var(--texto-13); font-weight: 500; }
+.edicao-upload__estado--erro { border-color: var(--cor-erro); background: var(--cor-erro-fundo); color: #6E0E0E; }
+.edicao-upload--pronta.edicao-upload--nova { background: var(--cor-superficie); outline: 2px solid var(--cor-acento); outline-offset: -2px; }
+.botao:disabled.botao--vermelho { cursor: wait; }
 .campo-arquivo { width: 100%; max-width: 100%; font: 400 var(--texto-13)/1.4 var(--fonte); color: var(--cor-texto-suave); }
 .campo-arquivo::file-selector-button {
   min-height: 40px; margin-right: 12px; padding: 0 var(--esp-4); cursor: pointer;
