@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block titulo %}{{ projeto.titulo }} — Vitrine CPS{% endblock %}
 
@@ -10,27 +11,48 @@
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <meta name="twitter:card" content="summary_large_image">
+  <script src="{% static 'js/menu.js' %}"></script>
 {% endblock %}
 
-{% block conteudo %}
-<p>Edição {{ edicao.nome }}</p>
+{% block menu %}
+<button class="nav-alterna" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu"><span></span></button>
+<nav class="nav" id="menu" aria-label="Principal">
+  <a href="{% url 'vitrine:inicio' %}#projetos">Ver todos os projetos</a>
+  <a href="{% url 'vitrine:grupo' %}" class="nav__botao">Área do grupo</a>
+</nav>
+{% endblock %}
 
+{% block classe_main %}{% endblock %}
+
+{% block conteudo %}
 {% include "vitrine/_corpo_projeto.html" %}
 
 {% if evento_passou %}
-<section>
-  <h2>Mostra de Projetos {{ edicao.nome }}</h2>
-  <p>Este projeto participou da Mostra de Projetos realizada em {{ edicao.data_evento|date:"d/m/Y" }}.</p>
+<section class="convite convite--passado">
+  <div class="container convite__grade">
+    <div>
+      <p class="mono">Mostra de Projetos · Edição {{ edicao.nome }}</p>
+      <h2 class="display">Este projeto participou da Mostra<span class="ponto">.</span></h2>
+      <p>Este projeto participou da Mostra de Projetos realizada em {{ edicao.data_evento|date:"d/m/Y" }}, no campus da Fatec Olímpia.</p>
+    </div>
+    <div><p class="convite__data">{{ edicao.data_evento|date:"d.m" }}<small>Edição {{ edicao.nome }} · Fatec Olímpia</small></p></div>
+  </div>
 </section>
 {% else %}
-<section>
-  <h2>Venha conhecer ao vivo</h2>
-  <p>
-    Conheça este projeto no evento — {{ edicao.data_evento|date:"d/m/Y" }} às 19h, no campus da Fatec Olímpia —
-    Av. Governador Adhemar Pereira de Barros, km 3, Recanto Bela Vista, Olímpia/SP.
-  </p>
-  <p>A votação do público acontece só presencialmente, durante o evento.</p>
-  <p><a href="{% url 'vitrine:como_votar' %}">Quero votar</a></p>
+<section class="convite">
+  <div class="container convite__grade">
+    <div>
+      <p class="mono">Mostra de Projetos · Edição {{ edicao.nome }}</p>
+      <h2 class="display">Venha conhecer ao vivo<span class="ponto">.</span></h2>
+      <p>Na noite da Mostra o grupo está no campus para apresentar, responder e ouvir. A votação do público acontece só presencialmente, durante o evento: este link divulga, não vota.</p>
+      <a class="botao botao--vazado" href="{% url 'vitrine:como_votar' %}">Como funciona a avaliação</a>
+    </div>
+    <div>
+      <p class="convite__data">{{ edicao.data_evento|date:"d.m" }}<small>{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"d/m/Y" }}, às 19h<br>Campus da Fatec Olímpia — Av. Governador Adhemar Pereira de Barros, km 3, Recanto Bela Vista, Olímpia/SP</small></p>
+    </div>
+  </div>
 </section>
 {% endif %}
 {% endblock %}
+
+{% block rodape_edicao %}<span>Edição {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m" }}</span>{% endblock %}
