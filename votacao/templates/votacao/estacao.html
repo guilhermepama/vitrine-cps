@@ -1,4 +1,4 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
@@ -6,20 +6,34 @@
   {# Reserva sem JS: recarrega a página inteira a cada rotação. #}
   <noscript><meta http-equiv="refresh" content="{{ rotacao }}"></noscript>
   <title>Estação {{ estacao.nome }} — Vitrine CPS</title>
-  <style>
-    html, body { margin: 0; height: 100%; background: #fff; color: #111; font-family: system-ui, sans-serif; }
-    main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2vh; text-align: center; }
-    h1 { margin: 0; font-size: 4vh; }
-    p { margin: 0; font-size: 3vh; }
-    #qr svg { width: min(90vw, 75vh); height: auto; display: block; }
-    #qr:empty::after { content: "QR indisponível — aguarde…"; font-size: 3vh; }
-  </style>
+  {# Visual da spec 07. A lógica é da spec 03: o script fica neste arquivo (o teste o lê do HTML). #}
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
-<body>
-  <main>
-    <h1>Votação — {{ estacao.nome }}</h1>
-    <div id="qr" data-renovar="{% url 'votacao:estacao_qr' estacao.pk %}" data-intervalo="{{ rotacao }}">{{ qr_svg }}</div>
-    <p>Aponte a câmera do celular para o QR para votar.</p>
+<body class="tela-estacao">
+  <header class="topo">
+    <div class="container topo__linha">
+      {# Sem link: a tela da recepção não sai daqui. #}
+      <span class="marca">{% include "partes/logo.svg" %}</span>
+      <span class="topo__selo mono">Estação · {{ estacao.nome }}</span>
+    </div>
+  </header>
+  <main class="estacao">
+    <div class="container estacao__grade">
+      <div class="estacao__cabeca">
+        <p class="mono">Mostra de Projetos · votação do público</p>
+        <h1 class="display">Escaneie e avalie<span class="ponto">.</span></h1>
+      </div>
+      <div class="estacao__codigo">
+        {# Sem espaço dentro do #qr: o :empty mostra o aviso quando o script apaga um QR vencido. #}
+        <div id="qr" class="estacao__qr" data-renovar="{% url 'votacao:estacao_qr' estacao.pk %}" data-intervalo="{{ rotacao }}">{{ qr_svg }}</div>
+      </div>
+      <ol class="estacao__passos">
+        <li><span class="estacao__num" aria-hidden="true">01</span><p><strong>Aponte a câmera</strong> do celular para o código.</p></li>
+        <li><span class="estacao__num" aria-hidden="true">02</span><p><strong>Informe nome e e-mail</strong>, uma vez só. Seus dados ficam separados das avaliações.</p></li>
+        <li><span class="estacao__num" aria-hidden="true">03</span><p><strong>Avalie pelo celular</strong>, uma vez por projeto, enquanto a votação estiver aberta.</p></li>
+      </ol>
+      <p class="estacao__nota mono">O código muda a cada {{ rotacao }} s e vale só nesta recepção.</p>
+    </div>
   </main>
   <script>
     (function () {
