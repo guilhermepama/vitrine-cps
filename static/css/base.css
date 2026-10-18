@@ -660,7 +660,7 @@ a { color: inherit; }
 .visitante__opcional { color: var(--cor-texto-suave); text-transform: none; letter-spacing: 0; }
 .visitante .rotulo + .campo { margin-bottom: var(--esp-2); }
 .visitante__aceite { display: flex; gap: var(--esp-3); align-items: flex-start; margin-top: var(--esp-2); font-size: var(--texto-14); line-height: 1.45; color: var(--cor-texto-suave); cursor: pointer; }
-.visitante__aceite input { flex: none; width: 22px; height: 22px; margin: 0; accent-color: var(--cor-acento); cursor: pointer; }
+.visitante__aceite input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--cor-acento); cursor: pointer; }
 
 /* ============================================================
    ÁREA DO GRUPO (spec 02, layout da spec 07)
