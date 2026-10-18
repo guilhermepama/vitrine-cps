@@ -451,7 +451,9 @@ Formato:
     token físico (ADR-001) limita, não zera. (3) **Uma nota abaixo da média
     da turma nem sempre baixa o valor.** Com `m` fixo, uma avaliação abaixo
     do *valor atual* do projeto sempre o baixa; mas `m` inclui a própria
-    avaliação, e isso soma `C·(x − m)/(N + 1)` (N = avaliações da turma).
+    avaliação, e isso soma `C·(x − m)/(N + 1)` **ao numerador** da média
+    bayesiana (N = avaliações da turma); o efeito no valor é esse termo
+    dividido por `(C + n + 1)` (n = avaliações do projeto).
     Num projeto bem abaixo da média, uma nota baixa que ainda está acima do
     valor dele o sobe: A com 10 avaliações 0 e B com 10 avaliações 5
     (m = 2,5) dão A = 1,25; uma avaliação 2 em A leva o valor a ≈ 1,27.

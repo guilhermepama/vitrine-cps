@@ -25,10 +25,11 @@ projeto da turma sem nota → só aquela turma. Turma pendente mostra só o
 público e `p`, sem banca, `b`, nota final nem posição. O projeto nunca entra com
 `b = 0` nem sai do ranking.
 
-Números: tudo em `Decimal`, sem arredondamento (a tela mostra 2 casas). A
-ordenação compara os valores exatos (`Fraction`), para que dois finais
-matematicamente iguais não se separem por um resto de divisão (ex: 1/3) e o
-desempate da banca/votos seja o que decide.
+Números: o cálculo é todo em `Fraction` (exato, sem arredondamento); só a
+saída (`LinhaRanking`) vira `Decimal`, e a tela mostra 2 casas. A ordenação
+compara os valores exatos, para que dois finais matematicamente iguais não se
+separem por um resto de divisão (ex: 1/3) e o desempate da banca/votos seja o
+que decide. Os pesos da edição chegam como `Decimal` e viram `Fraction`.
 """
 
 import unicodedata
@@ -146,7 +147,10 @@ def publico_por_media_bayesiana(
     - Projeto sem avaliação fica com `m` (só as avaliações de referência).
     - Turma sem nenhuma avaliação: valor 0 para todos (a normalização dá
       `p = 1` a todos, como na regra de valores iguais).
-    - Uma nota abaixo de `m` sempre baixa o valor do projeto.
+    - Uma avaliação abaixo do **valor atual** do projeto baixa o valor (com
+      `m` fixo). Como `m` inclui a própria avaliação, com poucas avaliações
+      na turma uma nota abaixo de `m` — mas acima do valor do projeto —
+      pode subir um projeto fraco (limite (3) do ADR-012; spec 04).
 
     Levanta `ValueError` para soma impossível (o banco já barra notas fora
     de 0–5; aqui é a última conferência antes do resultado oficial).
