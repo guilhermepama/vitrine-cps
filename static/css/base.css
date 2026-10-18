@@ -712,7 +712,7 @@ a { color: inherit; }
 .edicao-upload .botao { margin-top: var(--esp-2); }
 /* prévia da imagem escolhida e ainda não enviada (static/js/imagens.js) */
 .previa { position: relative; }
-.previa__etiqueta { position: absolute; left: 0; bottom: 0; padding: 6px 10px; background: var(--cor-acento); color: var(--cor-acento-texto); font: 500 var(--texto-12)/1.2 var(--fonte-mono); text-transform: uppercase; letter-spacing: .04em; }
+.previa__etiqueta { position: absolute; left: 0; bottom: 0; padding: 6px 10px; background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto); font: 500 var(--texto-12)/1.2 var(--fonte-mono); text-transform: uppercase; letter-spacing: .04em; }
 .edicao-upload__estado { padding: var(--esp-2) var(--esp-3); border-left: 4px solid var(--cor-acento); background: var(--cor-fundo); font-size: var(--texto-13); font-weight: 500; }
 .edicao-upload__estado--erro { border-color: var(--cor-erro); background: var(--cor-erro-fundo); color: #6E0E0E; }
 .botao:disabled.botao--vermelho { cursor: wait; }
