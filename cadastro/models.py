@@ -117,9 +117,9 @@ class Edicao(models.Model):
         encerrada = antes["votacao_encerrada_em"]
         if encerrada is not None and self.votacao_encerrada_em != encerrada:
             erros["votacao_encerrada_em"] = "O encerramento da votação não pode ser alterado nem apagado."
-        pesos = tuple(Decimal(str(getattr(self, campo))) for campo in CAMPOS_DE_PESO)
-        if pesos != tuple(antes[campo] for campo in CAMPOS_DE_PESO):
-            erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
+        for campo in CAMPOS_DE_PESO:
+            if Decimal(str(getattr(self, campo))) != antes[campo]:
+                erros[campo] = "Os pesos não mudam depois de aberta a votação (ADR-007, ADR-013)."
         if erros:
             raise ValidationError(erros)
         return antes

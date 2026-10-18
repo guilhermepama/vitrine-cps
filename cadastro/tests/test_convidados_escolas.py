@@ -62,6 +62,16 @@ def test_pesos_novos_travam_depois_de_aberta_a_votacao(campo, valor):
     assert (e.peso_convidados, e.peso_boletim_banca) == (D("0.20"), D("0.70"))
 
 
+def test_trava_dos_pesos_aponta_o_campo_que_mudou():
+    e = fabricas.edicao(peso_banca=D("0.50"), peso_convidados=D("0.20"), peso_publico=D("0.30"), peso_boletim_banca=D("0.70"))
+    Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=timezone.now())
+    e.refresh_from_db()
+    e.peso_boletim_banca = D("0.60")
+    with pytest.raises(ValidationError) as erro:
+        e.full_clean()
+    assert set(erro.value.message_dict) == {"peso_boletim_banca"}
+    assert "ADR-013" in str(erro.value)
+
 
 @pytest.mark.parametrize("campo,valor", [("peso_convidados", "0.10"), ("peso_boletim_banca", "0.60")])
 def test_admin_trava_todos_os_pesos_depois_de_aberta_a_votacao(admin_client, campo, valor):
