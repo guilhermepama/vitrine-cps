@@ -59,8 +59,10 @@ moderação dos projetos antes de irem para a vitrine. É a base que as specs
   ("Ensino Médio"), ao lado de `fatec` e `etec`. Curso "EM — 3º ano do
   Ensino Médio" com **uma turma por escola**: campo novo `Turma.escola`
   (char 80, opcional, só para escola externa), que entra no rótulo
-  ("EM — 3º ano · E.E. Wilquem") e na unicidade da turma. Escolas desta
-  edição: E.E. Wilquem e E.E. Reis Neves.
+  ("EM — 3º ano · E.E. Wilquem") e na unicidade da turma. `escola` só é
+  aceita em curso de unidade `medio`: turma de curso `fatec` ou `etec`
+  com escola preenchida → `ValidationError` no `clean()` (revisão do #81).
+  Escolas desta edição: E.E. Wilquem e E.E. Reis Neves.
 - **Menores de idade:** as regras que hoje valem para a Etec (só o
   primeiro nome do integrante; aviso "Não envie fotos de pessoas") passam
   a valer para `etec` **e** `medio`.
@@ -177,13 +179,14 @@ desproporcional para esta edição (revisão do Renan no #17).
   "Pesquisa"), em ordem. Mínimo 1 para publicar, máximo 10.
 - O nome é **o que aparece na página pública**. Regra provisória
   (ADR-009, até a coordenação da Etec decidir): projeto de curso da
-  **Etec** aceita só o primeiro nome (uma palavra); Fatec aceita nome
-  completo. Validação no `clean()` do model, para valer no admin e no
+  **Etec** (e do Ensino Médio — ADR-013) aceita só o primeiro nome (uma
+  palavra); Fatec aceita nome completo. Validação no `clean()` do model, para valer no admin e no
   formulário da spec 02. **A spec 02 precisa acompanhar** (hoje diz
   "primeiro nome" para todos).
-- **Fotos de pessoas na Etec** (regra provisória, ADR-009): conferência
-  **humana** na moderação — não há detecção automática. Antes de publicar
-  projeto da Etec, o admin confere capa e galeria; com foto de pessoa,
+- **Fotos de pessoas na Etec** (e no Ensino Médio — ADR-013; regra
+  provisória, ADR-009): conferência **humana** na moderação — não há
+  detecção automática. Antes de publicar projeto da Etec ou do Ensino
+  Médio, o admin confere capa e galeria; com foto de pessoa,
   devolve para ajustes com o motivo padrão "Retire as fotos em que
   aparecem pessoas (regra da Etec para menores de idade)".
 
@@ -320,14 +323,18 @@ Métodos: `Edicao.objects.ativa()` (a edição ativa ou `None`),
 (`votacao_aberta_em` preenchido e ≤ agora).
 
 ### `Curso`
-sigla (char 10, único), nome (char 120), unidade (`fatec` | `etec`), ativo (bool).
+sigla (char 10, único), nome (char 120), unidade (`fatec` | `etec` |
+`medio` — "Ensino Médio", ADR-013), ativo (bool).
 
 ### `Turma`
 edicao (FK, `PROTECT`), curso (FK, `PROTECT`), numero_periodo (smallint
 1–12, check), tipo_periodo (`semestre` | `ano` | `modulo`), turno
-(`manha` | `tarde` | `noite` | `integral`, vazio permitido).
-**unique (edicao, curso, numero_periodo, tipo_periodo, turno)**.
-Propriedade `rotulo`.
+(`manha` | `tarde` | `noite` | `integral`, vazio permitido), escola
+(char 80, opcional — ADR-013; só em curso de unidade `medio`, validação
+no `clean()`; em curso `fatec`/`etec` preenchida → `ValidationError`).
+**unique (edicao, curso, numero_periodo, tipo_periodo, turno, escola)**.
+Propriedade `rotulo` (com a escola quando preenchida:
+"EM — 3º ano · E.E. Wilquem").
 
 ### `Projeto`
 | Campo | Tipo | Regra |
@@ -402,6 +409,15 @@ nesta edição):
 - [ ] Rótulo da turma: `DSM — 3º semestre`, `ADM — 2º ano (tarde)`
 - [ ] `edicao_aberta()`: antes do prazo → verdadeiro; exatamente no prazo → verdadeiro; depois → falso
 - [ ] Edição nasce com `banca_conferida_em` vazio
+
+**ADR-013 (convidados, boletim e escolas)**
+- [ ] Edição nova nasce com `peso_convidados = 0,00` e `peso_boletim_banca = 1,00`; `peso_banca + peso_convidados + peso_publico ≠ 1` (ex: 0,50/0,20/0,20) → erro de integridade; `peso_boletim_banca` 1,01 ou −0,01 → erro de integridade
+- [ ] 0,50/0,20/0,30 com boletim 0,70 → aceito; depois de aberta a votação, mudar qualquer um dos quatro pesos → `ValidationError` e o banco mantém os anteriores
+- [ ] Duas turmas iguais na mesma edição que só diferem na `escola` → aceitas; iguais também na escola → erro de integridade
+- [ ] Rótulo da turma com escola: `EM — 3º ano · E.E. Wilquem`; sem escola, rótulo de hoje
+- [ ] `escola` preenchida em turma de curso `fatec` ou `etec` → `ValidationError` no `full_clean()`; em curso `medio` → aceita
+- [ ] Integrante de projeto de curso `medio` com nome de duas palavras → `ValidationError` (mesma regra da Etec); o aviso "Não envie fotos de pessoas" vale para `etec` e `medio` (a tela é da spec 02)
+- [ ] Importação com a coluna "Escola": escola que casa uma turma do curso/período → casa a turma certa; escola preenchida que não casa nenhuma turma → erro "turma inexistente nesta edição"; as duas escolas no mesmo curso/período/turno e linha sem escola → erro "turma ambígua — informe o turno ou a escola"; comparação sem diferenciar maiúsculas e com espaços extras ignorados
 
 **Segurança**
 - [ ] `hash_ra("123.456 789")` = `hash_ra("123-456/789")` = `hash_ra("123456789")`; zeros à esquerda preservados
