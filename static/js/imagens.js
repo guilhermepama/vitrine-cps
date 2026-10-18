@@ -50,13 +50,17 @@
     relogio = setTimeout(function () { caixa.classList.remove("aviso-flutuante--visivel"); }, erro ? 7000 : 4000);
   }
 
-  // Legendas digitadas e ainda não salvas, pela rota de cada uma (menos a do
-  // formulário que acabou de ir: o servidor manda o valor gravado).
-  function legendasMexidas(atual, enviado) {
+  // Legendas digitadas e ainda não salvas, pela rota de cada uma. No formulário
+  // que acabou de ir, a referência é o valor que foi enviado (não o
+  // defaultValue): se a pessoa continuou digitando enquanto a resposta não
+  // chegava, o que ela digitou depois também é "não salvo" e volta para o campo.
+  function legendasMexidas(atual, enviado, valorEnviado) {
     var mexidas = {};
     Array.prototype.forEach.call(atual.querySelectorAll("form.legenda"), function (form) {
       var campo = form.querySelector(".legenda__campo");
-      if (form !== enviado && campo && campo.value !== campo.defaultValue) mexidas[form.getAttribute("action")] = campo.value;
+      if (!campo) return;
+      var referencia = form === enviado ? valorEnviado : campo.defaultValue;
+      if (campo.value !== referencia) mexidas[form.getAttribute("action")] = campo.value;
     });
     return mexidas;
   }
@@ -71,13 +75,15 @@
 
   // Troca a seção de Imagens e o painel lateral pelos da página que voltou.
   // Salvar uma legenda, enviar ou remover imagem não apaga as outras legendas
-  // ainda não salvas (revisão do Renan no #75).
-  function aplicar(html, enviado) {
+  // ainda não salvas, nem o que foi digitado na própria legenda depois do clique
+  // em "Salvar legenda" (revisão do Renan no #75). O valor devolvido fica como
+  // não salvo: defaultValue é o gravado, value é o atual, e o aviso ao sair enxerga.
+  function aplicar(html, enviado, valorEnviado) {
     var doc = new DOMParser().parseFromString(html, "text/html");
     var nova = doc.getElementById("imagens");
     var atual = document.getElementById("imagens");
     if (!nova || !atual) return false; // virou somente leitura ou link inválido
-    var mexidas = legendasMexidas(atual, enviado);
+    var mexidas = legendasMexidas(atual, enviado, valorEnviado);
     var envioNovo = doc.querySelector(".envio");
     var envioAtual = document.querySelector(".envio");
     if (envioNovo && envioAtual) envioAtual.replaceWith(document.adoptNode(envioNovo));
@@ -112,12 +118,16 @@
     }
     ocupado = true;
     if (botao) botao.disabled = true;
+    // O campo da legenda continua editável enquanto a resposta não chega; guarda
+    // o que foi enviado para `aplicar` saber se a pessoa digitou mais depois.
+    var legenda = form.querySelector(".legenda__campo");
+    var valorEnviado = legenda ? legenda.value : null;
     fetch(form.action, { method: "POST", body: new FormData(form), credentials: "same-origin" })
       .then(function (r) { return r.text().then(function (html) { return { r: r, html: html }; }); })
       .then(function (res) {
         ocupado = false;
         revogarPrevia(form);
-        if (!aplicar(res.html, form)) window.location.reload();
+        if (!aplicar(res.html, form, valorEnviado)) window.location.reload();
       }, function () {
         ocupado = false;
         if (botao) botao.disabled = false;

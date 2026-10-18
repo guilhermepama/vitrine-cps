@@ -95,3 +95,19 @@ def test_lista_de_seletores_bate_com_os_scripts():
     ids_no_js = set(re.findall(r'getElementById\("([\w-]+)"\)', imagens + aviso))
     ids_no_contrato = {re.search(r'id="([\w-]+)"', t).group(1) for t, _ in CONTRATO_IMAGENS + CONTRATO_AVISO_AO_SAIR if t.startswith("id=")}
     assert ids_no_js <= ids_no_contrato, ids_no_js - ids_no_contrato
+
+
+def test_legenda_digitada_durante_o_envio_e_comparada_com_o_valor_enviado():
+    """Revisão do Renan (rodada 2 do #75): escrever "Tela", salvar e, com a resposta pendente,
+    seguir até "Tela inicial" não pode perder o "inicial". Sem runner de JS, o teste fixa o
+    mecanismo no texto: `enviar` guarda o valor do campo no clique e `legendasMexidas` compara
+    o formulário enviado com esse valor (não exclui mais o formulário incondicionalmente).
+    """
+    imagens = (settings.BASE_DIR / "static" / "js" / "imagens.js").read_text(encoding="utf-8")
+    assert "form !== enviado" not in imagens
+    assert 'var valorEnviado = legenda ? legenda.value : null;' in imagens
+    assert "aplicar(res.html, form, valorEnviado)" in imagens
+    assert "legendasMexidas(atual, enviado, valorEnviado)" in imagens
+    assert "form === enviado ? valorEnviado : campo.defaultValue" in imagens
+    # o que volta para o campo fica como não salvo (value ≠ defaultValue): nada de mexer no defaultValue
+    assert "defaultValue =" not in imagens
