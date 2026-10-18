@@ -1,6 +1,7 @@
 """Legenda depois do envio (specs/02-vitrine-publica.md, "Imagens, uma por requisição")."""
 
 import pytest
+from django.test import Client
 
 from cadastro.models import ImagemProjeto, Projeto
 from cadastro.tests import fabricas
@@ -93,3 +94,18 @@ def test_paginas_do_grupo_tem_os_cabecalhos_de_protecao(client):
     p, token = aux.projeto_com_link()
     r = client.post(_url(token, _imagem(p)), {"legenda": "x"})
     assert r["Referrer-Policy"] == "same-origin" and r["X-Robots-Tag"] == "noindex"
+
+
+@pytest.mark.django_db
+def test_legenda_sem_token_csrf_da_403():
+    """O fetch do imagens.js manda o `csrfmiddlewaretoken` do próprio formulário; sem ele, 403."""
+    p, token = aux.projeto_com_link()
+    imagem = _imagem(p, "Tela")
+    client = Client(enforce_csrf_checks=True)
+    client.get(f"/grupo/editar/{token}/")
+    url = _url(token, imagem)
+    assert client.post(url, {"legenda": "Sem token"}).status_code == 403
+    imagem.refresh_from_db()
+    assert imagem.legenda == "Tela"
+    csrf = client.cookies["csrftoken"].value
+    assert client.post(url, {"legenda": "Com token", "csrfmiddlewaretoken": csrf}, HTTP_ORIGIN="http://testserver").status_code == 302
