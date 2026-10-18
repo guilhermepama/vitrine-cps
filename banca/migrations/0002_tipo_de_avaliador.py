@@ -7,6 +7,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("banca", "0001_initial"),
+        # A conferência lê Edicao.peso_convidados e peso_boletim_banca (ADR-013),
+        # criados na cadastro/0003: as colunas precisam existir antes do tipo do jurado.
         ("cadastro", "0003_convidados_escolas_e_boletim"),
     ]
 
