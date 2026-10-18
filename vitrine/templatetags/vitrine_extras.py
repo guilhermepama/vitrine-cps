@@ -9,6 +9,12 @@ register = template.Library()
 
 @register.filter
 def dominio(url):
-    """"https://www.github.com/x/y" → "github.com", para rotular o link sem mostrar a URL inteira."""
-    host = urlsplit(url or "").hostname or ""
+    """"https://www.github.com/x/y" → "github.com", para rotular o link sem mostrar a URL inteira.
+
+    URL malformada (ex. "https://[abc") devolve "" em vez de estourar a página.
+    """
+    try:
+        host = urlsplit(url or "").hostname or ""
+    except ValueError:
+        return ""
     return host[4:] if host.startswith("www.") else host

@@ -26,7 +26,9 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 - **`templates/base.html`**: topo com a marca (logo SVG, link para `/`),
   bloco `menu` vazio por padrão e rodapé institucional. Os blocos existentes
   (`titulo`, `meta`, `conteudo`, `topo`, `rodape`, `classe_main`) não mudam.
-  Bloco novo `scripts` no fim do `body`.
+  Blocos novos: `scripts` no fim do `body` e `rodape_edicao` na última
+  linha do rodapé (vazio por padrão; a home preenche com "Edição {nome} ·
+  dd.mm" quando há edição ativa).
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
   fachada, ficha do evento, faixa dos cursos (DSM, GTUR), 01 A Mostra, 02 Projetos,
   03 Quem faz e a chamada da Fatec com o convite ao vestibular (links para
@@ -38,11 +40,11 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   escondido.
 - **Menu do celular** (hambúrguer) em `static/js/menu.js`.
 - **Rolagem suave** nas âncoras da página (CSS `scroll-behavior`), desligada para quem pede menos movimento no sistema (`prefers-reduced-motion`); o destino para abaixo do topo fixo.
-- **Página do projeto** (`/projeto/<slug>/`) no layout do protótipo: capa em prancha, ficha técnica preta, 01 Sobre (com os links), 02 Galeria, 03 Equipe, convite vermelho e registro preto em edição passada. Menu: "Ver todos os projetos" e "Área do grupo". **Sem a seção "Impacto"** do protótipo nesta edição (não há campos no model; decisão do coordenador, 16/10). O botão do convite diz "Como votar" (no lugar do "Quero votar" da spec 02) e continua indo só para `/como-votar/`.
-- **Cédula do visitante** (`/votar`, spec 03) no visual novo, **com a regra atual** (1 toque = 1 voto): estilos saem do `<style>` do template para o `base.css`; o script continua no template (o teste da spec 03 o lê do HTML), com uma linha a mais em `marcar()` para o CSS separar "enviando" de "votado". O `votar.html` do protótipo (notas 1–5) entra junto com o backend novo (tarefa do Renan).
+- **Página do projeto** (`/projeto/<slug>/`) no layout do protótipo: capa em prancha, ficha técnica preta, 01 Sobre (com os links), 02 Galeria, 03 Equipe, convite vermelho e registro preto em edição passada. Menu: "Ver todos os projetos" e "Área do grupo". **Sem a seção "Impacto"** do protótipo nesta edição (não há campos no model; decisão do coordenador, 16/10 — fica para edição futura, sem ADR nova). Os links externos são rotulados pelo domínio, via filtro `dominio` em `vitrine/templatetags/vitrine_extras.py` (tira o `www.`; URL vazia ou malformada vira ""). O botão do convite diz "Como votar" (no lugar do "Quero votar" da spec 02) e continua indo só para `/como-votar/`.
+- **Cédula do visitante** (`/votar`, spec 03) no visual novo, **com a regra atual** (1 toque = 1 voto): estilos saem do `<style>` do template para o `base.css`; o script continua no template (o teste da spec 03 o lê do HTML), com uma linha a mais em `marcar()` para o CSS separar "enviando" de "votado". Cada linha da cédula mostra o resumo do projeto abaixo do título, quando ele existe. O `votar.html` do protótipo (notas 1–5) entra junto com o backend novo (tarefa do Renan).
 - **Estação de credenciamento** (`/estacao/<id>`, spec 03) e **página "QR expirado"** no visual novo: estilos saem do `<style>` dos templates para o `base.css`; o script da estação fica no template sem alteração (o teste o lê do HTML). A estação cabe na janela sem rolagem (notebook, TV ou tablet; QR à direita em paisagem, abaixo do título em retrato), sem link para fora. A página "QR expirado" continua com corpo constante e texto genérico (serve a todas as recusas).
 - **Cadastro do visitante** (`/visitantes`, spec 03) e **tela "Entrando…"** (`/entrar`) no visual novo: estilos saem do `<style>` dos templates para o `base.css`. O cadastro usa a grade da Área do grupo (texto curto à esquerda, formulário na célula clara; no celular, o formulário logo abaixo do título), topo sem link e a mesma mensagem genérica de erro, sem marcar campo (G12); o texto do consentimento não muda. No `/entrar`, o script, o `json_script` e o `noscript` ficam sem alteração.
-- **Telas da área do grupo** (`/grupo/`, link único, 429 e link inválido) no layout novo, sem mudar comportamento nem os textos que a spec 02 exige; o script do "Copiar" sai do template para `static/js/copiar-link.js`.
+- **Telas da área do grupo** (`/grupo/`, link único, 429 e link inválido) no layout novo, sem mudar comportamento nem os textos que a spec 02 exige; o script do "Copiar" sai do template para `static/js/copiar-link.js`. Como essas telas são curtas, o `base.css` ganha a regra global `@media screen { body { display: flex; flex-direction: column; min-height: 100vh } body > main { flex: 1 } }`, que leva o rodapé ao fim da janela em qualquer página (só na tela; a impressão pagina sozinha).
 - O 404 da página de projeto passa a ter "Conhecer a Mostra" apontando
   para `/` (antes ia para `/como-votar/` porque não havia página inicial).
 
@@ -73,7 +75,9 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   vinte ("Oito projetos, cinco turmas"; "Um projeto, uma turma"); acima de
   vinte, em algarismos.
 - **Chips do filtro**: "Todos" + um chip por curso que tem projeto
-  publicado, na ordem das turmas, pela `Curso.sigla`.
+  publicado, na ordem das turmas, pela `Curso.sigla`. O filtro só aparece
+  quando há projeto publicado em dois ou mais cursos; com um curso só, não
+  há o que filtrar e o bloco nem é renderizado.
 - **Datas e pesos** vêm da `Edicao`: dia e mês no bloco grande, dia da
   semana por extenso na ficha, "Edição {nome}" no hero, pesos da banca e do
   público na nota de premiação. Horário (19h) e endereço são texto fixo,
