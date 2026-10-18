@@ -408,3 +408,58 @@ Formato:
   coordenador perto do evento; o prazo menor de 18/10 a 29/10 e a
   exceção cobrem a urgência. Em aberto: um check no `convencoes-pr` que
   exija a aprovação ou o marcador.
+
+## ADR-012 — Avaliação do público por notas e média bayesiana
+- Status: aceita
+- Data: 2026-10-16
+- Contexto: até aqui o público dava 1 toque = 1 voto e a parte do público
+  na nota final (30%, ADR-007) era a contagem de votos normalizada por
+  turma. A coordenação decidiu que o público **avalia** os projetos nos
+  mesmos três critérios do documento "Critérios de avaliação dos projetos
+  de extensão" — impacto social, inovação e impacto ambiental —, com notas
+  de 0 a 5. Faltava dizer como as notas viram o número do público.
+- Decisão:
+  - Cada avaliação traz as três notas, inteiras de 0 a 5, todas
+    obrigatórias. **0 é nota** ("não atende ao critério"); quem não quer
+    avaliar um projeto não envia avaliação. Uma avaliação por token e
+    projeto, sem edição depois de enviada (a unicidade do ADR-001 continua).
+  - Nota da avaliação = média das três notas.
+  - Valor do público = **média bayesiana**
+    `(C·m + soma das notas) / (C + nº de avaliações)`, com `m` = média de
+    todas as avaliações **da turma** e **C = 10**, fixo nesta edição
+    (constante em `resultados/calculo.py`). Depois, a normalização min-max
+    por turma e os pesos do ADR-007 seguem iguais. Desempate: final →
+    banca bruta → mais avaliações.
+- Consequências:
+  - **Descartada a soma das notas** (média × nº de avaliações): uma nota
+    baixa aumentava a pontuação — avaliar mal ajudava mais que não avaliar
+    — e 40 notas 2 venciam 15 notas 5; na prática continuava sendo
+    contagem de público.
+  - **Descartada a média simples**: 1 avaliação 5 vencia 60 avaliações de
+    média 4,8.
+  - A média bayesiana deixa de premiar quem atraiu mais gente: os 30% do
+    público medem como o projeto foi avaliado, não quantos o visitaram.
+  - **Limites conhecidos:** (1) quando a turma inteira já tem média alta
+    (~4,8), um projeto com muitas avaliações nessa média fica *abaixo* da
+    média da turma, e uma avaliação única 5 passa um pouco à frente
+    (4,82 × 4,80 no teste); com a média da turma menor, o de muitas
+    avaliações vence. (2) **Um grupo de amigos vence por pouco**: com
+    C = 10 e média da turma 4,0, 8 avaliações 5 ficam com 4,44 e 40
+    avaliações honestas de média 4,5 ficam com 4,40 — os amigos passam à
+    frente (teste com o ranking completo). Com C maior a ordem inverte,
+    mas cada projeto novo demora mais a sair da média; ficou C = 10. O
+    token físico (ADR-001) limita, não zera. (3) **Uma nota abaixo da média
+    da turma nem sempre baixa o valor.** Com `m` fixo, uma avaliação abaixo
+    do *valor atual* do projeto sempre o baixa; mas `m` inclui a própria
+    avaliação, e isso soma `C·(x − m)/(N + 1)` **ao numerador** da média
+    bayesiana (N = avaliações da turma); o efeito no valor é esse termo
+    dividido por `(C + n + 1)` (n = avaliações do projeto).
+    Num projeto bem abaixo da média, uma nota baixa que ainda está acima do
+    valor dele o sobe: A com 10 avaliações 0 e B com 10 avaliações 5
+    (m = 2,5) dão A = 1,25; uma avaliação 2 em A leva o valor a ≈ 1,27.
+    Com dezenas de avaliações na turma, o termo de `m` some.
+  - O relatório mostra nº de avaliações, média simples, valor do público,
+    `p` e final, para que qualquer contestação seja respondida com os
+    números.
+  - `C` vira campo da `Edicao` só se a coordenação quiser ajustar por
+    edição — hoje não.
