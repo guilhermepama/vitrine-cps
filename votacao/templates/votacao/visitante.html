@@ -32,11 +32,12 @@
           <form method="post" action="{% url 'votacao:visitantes' %}" class="acesso__form">
             {% csrf_token %}
             <label class="rotulo" for="nome">Nome</label>
-            <input class="campo" id="nome" type="text" name="nome" required maxlength="120" autocomplete="name" value="{{ form.nome.value|default_if_none:'' }}">
+            <input class="campo" id="nome" type="text" name="nome" required minlength="2" maxlength="120" autocomplete="name" value="{{ form.nome.value|default_if_none:'' }}">
             <label class="rotulo" for="email">E-mail</label>
             <input class="campo" id="email" type="email" name="email" required maxlength="254" autocomplete="email" value="{{ form.email.value|default_if_none:'' }}">
             <label class="rotulo" for="telefone">Telefone <span class="visitante__opcional">(opcional)</span></label>
-            <input class="campo" id="telefone" type="tel" name="telefone" maxlength="20" autocomplete="tel" placeholder="(17) 99999-9999" value="{{ form.telefone.value|default_if_none:'' }}">
+            {# Sem pattern: a regra do servidor conta dígitos depois de limpar a máscara (VisitanteForm) e não cabe num regex de HTML. #}
+            <input class="campo" id="telefone" type="tel" name="telefone" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="(17) 99999-9999" value="{{ form.telefone.value|default_if_none:'' }}">
             {# Texto provisório da spec 03; o final vem da coordenação até 20/10 (C11). #}
             <label class="visitante__aceite">
               <input type="checkbox" name="consentimento" required>
