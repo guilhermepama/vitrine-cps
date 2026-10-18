@@ -42,7 +42,8 @@ visitantes — tudo em rotas só de admin.
 - **Cálculo** em função pura, testável sem HTTP (ex:
   `resultados/calculo.py`), recebendo votos e nota de banca por projeto e
   devolvendo o ranking. As views só buscam os dados e chamam essa função.
-- `resultados/urls.py` com `app_name = "resultados"` e as três rotas.
+- `resultados/urls.py` com `app_name = "resultados"` e as quatro rotas
+  (ranking, operacional, visitantes.csv e boletim.csv — ADR-013).
 - Permissões próprias do app (ver "Dados") e testes do caminho crítico.
 
 ## Fora de escopo
@@ -317,6 +318,7 @@ permissões, nenhuma tabela.
 | GET | `/resultados/<int:edicao_id>/` | admin + `ver_resultados` | HTML: participação + ranking por turma (ou aviso) | 302 login, 403, 404 |
 | GET | `/resultados/<int:edicao_id>/operacional/` | admin + `ver_resultados` | HTML: emissões por estação | 302 login, 403, 404 |
 | GET | `/resultados/<int:edicao_id>/visitantes.csv` | admin + `exportar_visitantes` | CSV (anexo) | 302 login, 403, 404 |
+| GET | `/resultados/<int:edicao_id>/boletim.csv` | admin + `ver_resultados` | CSV (anexo): nota do boletim por projeto (ADR-013) | 302 login, 403, 404 |
 
 - Rotas declaradas em `resultados/urls.py` (`app_name = "resultados"`);
   o prefixo `resultados/` vem do `include` no `urls.py` raiz, adicionado
@@ -324,8 +326,8 @@ permissões, nenhuma tabela.
 - `<int:edicao_id>` na rota + `get_object_or_404` (guardrail 12):
   segmento não inteiro → rota inexistente (404); edição inexistente → 404.
 - Só GET; nenhuma rota altera estado. POST/PUT/DELETE → 405.
-- Link para as três telas a partir do admin do Django (página da edição),
-  se o coordenador aceitar — senão, acesso pela URL.
+- Link para as quatro telas a partir do admin do Django (página da
+  edição), se o coordenador aceitar — senão, acesso pela URL.
 
 ## Guardrails aplicáveis
 6, 9, 10, 11, 12, 13, 15, 16, 17.
@@ -350,7 +352,7 @@ permissões, nenhuma tabela.
 - [ ] Usuário anônimo nas 3 rotas → redirect para o login
 - [ ] Usuário autenticado **não admin** (sem `is_staff`) **com** `ver_resultados` e `exportar_visitantes` → 403 nas 3 rotas, inclusive no CSV
 - [ ] Admin sem permissão (ex: grupo `digitacao-banca`) nas 3 rotas → 403
-- [ ] Admin com `ver_resultados` mas sem `exportar_visitantes` → 403 no CSV
+- [ ] Admin com `ver_resultados` mas sem `exportar_visitantes` → 403 no CSV de visitantes; o `boletim.csv` responde 200 com `ver_resultados` e 302/403/404 como as outras rotas (ADR-013)
 - [ ] `edicao_id` não inteiro (`abc`, `-1`, `1.5`) → 404 nas 3 rotas
 - [ ] `edicao_id` inteiro sem edição (`0`, id inexistente) → 404; POST em qualquer rota → 405
 
@@ -375,7 +377,15 @@ permissões, nenhuma tabela.
 - [ ] Pesos ausentes ou que não somam 1 → erro "Pesos da edição não configurados"
 
 **Ranking geral, por curso e boletim (ADR-013)**
+- [ ] A página do ranking mostra o recorte **geral** (todos os projetos publicados da edição) e, abaixo, um recorte **por curso**; as turmas de um curso aparecem juntas (nenhuma tabela por turma)
+- [ ] Teste do cálculo: `m` da média bayesiana é do recorte — no geral, a média de todas as avaliações da edição; por curso, só as do curso (o mesmo projeto tem valores do público diferentes nos dois recortes quando as médias diferem)
+- [ ] Teste do cálculo: com pesos 0,50/0,20/0,30, `final = 0,50·b + 0,20·c + 0,30·p`, cada parte normalizada no recorte; projeto com `b = 1, c = 0, p = 0` (0,50) fica acima de `b = 0, c = 1, p = 0` (0,20)
+- [ ] Teste do boletim: banca 8,0 e convidados 6,0 com `peso_boletim_banca = 0,70` → 7,4; sem normalização (o boletim de um projeto não muda quando outro projeto do curso muda de nota) e sem o público (as avaliações do público não alteram o boletim)
+- [ ] `boletim.csv`: uma linha por projeto publicado com projeto, turma, banca, convidados e nota do boletim, ordenado por curso, turma e título; projeto pendente sai com "pendente" na nota
+- [ ] Pendência por curso: projeto do curso A sem nota de banca → só o curso A fica pendente no recorte por curso; o curso B sai oficial; o recorte **geral** fica pendente inteiro, com a lista dos projetos que faltam
+- [ ] Convidados exigidos só com peso: `peso_convidados = 0` e projeto sem nota de convidados → ranking oficial (nada pendente); `peso_convidados > 0` e o mesmo projeto → pendente. `peso_boletim_banca = 1` e sem nota de convidados → boletim calculado (= banca); `peso_boletim_banca < 1` → boletim "pendente"
 - [ ] Teste do desempate com `peso_convidados = 0`: A e B empatados em final e em banca bruta, convidados 7 (A) × 9 (B), A com mais avaliações do público → A na frente (a nota de convidados não entra no desempate). Com `peso_convidados > 0` e os mesmos dados → B na frente
+- [ ] Pesos com três partes que não somam 1 (ex: 0,50/0,20/0,20) ou `peso_boletim_banca` fora de 0–1 → erro "Pesos da edição não configurados"; 0,70/0,00/0,30 (padrões das colunas novas) calcula como antes
 
 **Participação e operacional**
 - [ ] Zero tokens votantes → média de votos por token mostra "—", sem erro
