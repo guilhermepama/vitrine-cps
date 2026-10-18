@@ -110,8 +110,8 @@ nota de banca de cada projeto.
   que a moderação terminar. No dia 29, depois de abrir a votação,
   conferir na página de conferência se há projeto publicado fora das
   fichas e, se houver, reimprimir a ficha daquele jurado. Projeto fora da
-  ficha fica sem avaliação e trava o resultado oficial da turma
-  (decisão 4 do PR #14 da spec 04).
+  ficha fica sem avaliação e trava o resultado oficial do curso (ADR-013;
+  decisão 4 do PR #14 da spec 04).
 - Rota da edição inteira: as fichas de todos os jurados, uma por página
   (`page-break`), para imprimir de uma vez.
 - Jurado sem projeto (sem turma, ou turmas sem publicados) mostra "Nenhum
@@ -248,13 +248,20 @@ nota de banca de cada projeto.
 - **Digitação**: o inline tem uma nota por critério **do tipo do jurado**;
   o `clean()` do formset exige o conjunto igual ao dos critérios daquele
   tipo na edição. Recusas novas: nota de critério de outro tipo; edição
-  sem critério do tipo do jurado ("A edição não tem critérios de
-  <tipo> cadastrados.").
+  sem critério do tipo do jurado — mensagem "A edição não tem critérios
+  cadastrados." para a banca e "A edição não tem critérios de avaliador
+  convidado cadastrados." para o convidado (literais de
+  `banca/models.py`).
 - **Conferência**: cobertura por jurado e por turma **separada por tipo**;
-  "projetos sem nenhuma avaliação" vira "sem avaliação de banca" e "sem
-  avaliação de convidado". A amostra a conferir sorteia entre todas as
-  avaliações (os dois tipos), com a mesma regra. Concluir continua único
-  para a edição (`banca_conferida_em`).
+  "projetos sem nenhuma avaliação" vira "Sem nenhuma avaliação da banca
+  (resultado pendente)" e "Sem nenhuma avaliação de avaliador convidado
+  (resultado pendente)". A coluna e a seção de convidados **aparecem
+  quando** `Edicao.peso_convidados > 0` **ou** `peso_boletim_banca < 1`
+  **ou** existe jurado ou critério do tipo `convidado` na edição; fora
+  disso a página é a de hoje (só banca, com o texto "Sem nenhuma
+  avaliação (banca pendente):"). A amostra a conferir sorteia
+  entre todas as avaliações (os dois tipos), com a mesma regra. Concluir
+  continua único para a edição (`banca_conferida_em`).
 - **Mudar o tipo** de jurado ou critério com avaliação/nota → erro no
   formulário (as notas ficariam no tipo errado).
 - **Jurado por curso (ADR-013):** a normalização passa a ser por curso;
