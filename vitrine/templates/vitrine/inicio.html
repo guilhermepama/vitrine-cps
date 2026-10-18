@@ -14,6 +14,7 @@ nenhum caminho de voto (G8).
   <meta property="og:description" content="Conheça os projetos dos alunos da Fatec Olímpia e venha ao evento.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
+  {# menu.js entra no bloco meta, sem defer: marca <html class="js"> antes da primeira pintura, para o menu não piscar. #}
   <script src="{% static 'js/menu.js' %}"></script>
 {% endblock %}
 
@@ -47,7 +48,7 @@ nenhum caminho de voto (G8).
 
 {% if edicao %}
 <div class="faixa">
-  <div class="container ficha" aria-label="Dados do evento">
+  <div class="container ficha" role="group" aria-label="Dados do evento">
     <div class="ficha__data"><p class="display">{{ edicao.data_evento|date:"d" }}<span class="ponto">.</span>{{ edicao.data_evento|date:"m" }}</p></div>
     {% if evento_passou %}
     <div class="ficha__linha"><span class="mono">Realizada em</span><span class="ficha__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F \d\e Y"|lower }}</span></div>
