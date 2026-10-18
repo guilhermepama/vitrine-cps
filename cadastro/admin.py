@@ -99,7 +99,7 @@ class CursoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
 @admin.register(Turma)
 class TurmaAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     list_display = ["rotulo", "edicao"]
-    list_filter = ["edicao", "curso"]
+    list_filter = ["edicao", "curso", "escola"]
     list_select_related = ["edicao", "curso"]
 
     @admin.display(description="turma")

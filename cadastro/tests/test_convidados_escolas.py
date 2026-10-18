@@ -62,6 +62,16 @@ def test_pesos_novos_travam_depois_de_aberta_a_votacao(campo, valor):
     assert (e.peso_convidados, e.peso_boletim_banca) == (D("0.20"), D("0.70"))
 
 
+def test_trava_dos_pesos_aponta_o_campo_que_mudou():
+    e = fabricas.edicao(peso_banca=D("0.50"), peso_convidados=D("0.20"), peso_publico=D("0.30"), peso_boletim_banca=D("0.70"))
+    Edicao.objects.filter(pk=e.pk).update(votacao_aberta_em=timezone.now())
+    e.refresh_from_db()
+    e.peso_boletim_banca = D("0.60")
+    with pytest.raises(ValidationError) as erro:
+        e.full_clean()
+    assert set(erro.value.message_dict) == {"peso_boletim_banca"}
+    assert "ADR-013" in str(erro.value)
+
 
 @pytest.mark.parametrize("campo,valor", [("peso_convidados", "0.10"), ("peso_boletim_banca", "0.60")])
 def test_admin_trava_todos_os_pesos_depois_de_aberta_a_votacao(admin_client, campo, valor):
@@ -113,6 +123,20 @@ def test_turma_sem_escola_continua_com_o_rotulo_de_antes():
     assert t.escola == "" and t.rotulo == "DSM — 3º semestre"
 
 
+@pytest.mark.parametrize("sigla,unidade", [("DSM", Curso.Unidade.FATEC), ("ADM", Curso.Unidade.ETEC)])
+def test_escola_so_em_curso_do_ensino_medio(sigla, unidade):
+    """Revisão do #81: escola preenchida em turma da Fatec ou da Etec é recusada no clean()."""
+    e = fabricas.edicao()
+    t = Turma(edicao=e, curso=fabricas.curso(sigla, unidade), numero_periodo=1, tipo_periodo=Turma.TipoPeriodo.ANO, escola="E.E. Wilquem")
+    with pytest.raises(ValidationError) as erro:
+        t.full_clean()
+    assert "escola" in erro.value.message_dict
+    t.escola = ""
+    t.full_clean()
+    em = fabricas.curso("EM", Curso.Unidade.MEDIO)
+    Turma(edicao=e, curso=em, numero_periodo=3, tipo_periodo=Turma.TipoPeriodo.ANO, escola="E.E. Wilquem").full_clean()
+
+
 def test_ensino_medio_so_aceita_o_primeiro_nome():
     e = fabricas.edicao()
     _, wil, _ = _turmas_das_escolas(e)
@@ -155,3 +179,13 @@ def test_importacao_separa_as_escolas_pela_coluna_escola(tmp_path):
     _, falhou = _rodar(e, _csv(tmp_path, [linha + ["e.e. reis neves"]], CABECALHO + ["Escola"], "com.csv"))
     assert falhou is None
     assert Projeto.objects.get().turma == rn
+
+
+def test_importacao_com_escola_que_nao_casa_nenhuma_turma_e_turma_inexistente(tmp_path):
+    e = fabricas.edicao()
+    _turmas_das_escolas(e)
+    linha = ["EM — 3º ano do Ensino Médio", "3º ano", "Ano", "Horta na Escola", "Ana", "1234567890123", "E.E. Outra"]
+    saida, falhou = _rodar(e, _csv(tmp_path, [linha], CABECALHO + ["Escola"], "outra.csv"))
+    assert falhou and "turma inexistente nesta edição" in saida
+    assert "turma ambígua" not in saida
+    assert not Projeto.objects.exists()

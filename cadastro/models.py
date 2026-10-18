@@ -117,9 +117,9 @@ class Edicao(models.Model):
         encerrada = antes["votacao_encerrada_em"]
         if encerrada is not None and self.votacao_encerrada_em != encerrada:
             erros["votacao_encerrada_em"] = "O encerramento da votação não pode ser alterado nem apagado."
-        pesos = tuple(Decimal(str(getattr(self, campo))) for campo in CAMPOS_DE_PESO)
-        if pesos != tuple(antes[campo] for campo in CAMPOS_DE_PESO):
-            erros["peso_banca"] = "Os pesos não mudam depois de aberta a votação (ADR-007)."
+        for campo in CAMPOS_DE_PESO:
+            if Decimal(str(getattr(self, campo))) != antes[campo]:
+                erros[campo] = "Os pesos não mudam depois de aberta a votação (ADR-007, ADR-013)."
         if erros:
             raise ValidationError(erros)
         return antes
@@ -187,11 +187,17 @@ class Turma(models.Model):
 
     def clean(self):
         super().clean()
+        self._verificar_escola()
         self._verificar_travas()
 
     def save(self, *args, **kwargs):
         self._verificar_travas()
         super().save(*args, **kwargs)
+
+    def _verificar_escola(self):
+        """`escola` é só das turmas do Ensino Médio (ADR-013): Fatec e Etec têm uma turma por período."""
+        if self.escola and self.curso_id and self.curso.unidade != Curso.Unidade.MEDIO:
+            raise ValidationError({"escola": "Escola só se aplica a turma de curso do Ensino Médio (ADR-013)."})
 
     def _verificar_travas(self):
         """Turma com projeto não muda de edição nem de curso: os votos iriam junto."""
