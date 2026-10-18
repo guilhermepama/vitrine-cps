@@ -13,7 +13,7 @@ from banca.sinais import GRUPO_DIGITACAO
 from banca.models import Avaliacao, Criterio, Jurado, Nota, Tipo
 from banca.servicos import nota_banca_por_projeto
 from banca.tests import fabricas
-from cadastro.models import Projeto
+from cadastro.models import Edicao, Projeto
 from cadastro.tests import fabricas as cadastro
 from votacao.servicos import abrir_votacao, encerrar_votacao
 
@@ -302,3 +302,15 @@ def test_edicao_so_com_banca_nao_mostra_blocos_de_convidado(conferente):
     # Página exatamente como antes da ADR-013: o texto da pendência não muda.
     assert "<p>Sem nenhuma avaliação (banca pendente):</p>" in html
     assert "A turma fica com banca pendente no resultado." in html
+
+
+def test_peso_do_boletim_abaixo_de_1_mostra_os_blocos_de_convidado(conferente):
+    """Spec 06: convidados aparecem com peso no ranking OU no boletim OU jurado/critério convidado."""
+    edicao, turma, projetos = fabricas.cenario()
+    fabricas.jurado(edicao, turma, "Ana")
+    assert edicao.peso_convidados == 0
+    # Votação já aberta: os pesos travam no save(); o teste ajusta direto no banco.
+    Edicao.objects.filter(pk=edicao.pk).update(peso_boletim_banca=D("0.70"))
+    html = _conferencia(conferente, edicao)
+    assert "<h3>Avaliadores convidados</h3>" in html and 'id="amostra-convidado"' in html
+    assert "<p>Sem nenhuma avaliação de avaliador convidado (resultado pendente):</p>" in html

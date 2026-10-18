@@ -100,9 +100,11 @@ def conferencia(request, id, admin_site=admin.site):
 
 
 def _tipos_da_edicao(edicao, jurados, criterios):
-    """Banca sempre; convidados quando a edição os usa (peso, jurado ou critério — ADR-013)."""
+    """Banca sempre; convidados quando a edição os usa: peso no ranking, peso no
+    boletim (`peso_boletim_banca < 1`), jurado ou critério convidado (ADR-013, spec 06)."""
     usa_convidados = (
         edicao.peso_convidados > 0
+        or edicao.peso_boletim_banca < 1
         or any(j.tipo == Tipo.CONVIDADO for j in jurados)
         or any(c.tipo == Tipo.CONVIDADO for c in criterios)
     )
