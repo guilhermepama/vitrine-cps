@@ -183,7 +183,7 @@ def _conferida(edicao_id):
 class EscolherJuradoForm(forms.ModelForm):
     """Passo 1: só o jurado. Nunca grava: o add_view redireciona para o passo 2."""
 
-    jurado = forms.ModelChoiceField(queryset=_jurados_digitaveis(), label="Jurado")
+    jurado = forms.ModelChoiceField(queryset=_jurados_digitaveis(), label="Avaliador")
 
     class Meta:
         model = Avaliacao
@@ -204,7 +204,7 @@ def _form_da_ficha(escolhido):
 
     class AvaliacaoForm(forms.ModelForm):
         jurado = forms.ModelChoiceField(
-            queryset=Jurado.objects.filter(pk=escolhido.pk), initial=escolhido.pk, disabled=True, label="Jurado"
+            queryset=Jurado.objects.filter(pk=escolhido.pk), initial=escolhido.pk, disabled=True, label="Avaliador"
         )
         projeto = ProjetoDaFicha(queryset=projetos.order_by("turma", "titulo"), label="Projeto")
 
