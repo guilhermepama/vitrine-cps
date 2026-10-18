@@ -4,6 +4,7 @@ import re
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.contrib.staticfiles import finders
 from django.contrib.auth.models import Group, Permission
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
@@ -177,6 +178,20 @@ def test_sem_dados_pessoais_nem_links(impressor, cenario):
         assert proibido not in html
     # O único href é o CSS da identidade (base.html): nenhum link sai no papel.
     assert re.findall(r'href="([^"]*)"', html) == ["/static/css/base.css"]
+
+
+def test_css_da_home_nao_atinge_a_ficha_da_banca(impressor, cenario):
+    """A ficha herda o base.css; a "ficha do evento" da home usa outra classe (revisão do #73).
+
+    Sem isso, a grade de 5 colunas da home espremia a ficha impressa em janelas largas.
+    """
+    _, jurado, _ = cenario
+    html = impressor.get(_ficha(jurado)).content.decode()
+    assert '<section class="ficha">' in html and "ficha-evento" not in html
+    with open(finders.find("css/base.css"), encoding="utf-8") as arquivo:
+        css = arquivo.read()
+    # Nenhum seletor `.ficha` solto (sem sufixo) no CSS global: só `.ficha-evento*`.
+    assert not re.findall(r"\.ficha(?![\w-])", css), "base.css não pode estilizar .ficha (classe da ficha da banca)"
 
 
 def test_aviso_de_lista_provisoria_so_antes_de_abrir(impressor, cenario):

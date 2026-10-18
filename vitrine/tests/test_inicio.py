@@ -237,3 +237,15 @@ def test_css_sem_url_do_google():
     with open(finders.find("css/base.css"), encoding="utf-8") as arquivo:
         css = arquivo.read()
     assert "googleapis" not in css and "gstatic" not in css
+
+
+@pytest.mark.django_db
+def test_ficha_do_evento_nao_usa_a_classe_da_ficha_da_banca(client, edicao):
+    """`.ficha` é da ficha impressa da banca (banca/ficha.html, herda base.css): a home usa `.ficha-evento`."""
+    _publicado(_turma(edicao, "DSM", 3), "Fila Zero")
+    html = _html(client)
+    assert 'class="container ficha-evento" role="group" aria-label="Dados do evento"' in html
+    assert not re.search(r'class="[^"]*\bficha(?![\w-])', html)
+    with open(finders.find("css/base.css"), encoding="utf-8") as arquivo:
+        css = arquivo.read()
+    assert ".ficha-evento {" in css and not re.findall(r"\.ficha(?![\w-])", css)
