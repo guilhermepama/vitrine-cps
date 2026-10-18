@@ -96,6 +96,8 @@ a { color: inherit; }
   outline-color: var(--cor-acento-texto);
 }
 .chamada .botao--branco:focus-visible:not(:hover) { outline-color: var(--cor-acento); }
+/* O vazado da chamada fica branco ao passar o mouse: o foco volta ao vermelho para não sumir. */
+.chamada .botao--vazado:focus-visible:hover { outline-color: var(--cor-acento); }
 
 /* ---------- TIPOS ---------- */
 .display {
