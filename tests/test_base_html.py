@@ -101,3 +101,37 @@ def test_imagem_e_texto_longo_cabem_em_360px():
     img = re.search(r"(?m)^img\s*\{([^}]*)\}", css).group(1)
     assert "max-width: 100%" in img and "height: auto" in img
     assert "overflow-wrap: break-word" in re.search(r"(?m)^body\s*\{([^}]*)\}", css).group(1)
+
+
+def _regras_css(css):
+    """Pares (seletor, declarações) de cada regra, inclusive dentro de @media."""
+    sem_comentarios = re.sub(r"/\*.*?\*/", "", css, flags=re.S)
+    return [(sel.strip(), decl) for sel, decl in re.findall(r"([^{}]+)\{([^{}]*)\}", sem_comentarios)]
+
+
+def test_foco_de_teclado_segue_a_cor_da_superficie():
+    """Revisão do #73: o contorno de foco usa --cor-foco, e toda superfície vermelha a redefine.
+
+    Assim qualquer componente novo em fundo vermelho (ex.: .convite, botões da cédula) só
+    precisa declarar `--cor-foco: var(--cor-acento-texto)` — sem lista de exceções no seletor global.
+    """
+    regras = _regras_css(_css_base())
+    raiz = next(decl for sel, decl in regras if sel == ":root")  # o primeiro :root (o segundo só muda --gutter)
+    assert "--cor-foco: var(--cor-acento)" in raiz
+    foco = next(decl for sel, decl in regras if sel == ":focus-visible")
+    assert "outline: 3px solid var(--cor-foco)" in foco and "--cor-acento" not in foco
+    # Nenhuma exceção por seletor: o foco sobre vermelho é resolvido pela variável.
+    assert not [sel for sel, _ in regras if ":focus-visible" in sel and sel != ":focus-visible"]
+
+    vermelhas, brancas = [], []
+    for seletor, declaracoes in regras:
+        if "::" in seletor:  # pseudoelemento decorativo não recebe foco (ex.: .marca::before)
+            continue
+        if re.search(r"background(-color)?: var\(--cor-acento\)", declaracoes):
+            vermelhas.append(seletor)
+            assert "--cor-foco: var(--cor-acento-texto)" in declaracoes, seletor
+        if re.search(r"background(-color)?: var\(--cor-acento-texto\)", declaracoes):
+            brancas.append(seletor)  # branco dentro do vermelho: o foco volta ao vermelho
+            assert "--cor-foco: var(--cor-acento)" in declaracoes, seletor
+    assert {".marca", ".botao--vermelho", ".chip--ativo", ".chamada", ".faixa--vermelha"} <= set(vermelhas)
+    assert ".chamada .botao--vazado:hover" in brancas

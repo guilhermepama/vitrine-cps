@@ -32,6 +32,7 @@
   --cor-borda-forte: #121316;
   --cor-acento: #B20000;          /* vermelho CPS: marca, ação, faixas */
   --cor-acento-texto: #FFFFFF;
+  --cor-foco: var(--cor-acento);  /* cor do contorno de foco; superfícies vermelhas redefinem (ver :focus-visible) */
   --cor-sobre-tinta: #F3F2EC;     /* texto sobre fundo tinta */
   --cor-sobre-tinta-suave: #9A9CA3;
   --cor-confirmacao: #1E7F3E;     /* só para confirmação */
@@ -91,17 +92,14 @@ a { color: inherit; }
 /* `hidden` sempre esconde: classe com `display` (ex.: .botao, inline-flex) venceria o
    atributo e mostraria controle que só funciona com JS (revisão do Renan no #74). */
 [hidden] { display: none !important; }
-:focus-visible { outline: 3px solid var(--cor-acento); outline-offset: -3px; }
-/* Em fundo vermelho o contorno vermelho some (revisão do #73): ali o foco é branco.
-   O botão branco da chamada volta ao vermelho, que aparece sobre o branco. */
-.marca:focus-visible, .nav a:focus-visible:hover, .nav a.nav__botao:focus-visible,
-.botao:focus-visible:hover, .botao--vermelho:focus-visible, .chip--ativo:focus-visible,
-.cartao-projeto:focus-visible:hover, .chamada :focus-visible, .faixa--vermelha :focus-visible {
-  outline-color: var(--cor-acento-texto);
-}
-.chamada .botao--branco:focus-visible:not(:hover) { outline-color: var(--cor-acento); }
-/* O vazado da chamada fica branco ao passar o mouse: o foco volta ao vermelho para não sumir. */
-.chamada .botao--vazado:focus-visible:hover { outline-color: var(--cor-acento); }
+/* FOCO DE TECLADO (revisão do #73). O contorno usa --cor-foco, que o :root define
+   como vermelho. Em fundo vermelho o contorno vermelho some: todo seletor que pinta
+   `background: var(--cor-acento)` redefine `--cor-foco: var(--cor-acento-texto)` na
+   própria regra, e os descendentes herdam. Nova superfície vermelha (ex.: .convite,
+   botões da cédula)? Basta declarar `--cor-foco: var(--cor-acento-texto)` nela —
+   não há lista de exceções aqui. Caso inverso: elemento que fica branco no :hover
+   (vazado, botão branco) volta a `--cor-foco: var(--cor-acento)` no próprio :hover. */
+:focus-visible { outline: 3px solid var(--cor-foco); outline-offset: -3px; }
 
 /* ---------- TIPOS ---------- */
 .display {
@@ -136,7 +134,7 @@ a { color: inherit; }
 /* Grades de uma coluna no celular: minmax(0,1fr) para conteúdo largo (título
    em caixa alta) nunca alargar a coluna além da tela. */
 .hero__grade, .secao__cabeca, .mostra__cabeca, .quem__cabeca, .grupo__grade,
-.ficha, .passos, .tecnica, .rodape__grade, .cartoes { grid-template-columns: minmax(0, 1fr); }
+.ficha-evento, .passos, .tecnica, .rodape__grade, .cartoes { grid-template-columns: minmax(0, 1fr); }
 .hero__grade > *, .secao__cabeca > *, .mostra__cabeca > *, .quem__cabeca > *, .grupo__grade > * { min-width: 0; }
 
 /* ---------- TOPO (base.html) ---------- */
@@ -147,7 +145,7 @@ a { color: inherit; }
 .marca {
   position: relative; display: flex; align-items: center; text-decoration: none;
   padding-inline: var(--gutter); margin-left: calc(-1 * var(--gutter));
-  background: var(--cor-acento); color: var(--cor-acento-texto);
+  background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto);
 }
 .marca::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 50vw; background: var(--cor-acento); } /* o vermelho segue até a borda da tela */
 .marca__logo { height: 34px; width: auto; color: var(--cor-acento-texto); }
@@ -159,10 +157,10 @@ a { color: inherit; }
   border-left: 1px solid var(--cor-borda);
 }
 .nav a:first-child { border-left: 0; }
-.nav a:hover { background: var(--cor-acento); color: var(--cor-acento-texto); }
+.nav a:hover { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
 .nav .idx { color: var(--cor-acento); }
 .nav a:hover .idx { color: inherit; }
-.nav a.nav__botao { background: var(--cor-acento); color: var(--cor-acento-texto); border-left: 0; margin-left: 8px; }
+.nav a.nav__botao { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); border-left: 0; margin-left: 8px; }
 .nav a.nav__botao:hover { background: var(--cor-texto); color: var(--cor-fundo); }
 @media (min-width: 900px) { .nav a { padding: 0 24px; } }
 
@@ -218,8 +216,8 @@ a { color: inherit; }
   font: 500 var(--texto-13)/1 var(--fonte-mono); text-transform: uppercase; letter-spacing: 0.04em;
   text-decoration: none;
 }
-.botao:hover { background: var(--cor-acento); border-color: var(--cor-acento); color: var(--cor-acento-texto); }
-.botao--vermelho { background: var(--cor-acento); border-color: var(--cor-acento); color: var(--cor-acento-texto); }
+.botao:hover { background: var(--cor-acento); border-color: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
+.botao--vermelho { background: var(--cor-acento); border-color: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
 .botao--vermelho:hover { background: var(--cor-texto); border-color: var(--cor-texto); color: var(--cor-sobre-tinta); }
 .botao--vazado, .botao--secundario { background: transparent; color: var(--cor-texto); border-color: var(--cor-texto); }
 .botao--perigo {
@@ -240,7 +238,7 @@ a { color: inherit; }
 }
 .filtros .chip { border: 0; border-right: 1px solid var(--cor-linha); }
 .filtros .chip:last-child { border-right: 0; }
-.chip--ativo { background: var(--cor-acento); color: var(--cor-acento-texto); border-color: var(--cor-acento); }
+.chip--ativo { background: var(--cor-acento); color: var(--cor-acento-texto); border-color: var(--cor-acento); --cor-foco: var(--cor-acento-texto); }
 
 /* ---------- SELOS DE STATUS ---------- */
 .selo {
@@ -272,7 +270,7 @@ a { color: inherit; }
   border: 1px solid var(--cor-linha); border-radius: var(--raio);
   font: 400 15px/1.4 var(--fonte); color: var(--cor-texto); background: var(--cor-superficie);
 }
-.campo:focus { outline: 2px solid var(--cor-acento); outline-offset: 1px; }
+.campo:focus { outline: 2px solid var(--cor-foco); outline-offset: 1px; }
 .campo--erro { border: 1.5px solid var(--cor-erro); }
 .campo--leitura { background: var(--cor-fundo); border-color: var(--cor-borda); color: var(--cor-texto-suave); }
 .ajuda { font-size: var(--texto-12); color: var(--cor-texto-suave); margin-top: var(--esp-1); }
@@ -356,21 +354,21 @@ a { color: inherit; }
 .hero__prancha .coord--sobre-vermelho { fill: var(--cor-fundo); }
 
 /* ---------- FICHA DO EVENTO: uma linha de células ---------- */
-.ficha { display: grid; }
-@media (min-width: 720px) { .ficha { grid-template-columns: auto repeat(4, minmax(0, 1fr)); } }
-.ficha__data { display: flex; align-items: center; padding: 12px var(--gutter) 12px 0; border-bottom: 1px solid var(--cor-borda); }
-@media (min-width: 720px) { .ficha__data { border-bottom: 0; border-right: 1px solid var(--cor-linha); padding-right: calc(var(--gutter) * 1.5); } }
-.ficha__data .display { font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
-.ficha__linha { display: grid; gap: 4px; align-content: start; padding: 14px var(--gutter) 14px 0; border-bottom: 1px solid var(--cor-borda); }
+.ficha-evento { display: grid; }
+@media (min-width: 720px) { .ficha-evento { grid-template-columns: auto repeat(4, minmax(0, 1fr)); } }
+.ficha-evento__data { display: flex; align-items: center; padding: 12px var(--gutter) 12px 0; border-bottom: 1px solid var(--cor-borda); }
+@media (min-width: 720px) { .ficha-evento__data { border-bottom: 0; border-right: 1px solid var(--cor-linha); padding-right: calc(var(--gutter) * 1.5); } }
+.ficha-evento__data .display { font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
+.ficha-evento__linha { display: grid; gap: 4px; align-content: start; padding: 14px var(--gutter) 14px 0; border-bottom: 1px solid var(--cor-borda); }
 @media (min-width: 720px) {
-  .ficha__linha { padding-left: var(--gutter); border-bottom: 0; border-right: 1px solid var(--cor-borda); }
-  .ficha__linha:last-child { border-right: 0; }
+  .ficha-evento__linha { padding-left: var(--gutter); border-bottom: 0; border-right: 1px solid var(--cor-borda); }
+  .ficha-evento__linha:last-child { border-right: 0; }
 }
-.ficha__valor { font-weight: 500; line-height: 1.35; font-size: var(--texto-14); }
-.ficha__valor small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-13); }
+.ficha-evento__valor { font-weight: 500; line-height: 1.35; font-size: var(--texto-14); }
+.ficha-evento__valor small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-13); }
 
 /* ---------- FAIXA DOS CURSOS em vermelho ---------- */
-.faixa--vermelha { background: var(--cor-acento); color: var(--cor-acento-texto); }
+.faixa--vermelha { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
 .unidades { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .unidade { display: flex; gap: 12px; align-items: center; min-width: 0; padding: 14px var(--gutter); border-right: 1px solid var(--cor-linha); }
 .unidade:last-child { border-right: 0; }
@@ -426,7 +424,7 @@ a { color: inherit; }
   border-right: 1px solid var(--cor-borda); border-bottom: 1px solid var(--cor-borda);
   transition: background-color .12s ease;
 }
-.cartao-projeto:hover { background: var(--cor-acento); color: var(--cor-acento-texto); }
+.cartao-projeto:hover { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
 .cartao-projeto:hover .display, .cartao-projeto:hover .mono, .cartao-projeto:hover p { color: inherit; }
 .cartao-projeto__capa { width: 100%; aspect-ratio: 1.91 / 1; object-fit: cover; border-bottom: 1px solid var(--cor-borda); background: var(--cor-texto); }
 /* flex, não grid: a grade esticava as linhas e o resumo cortado em 2 linhas mostrava a 3ª */
@@ -459,7 +457,7 @@ a { color: inherit; }
 .tecnica p { font-size: var(--texto-14); color: var(--cor-texto-suave); }
 
 /* ---------- CHAMADA DA FATEC / VESTIBULAR (vermelho) ---------- */
-.chamada { background: var(--cor-acento); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
+.chamada { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
 .chamada__grade { display: grid; gap: 24px; padding-block: var(--esp-12); }
 @media (min-width: 900px) { .chamada__grade { grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); align-items: end; } }
 .chamada h2 { font-size: var(--texto-h2); color: inherit; }
@@ -476,10 +474,11 @@ a { color: inherit; }
 .chamada__dia span { opacity: .55; }
 .chamada__acoes { display: flex; flex-wrap: wrap; gap: 12px; }
 @media (min-width: 900px) { .chamada__acoes { flex-direction: column; align-items: stretch; } }
-.chamada .botao--branco { background: var(--cor-acento-texto); border-color: var(--cor-acento-texto); color: var(--cor-acento); }
-.chamada .botao--branco:hover { background: var(--cor-texto); border-color: var(--cor-texto); color: var(--cor-sobre-tinta); }
+/* Fundo branco dentro do vermelho: o foco volta ao vermelho; no hover (tinta) é branco de novo. */
+.chamada .botao--branco { background: var(--cor-acento-texto); border-color: var(--cor-acento-texto); color: var(--cor-acento); --cor-foco: var(--cor-acento); }
+.chamada .botao--branco:hover { background: var(--cor-texto); border-color: var(--cor-texto); color: var(--cor-sobre-tinta); --cor-foco: var(--cor-acento-texto); }
 .chamada .botao--vazado { color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
-.chamada .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
+.chamada .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); --cor-foco: var(--cor-acento); }
 
 /* ============================================================
    PÁGINA DO PROJETO (/projeto/<slug>/, spec 02; layout da spec 07)
@@ -493,7 +492,7 @@ a { color: inherit; }
 @media (min-width: 900px) { .proj__esq { padding-block: var(--esp-12); padding-right: clamp(32px, 5vw, 80px); border-right: 1px solid var(--cor-linha); } }
 .proj__ficha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; margin-bottom: var(--esp-6); }
 .proj__ficha .mono strong { color: var(--cor-texto); font-weight: 500; }
-.proj__ficha .monograma--m { width: 56px; height: 56px; font-size: 20px; background: var(--cor-acento); color: var(--cor-acento-texto); }
+.proj__ficha .monograma--m { width: 56px; height: 56px; font-size: 20px; background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto); }
 .proj h1 { font-size: clamp(2.75rem, 1rem + 6vw, 5.5rem); overflow-wrap: break-word; hyphens: manual; max-width: 16ch; }
 .proj__resumo { margin-top: var(--esp-6); max-width: 36em; font-size: 1.125rem; line-height: 1.45; color: var(--cor-texto-suave); }
 .proj__links { display: flex; flex-wrap: wrap; margin-top: auto; padding-top: var(--esp-8); }
@@ -556,7 +555,7 @@ a { color: inherit; }
 .pessoa__papel { font-size: var(--texto-14); line-height: 1.3; color: var(--cor-texto-suave); }
 
 /* convite (vermelho) e registro de edição passada (preto) */
-.convite { background: var(--cor-acento); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
+.convite { background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
 .convite__grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: var(--esp-12); }
 @media (min-width: 900px) { .convite__grade { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: end; } }
 .convite h2 { font-size: var(--texto-h2); color: inherit; }
@@ -566,8 +565,8 @@ a { color: inherit; }
 .convite__data { font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: clamp(3rem, 1rem + 5vw, 5rem); line-height: .9; text-transform: uppercase; }
 .convite__data small { display: block; margin-top: 10px; font: 500 var(--texto-14)/1.4 var(--fonte); text-transform: none; opacity: .9; }
 .convite .botao--vazado { margin-top: 16px; color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
-.convite .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
-.convite--passado { background: var(--cor-texto); color: var(--cor-fundo); }
+.convite .botao--vazado:hover { background: var(--cor-acento-texto); --cor-foco: var(--cor-acento); color: var(--cor-acento); }
+.convite--passado { background: var(--cor-texto); --cor-foco: var(--cor-fundo); color: var(--cor-fundo); }
 
 /* ============================================================
    CÉDULA DO VISITANTE (/votar, spec 03; layout da spec 07)
@@ -592,14 +591,14 @@ a { color: inherit; }
 .cedula__projeto span { font-size: var(--texto-13); line-height: 1.35; color: var(--cor-texto-suave); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cedula li button {
   flex: none; min-width: 112px; min-height: var(--alvo-toque); padding: 0 var(--esp-5); cursor: pointer;
-  border: 1px solid var(--cor-acento); background: var(--cor-acento); color: var(--cor-acento-texto);
+  border: 1px solid var(--cor-acento); background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto);
   font: 500 var(--texto-13)/1 var(--fonte-mono); letter-spacing: .04em; text-transform: uppercase;
 }
-.cedula li button:hover:not(:disabled) { background: var(--cor-texto); border-color: var(--cor-texto); }
+.cedula li button:hover:not(:disabled) { background: var(--cor-texto); --cor-foco: var(--cor-fundo); border-color: var(--cor-texto); }
 /* enviando: desabilitado e ainda com data-projeto */
 .cedula li button[data-projeto]:disabled { cursor: wait; opacity: .55; }
 /* votado: desabilitado e sem data-projeto (vindo do servidor ou marcado pelo script no 201) */
-.cedula li button:disabled:not([data-projeto]) { cursor: default; background: transparent; border-color: var(--cor-confirmacao); color: var(--cor-confirmacao); }
+.cedula li button:disabled:not([data-projeto]) { cursor: default; background: transparent; --cor-foco: var(--cor-confirmacao); border-color: var(--cor-confirmacao); color: var(--cor-confirmacao); }
 .cedula li button:disabled:not([data-projeto])::before { content: "✓ "; }
 .cedula__vazio { margin-top: var(--esp-8); color: var(--cor-texto-suave); }
 
