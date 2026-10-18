@@ -3,21 +3,34 @@
 > Spec de referência: usa o template completo para servir de padrão às demais.
 
 - **Responsável**: Renan (@ReCroffi)
-- **Status**: pronta para implementar — revisões do coordenador nos PRs
-  #18 e #20 aplicadas (ADR-002 aceita: Python + Django)
-- **Depende de**: ADR-001, ADR-003, ADR-006 (logs da hospedagem e
+- **Status**: emenda ADR-012 em revisão (a spec já estava pronta para
+  implementar — revisões do coordenador nos PRs #18 e #20 aplicadas,
+  ADR-002 aceita: Python + Django; a emenda só muda o voto, que passa a
+  ser avaliação por notas)
+- **Depende de**: ADR-001, ADR-012 (avaliação por notas), ADR-013
+  (pedido pelo plano da emenda; **não existe em `docs/02-decisoes.md` na
+  `main`** — ver "Perguntas em aberto", P-D), ADR-003, ADR-006 (logs da hospedagem e
   cabeçalho do IP real em `DJANGO_IP_HEADER`, até 08/10),
   `cadastro/seguranca.py` (na `main`, PR #25: `ip_do_cliente` e
   `chave_ip`), spec 01 (na `main`, PRs #16 e #17:
   `Edicao` com `votacao_aberta_em` e `votacao_encerrada_em`,
   `Turma.edicao`, `Projeto.turma`, `Projeto.status`)
 - **Usada por**: spec 04 (lê `Estacao.edicao_id`, `Visitante.edicao_id`,
-  `Token`, `Voto` e os campos de votação da `Edicao`)
+  `Token`, `Voto` e os campos de votação da `Edicao`; **(ADR-012)** lê as
+  três notas de cada `Voto` para o valor do público)
 
 ## Objetivo
 Permitir que visitantes presentes no evento obtenham uma credencial única
-(token) nas estações de QR e votem em quantos projetos quiserem, com no
-máximo 1 voto por projeto por token.
+(token) nas estações de QR e **avaliem** (ADR-012) quantos projetos
+quiserem, com no máximo 1 avaliação por projeto por token.
+
+**(ADR-012)** Avaliar é dar três notas inteiras de 0 a 5 — impacto
+social, inovação e impacto ambiental —, todas obrigatórias. **0 é nota**
+("não atende ao critério"). Quem não quer avaliar um projeto não envia
+avaliação. Depois de enviada, a avaliação **não é editada**. Esta emenda
+substitui o "1 toque = 1 voto": não vale mais a regra antiga. Os nomes no
+código e as rotas continuam `votar`/`votos`/`Voto` (a spec 04 e os
+guardrails os citam); só os textos da UI dizem "avaliar/avaliação".
 
 ## Escopo
 - Página `/estacao/<id>` (tela cheia): exibe QR apontando para
@@ -41,11 +54,12 @@ máximo 1 voto por projeto por token.
   o visitante (ver "Liberação da cédula").
 - Cédula `/votar`: lista os projetos com status `publicado` da **edição em
   votação** (projeto → turma → edição), agrupados por turma (a turma é a
-  categoria — spec 01); botão de voto por projeto; projetos já votados
-  pelo token aparecem marcados e desabilitados.
-- Rota `POST /votos`: registra voto (token, projeto) em transação atômica,
-  só para projeto `publicado` da edição em votação e token emitido por
-  estação dessa edição.
+  categoria — spec 01); **(ADR-012)** cada projeto traz os três critérios,
+  cada um com escolha de 0 a 5, e o botão "Enviar avaliação"; projetos já
+  avaliados pelo token aparecem como "Avaliado" e desabilitados.
+- Rota `POST /votos`: **(ADR-012)** registra a avaliação (token, projeto e
+  as três notas) em transação atômica, só para projeto `publicado` da
+  edição em votação e token emitido por estação dessa edição.
 - **Estação pertence a uma edição** (`Estacao.edicao_id`): é por ela que o
   token chega à edição. A edição da estação não muda depois da primeira
   emissão.
@@ -412,32 +426,51 @@ WhatsApp). Decisão do coordenador no PR #18.
   `publicado` cujas turmas pertencem à edição em votação (projeto → turma
   → edição), agrupados por turma. Projetos em outro status ou de outra
   edição não aparecem.
-- Projetos já votados por aquele token aparecem marcados e desabilitados.
-- Na cédula, o botão só vira "Votado" com o **201**. Com **409** (rejeição
-  genérica) ou **403** (CSRF, por exemplo cookies limpos com a cédula
-  aberta), a página recarrega e o servidor mostra o estado real; qualquer
-  outra falha mostra "Não foi possível votar agora. Tente de novo."
-  (decisão do coordenador no PR #36).
+- **(ADR-012)** Cada projeto mostra os **três critérios** — impacto social,
+  inovação e impacto ambiental —, cada um como um grupo de rádio com as
+  escolhas **0 a 5**:
+  - um `fieldset` por critério, com `legend` com o nome do critério; o
+    rótulo de cada escolha é legível em 360 px de largura, sem rolagem
+    horizontal;
+  - **nenhuma opção marcada por padrão**: 0 é nota, então um valor
+    pré-marcado seria uma avaliação que o visitante não fez;
+  - um botão "Enviar avaliação" por projeto, que só envia com as **três
+    notas escolhidas** (sem as três, não sai requisição).
+- **(ADR-012)** Projetos já avaliados por aquele token aparecem como
+  "Avaliado", com os controles desabilitados, já ao abrir a cédula.
+- **(ADR-012)** Na cédula, o projeto só vira "Avaliado" (controles
+  desabilitados) com o **201**. Com **409** (rejeição genérica) ou **403**
+  (CSRF, por exemplo cookies limpos com a cédula aberta), a página
+  recarrega e o servidor mostra o estado real; qualquer outra falha mostra
+  "Não foi possível enviar a avaliação agora. Tente de novo." (decisão do
+  coordenador no PR #36; texto trocado pela ADR-012). Não há edição: depois
+  de "Avaliado", o visitante não muda as notas.
 - Quando não há token, o token é malformado, não existe ou é de outra
   edição (via estação), o sistema redireciona para `/como-votar/`
   (`vitrine:como_votar`, spec 02), sem dizer qual foi o caso.
 
 ### Voto
-- Quando o visitante vota num projeto `publicado` da edição em votação,
-  ainda não votado por aquele token, com token emitido por estação dessa
-  edição e cadastro válido, o sistema registra e responde **201**, JSON
-  `{"status": "registrado"}`.
-- Quando `projeto_id` é malformado (ver "Validação de entrada"), o
-  sistema responde **400**, JSON
+- **(ADR-012)** `POST /votos` recebe `projeto_id` e as três notas:
+  `impacto_social`, `inovacao` e `impacto_ambiental`.
+- **(ADR-012)** Quando o visitante avalia um projeto `publicado` da edição
+  em votação, ainda não avaliado por aquele token, com as três notas
+  válidas, token emitido por estação dessa edição e cadastro válido, o
+  sistema grava o `Voto` com as três notas e responde **201**, JSON
+  `{"status": "registrado"}`. A nota 0 é aceita nos três critérios.
+- **(ADR-012)** Quando `projeto_id` **ou qualquer das três notas** é
+  malformado (ver "Validação de entrada"), o sistema responde **400**, JSON
   `{"status": "invalido", "mensagem": "requisição inválida"}`, sem
-  consultar o banco (guardrail 12). Essa é a única resposta diferente da
-  rejeição genérica: depende só do formato do `projeto_id`, nunca do
-  token.
+  consultar o banco (guardrail 12). Nota ausente, repetida ou malformada
+  cai aqui, na mesma resposta do `projeto_id` malformado. Essa é a única
+  resposta diferente da rejeição genérica: depende só do formato da
+  entrada, nunca do token.
 - Quando ocorre **qualquer** um dos casos abaixo, sozinho ou combinado
   com outros, o sistema não grava e responde a **rejeição genérica**:
   **409**, JSON `{"status": "rejeitado", "mensagem": "voto já registrado"}`,
   corpo byte a byte idêntico em todos os casos (guardrail 5):
-  - voto duplicado (token, projeto), inclusive o perdedor de uma corrida;
+  - **(ADR-012)** avaliação duplicada (token, projeto) — **não há edição**:
+    reenviar com notas diferentes é 409 e a primeira avaliação não muda —,
+    inclusive o perdedor de uma corrida;
   - token ausente, malformado (não é UUID) ou inexistente;
   - token emitido por estação de outra edição;
   - sem cadastro válido;
@@ -449,6 +482,9 @@ WhatsApp). Decisão do coordenador no PR #18.
   atômica, depois da trava da edição; a unicidade continua garantida pela
   constraint do banco — o `IntegrityError` da constraint vira a rejeição
   genérica (guardrail 4).
+- **(ADR-012)** As três notas são gravadas junto com a linha do `Voto`,
+  na mesma inserção; o banco barra nota fora de 0–5 (ver "Dados"), mesmo
+  que a validação de entrada seja contornada.
 - Quando dois requests simultâneos tentam o mesmo (token, projeto), apenas
   um é gravado (constraint no banco, guardrail 4); o outro recebe a
   rejeição genérica.
@@ -472,6 +508,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
+| `POST /votos` | `impacto_social`, `inovacao`, `impacto_ambiental` **(ADR-012)** | cada uma exatamente 1 ocorrência; exatamente 1 caractere, dígito de `0` a `5` (`^[0-5]$`; nada de `05`, `+1`, `1.0`, `-1`, espaço, vazio) | 400 JSON `invalido` |
 | `POST /votos` | cookie do token | UUID canônico; outro valor = token inexistente | 409 rejeição genérica |
 | todas | cookie de cadastro | assinatura válida; `edicao_id` = edição em votação | sem cadastro (ver "Liberação da cédula") |
 
@@ -563,10 +600,17 @@ a spec 04 e o G6 citam:
 |---|---|---|
 | `Estacao` | `estacoes` | id, nome (char 60), ativa (bool), **edicao (FK → `Edicao`, `PROTECT`, obrigatório; não muda depois da primeira emissão)** |
 | `Token` | `tokens` | id (uuid, pk), estacao (FK → `Estacao`, `PROTECT`), criado_em. A edição do token é `estacoes.edicao_id` — sem coluna própria de edição |
-| `Voto` | `votos` | id, token (FK `PROTECT`), projeto (FK → `Projeto`, `PROTECT`), criado_em, **unique (token_id, projeto_id)** |
+| `Voto` | `votos` | id, token (FK `PROTECT`), projeto (FK → `Projeto`, `PROTECT`), criado_em, **unique (token_id, projeto_id)**, **(ADR-012)** `impacto_social`, `inovacao`, `impacto_ambiental`: cada um `PositiveSmallIntegerField` obrigatório, **sem default**, com `CheckConstraint` 0–5 no banco (`campo >= 0 AND campo <= 5`, uma por campo). Tabela e nomes mantidos (spec 04, G6) |
 | `Visitante` | `visitantes` | id (**UUID — P1**), nome (char 120), email (char 254), telefone (char 13, só dígitos, null), consentimento_em (**truncado para a hora**), **edicao (FK → `Edicao`, `PROTECT`, obrigatório, preenchido com a edição em votação no cadastro)**. **Sem coluna de token, voto ou estação** (guardrail 6). Nenhum outro campo de data/hora |
 | `EdicaoVotacao` | — | proxy de `Edicao` (sem tabela), só para as ações de abrir/encerrar no admin |
 
+- **(ADR-012) Migration** (descrição; a escrita é da implementação): os
+  três campos entram **sem default**. Como a votação real só abre em
+  29/10, a migration **só pode rodar com a tabela `votos` vazia**; com
+  alguma linha, falha com mensagem clara (ex: "votos existentes sem notas:
+  esvazie ou migre antes"), **sem inventar nota**. O CHECK 0–5 segue a
+  mesma linha do guardrail 4: o banco barra, não só o formulário.
+  Confirmação do coordenador em "Perguntas em aberto" (P-B).
 - **Escreve** na spec 01: só `Edicao.votacao_aberta_em` e
   `Edicao.votacao_encerrada_em`, pelas ações de abrir/encerrar.
 - **Lê** da spec 01: `Edicao`; `Turma.edicao`; `Projeto` (título, turma,
@@ -580,8 +624,8 @@ a spec 04 e o G6 citam:
 | GET | `/visitantes` | cookie de cadastro | formulário de visitante; redirect p/ cédula com cadastro válido | 400 página "QR expirado" se votação fechada |
 | GET | `/entrar` | `w`, `sig` (query); cookie do token | 200 página que grava o token no localStorage e redireciona ao formulário (ou à cédula, com cadastro válido) + cookie do token | 400 página "QR expirado" (entrada malformada, assinatura, expiração, estação inativa ou de outra edição, votação fechada, rate limit estourado) |
 | POST | `/visitantes` | nome, email, telefone?, consentimento | redirect p/ cédula + cookie de cadastro | 400 formulário com mensagem genérica; 400 página "QR expirado" se votação fechada; 403 CSRF |
-| GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de votos do token | redirect p/ `/como-votar/` (`vitrine:como_votar`, spec 02) (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
-| POST | `/votos` | `projeto_id`; cookies | 201 `registrado` | 400 `invalido` (`projeto_id` malformado); 409 rejeição genérica (todas as demais); 403 CSRF |
+| GET | `/votar` | cookie do token, cookie de cadastro | cédula (projetos `publicado` da edição em votação) com estado de avaliações do token **(ADR-012)** | redirect p/ `/como-votar/` (`vitrine:como_votar`, spec 02) (sem token, malformado, inexistente ou de outra edição); redirect p/ formulário (sem cadastro válido); aviso "Votação encerrada" |
+| POST | `/votos` | `projeto_id`, `impacto_social`, `inovacao`, `impacto_ambiental` **(ADR-012)**; cookies | 201 `registrado` | 400 `invalido` (`projeto_id` ou nota malformados); 409 rejeição genérica (todas as demais); 403 CSRF |
 | admin | Votação por edição | ações Abrir / Encerrar | mensagem de sucesso | mensagens de recusa acima; 403 não superusuário |
 | admin | Estações | nome, edição, ativa | — | `ValidationError` ao mudar edição com tokens; apagar com tokens bloqueado |
 
@@ -610,7 +654,10 @@ a spec 04 e o G6 citam:
 - 10: o aceite continua registrado com data e hora (hora cheia), junto ao
   cadastro.
 - 11: nenhum dado de visitante em log (P2).
-- 12: matriz de validação acima, antes do banco.
+- 12: matriz de validação acima, antes do banco; **(ADR-012)** inclui as
+  três notas (`^[0-5]$`, 1 ocorrência cada).
+- 4 (ADR-012): as notas fora de 0–5 são barradas por `CheckConstraint` no
+  banco, além da validação de entrada.
 - 15: abrir/encerrar e estações só para superusuário no admin; página da
   estação só para staff com `votacao.operar_estacao`.
 
@@ -696,16 +743,32 @@ a spec 04 e o G6 citam:
 
 **Cédula e voto**
 - [ ] Cédula lista só projetos `publicado` da edição em votação: projeto em `em_revisao` da mesma turma e projeto `publicado` de outra edição não aparecem
-- [ ] Voto válido → 201 `{"status": "registrado"}`
-- [ ] Segundo voto no mesmo projeto pelo mesmo token → 409 genérico
+- [ ] Avaliação válida (ADR-012: `projeto_id` + três notas) → 201 `{"status": "registrado"}`
+- [ ] Segunda avaliação no mesmo projeto pelo mesmo token → 409 genérico
 - [ ] Igualdade da rejeição: voto duplicado, perdedor da corrida, token ausente, token malformado, token inexistente, token de outra edição, sem cadastro, votação fechada, projeto inexistente, projeto não `publicado`, projeto de outra edição, e combinações (ex: votação fechada + token inexistente) → todos com status 409 e corpo byte a byte igual, e nenhum voto gravado
+- [ ] (ADR-012) Nota malformada: ver o bloco "Avaliação por notas" abaixo
 - [ ] `projeto_id` malformado (`abc`, `1.5`, vazio, ausente, `0`, `-1`, `+1`, `2147483648`, 11 dígitos, repetido) → 400 `invalido`, nenhuma query ao banco (`assertNumQueries(0)`; a validação vem antes da trava da edição)
-- [ ] Teste de corrida: 2 POSTs simultâneos (mesmo token+projeto) → 1 voto no banco; o outro recebe 409 genérico
+- [ ] Teste de corrida: 2 POSTs simultâneos (mesmo token+projeto) → 1 voto no banco; o outro recebe 409 genérico (ADR-012: com as três notas em ambos)
+
+**Avaliação por notas (ADR-012)**
+- [ ] Avaliação com as três notas válidas → 201 e uma linha em `votos` com as três notas gravadas
+- [ ] Nota 0 nos três critérios → 201 e gravada (0 é nota)
+- [ ] Cada uma das três notas, isoladamente, fora do formato (`6`, `-1`, `05`, `+1`, `1.0`, `a`, espaço, vazio, ausente, repetida) → 400 `invalido`, com `assertNumQueries(0)` (nenhum SELECT de negócio, nem a trava da `Edicao`); o corpo é o mesmo do `projeto_id` malformado
+- [ ] Nota malformada com token inexistente ou votação fechada → ainda 400 `invalido` (o 400 depende só do formato); nota válida nesses casos → 409 genérica
+- [ ] Segunda avaliação do mesmo token no mesmo projeto, com notas diferentes → 409 genérica byte a byte igual às demais; a primeira avaliação não muda
+- [ ] `Voto.objects.create(...)` com nota 6 (e com -1) em qualquer dos três campos, por fora da view e do formulário → `IntegrityError` (constraint do banco); nota 0 e 5 → aceitas
+- [ ] Os três campos não têm default: `Voto.objects.create(...)` sem uma das notas falha (revisão de schema + teste)
+- [ ] A migration falha com mensagem clara se `votos` tiver linha, sem gravar nota inventada; com `votos` vazia, aplica (teste da migration)
+- [ ] Cédula: nenhuma opção de nota vem marcada; o botão "Enviar avaliação" só envia com as três notas escolhidas; cada critério é um `fieldset` com `legend`
+- [ ] Cédula: com o 201 o projeto vira "Avaliado" e os controles ficam desabilitados; ao recarregar, projetos já avaliados pelo token aparecem assim; com 409/403 a página recarrega; outra falha mostra "Não foi possível enviar a avaliação agora. Tente de novo."
+- [ ] Textos da UI dizem "avaliar/avaliação"; rotas e nomes no código continuam `votar`/`votos`/`Voto`
+- [ ] Acessibilidade: cada grupo com `legend` do critério, navegável por Tab e setas, foco visível (`--cor-foco`, spec 07), 360 px de largura sem rolagem horizontal
+- [ ] O que vale desde antes continua valendo: unicidade (token, projeto) no banco, corrida com 1 só gravada, 409 idêntica em todas as rejeições
 
 **Isolamento por edição** (fixture com a edição do evento e a edição "Ensaio", cada uma com turma, projetos e estação próprios)
 - [ ] Token emitido por estação do ensaio não vota em projeto do evento (409 genérico, nenhum voto gravado)
 - [ ] Re-scan no evento com cookie de token do ensaio emite token **novo**, ligado a estação do evento; o token do ensaio continua intacto
-- [ ] Votos do ensaio não aparecem como votados na cédula do evento (e vice-versa)
+- [ ] Avaliações do ensaio não aparecem como "Avaliado" na cédula do evento (e vice-versa)
 - [ ] Visitante cadastrado durante a votação do ensaio fica com `edicao_id` do ensaio; durante a do evento, com o do evento
 - [ ] Encerrar o ensaio e abrir o evento não altera nem apaga tokens, votos ou visitantes do ensaio
 
@@ -727,6 +790,38 @@ a spec 04 e o G6 citam:
   `Edicao.votacao_encerrada_em`, preenchidos pela spec 03;
   `votacao_aberta_em` não muda depois de preenchido; a tabela
   `config_votacao` deixa de existir (spec 01, PR #16, commit `e5a594a`).
+
+- **Emenda ADR-012 (18/10/2026)**: o voto de 1 toque vira avaliação com
+  três notas inteiras de 0 a 5 (impacto social, inovação, impacto
+  ambiental), todas obrigatórias, 1 por token e projeto, sem edição; 0 é
+  nota. `Voto` ganha três campos com `CheckConstraint` 0–5 e sem default;
+  `POST /votos` valida as notas (400 `invalido` se malformadas, 409
+  genérica nas rejeições de negócio); a cédula troca o botão por três
+  grupos de rádio e "Enviar avaliação". Migration só com `votos` vazia.
+  Rotas e nomes no código não mudam.
+
+## Perguntas em aberto
+Para o coordenador responder; esta emenda não decide.
+
+- **P-A**: a troca da view do `resultados` (consulta agregada das notas +
+  `publico_por_media_bayesiana`, spec 04 "Transição") entra no mesmo PR do
+  model, com o ok do Guilherme para tocar em `resultados/views.py`, ou num
+  PR dele logo depois? A spec 04 pede a troca antes do pré-ensaio de 21/10.
+- **P-B**: confirmar a migration "só com `votos` vazia". Há votos de teste
+  no banco do ensaio? (O pré-ensaio de 21/10 grava votos fictícios na
+  edição "Pré-ensaio" — ver "Decisões do PR #37" —; se a migration rodar
+  depois dele, a tabela não estará vazia.)
+- **P-C**: a cédula com notas sai em cima do template do #79 (cédula na
+  identidade nova). A implementação espera o #79 entrar na `main`?
+- **P-D**: o plano cita o ADR-013, mas `docs/02-decisoes.md` na `main`
+  (2c1d9fb) só vai até o ADR-012. Qual é o ADR-013 e o que a spec deve
+  tomar dele? O cabeçalho o lista como dependência por pedido do plano.
+- **P-E**: o `--cor-foco` e a spec 07 não estão na `main` (nenhuma
+  ocorrência no repositório). O critério de foco visível aponta para eles;
+  confirmar o nome do token.
+- **P-F**: o comando `medir_voto` (PR #37) e o `votacao/templates/votacao/cedula.html`
+  atual enviam só `projeto_id`; a implementação precisa atualizá-los para
+  enviar as três notas. Entram no mesmo PR da emenda?
 
 ## Decisões do PR #18
 Respostas do coordenador à revisão da spec 03 (decisão do coordenador no
