@@ -281,6 +281,7 @@ def test_conferencia_mostra_projeto_sem_avaliacao_de_convidado(conferente):
     assert '<ul class="sem-avaliacao">' not in html  # a banca cobriu todos
     assert "<h3>Avaliadores convidados</h3>" in html and 'id="amostra-convidado"' in html
     assert "ou de convidado fica com o resultado pendente" in html
+    assert "Sem nenhuma avaliação (banca pendente)" not in html
 
 
 def test_conferencia_avisa_jurado_que_cobre_so_parte_do_curso(conferente):
@@ -298,3 +299,6 @@ def test_edicao_so_com_banca_nao_mostra_blocos_de_convidado(conferente):
     fabricas.jurado(edicao, turma, "Ana")
     html = _conferencia(conferente, edicao)
     assert "convidado" not in html.lower().replace("avaliador convidado", "")
+    # Página exatamente como antes da ADR-013: o texto da pendência não muda.
+    assert "<p>Sem nenhuma avaliação (banca pendente):</p>" in html
+    assert "A turma fica com banca pendente no resultado." in html

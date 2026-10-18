@@ -40,7 +40,7 @@ Conferência da banca (spec 06). Só no admin: notas por jurado nunca em página
   <h3>{{ item.turma.rotulo }} — {{ item.publicados }} publicado{{ item.publicados|pluralize }}, {{ item.jurados }} jurado{{ item.jurados|pluralize }}{% for t in item.tipos %}{% if t.convidado %}, {{ t.jurados }} convidado{{ t.jurados|pluralize }}{% endif %}{% endfor %}</h3>
   {% for t in item.tipos %}
   {% if t.sem_avaliacao %}
-  <p>Sem nenhuma avaliação {% if t.convidado %}de avaliador convidado{% else %}da banca{% endif %} (resultado pendente):</p>
+  {% if not varios_tipos %}<p>Sem nenhuma avaliação (banca pendente):</p>{% elif t.convidado %}<p>Sem nenhuma avaliação de avaliador convidado (resultado pendente):</p>{% else %}<p>Sem nenhuma avaliação da banca (resultado pendente):</p>{% endif %}
   <ul class="sem-avaliacao{% if t.convidado %} convidado{% endif %}">{% for projeto in t.sem_avaliacao %}<li>#{{ projeto.pk }} — {{ projeto.titulo }}</li>{% endfor %}</ul>
   {% endif %}
   {% if t.incompletos %}
