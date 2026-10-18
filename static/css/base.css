@@ -761,7 +761,7 @@ a { color: inherit; }
 .adicionar__pe:empty { display: none; }
 /* com JavaScript: o campo some (o card abre o seletor) e o foco aparece no card */
 .edicao-upload--auto .adicionar__campo, .campo-arquivo--oculto { position: absolute; width: 1px; height: 1px; margin: 0; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; opacity: 0; }
-.edicao-upload--auto .adicionar__campo:focus-visible + .adicionar { outline: 3px solid var(--cor-acento); outline-offset: -3px; }
+.edicao-upload--auto .adicionar__campo:focus-visible + .adicionar { outline: 3px solid var(--cor-foco); outline-offset: -3px; }
 .edicao-upload--pronta .adicionar { display: none; }
 .edicao-upload--nova .edicao-upload__slot .edicao-capa__img { aspect-ratio: 16 / 10; }
 .botao--pequeno { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--texto-12); }
