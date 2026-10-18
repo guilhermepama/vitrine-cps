@@ -144,7 +144,10 @@ Formato:
   `CODEOWNERS`, senão nenhum PR de aluno é mergeável.
 
 ## ADR-007 — Avaliação da banca e nota final composta
-- Status: aceita (login de jurado substituído pela ADR-008 nesta edição)
+- Status: aceita (login de jurado substituído pela ADR-008 nesta edição;
+  o ranking **por turma** e os pesos **70/30 banca/público** substituídos
+  pela ADR-013 — três partes e recorte por curso; média entre jurados,
+  critérios divulgados antes e travas continuam)
 - Data: 2026-10-01
 - Contexto: além do voto do público, uma banca avalia os projetos, e o
   peso da banca deve ser maior. Os dois votos têm naturezas diferentes:
@@ -410,7 +413,9 @@ Formato:
   exija a aprovação ou o marcador.
 
 ## ADR-012 — Avaliação do público por notas e média bayesiana
-- Status: aceita
+- Status: aceita (`m` passa a ser do **recorte** — da edição no ranking
+  geral, do curso no ranking por curso — pela ADR-013; onde esta ADR diz
+  "da turma", vale o recorte)
 - Data: 2026-10-16
 - Contexto: até aqui o público dava 1 toque = 1 voto e a parte do público
   na nota final (30%, ADR-007) era a contagem de votos normalizada por
@@ -488,7 +493,12 @@ Formato:
   - **Ranking apresentado ao público** = `0,50·b + 0,20·c + 0,30·p`
     (banca, convidados, público), cada parte normalizada min-max. Pesos na
     `Edicao` (`peso_banca`, `peso_convidados`, `peso_publico`, somando 1),
-    travados depois de aberta a votação, como hoje.
+    travados depois de aberta a votação, como hoje. Desempate: final →
+    banca bruta → convidados bruta → mais avaliações do público; a nota
+    de convidados **só desempata quando `peso_convidados > 0`** — com
+    peso 0 vale a ordem do ADR-012 (final → banca bruta → avaliações), e
+    uma nota de convidados que exista por acaso não separa dois projetos
+    (revisão do Renan no #80).
   - **Dois recortes do mesmo ranking:** **geral** (todos os projetos
     publicados da edição juntos — Fatec, Etec e Ensino Médio — com a
     normalização e a média do público sobre todos) e **por curso** (DSM,

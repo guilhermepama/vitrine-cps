@@ -66,7 +66,8 @@ visitantes — tudo em rotas só de admin.
 - "Congelar" o resultado em tabela própria (snapshot): o registro oficial
   é a página impressa e assinada + o `pg_dump` após o resultado (ADR-006)
   — decisão do coordenador no PR #14.
-- Critério extra de desempate além de banca bruta e votos.
+- Critério extra de desempate além de banca bruta, convidados bruta
+  (só com `peso_convidados > 0` — ADR-013) e avaliações do público.
 - Bibliotecas novas (pandas etc.): CSV com o módulo `csv` da biblioteca
   padrão; agregações com o ORM do Django.
 - Alterar `urls.py` raiz ou `settings.py`: o coordenador adiciona
@@ -148,7 +149,11 @@ qualquer consulta aos dados de negócio:
     concorrem juntas. Substitui o recorte por turma.
 - Desempate (os dois recortes): final → nota de banca bruta → nota de
   convidados bruta → mais avaliações do público; empate em tudo → mesma
-  posição e marca "empate".
+  posição e marca "empate". A nota de convidados **só entra no desempate
+  quando `peso_convidados > 0`**: com peso 0 a ordem é a do ADR-012
+  (final → banca bruta → mais avaliações), e uma nota de convidados que
+  por acaso exista não separa dois projetos (revisão do Renan no #80;
+  registrado no ADR-013).
 - **Nota do boletim** (por projeto, mesma para todos os integrantes):
   `peso_boletim_banca·banca + (1 − peso_boletim_banca)·convidados`, sobre as
   notas **brutas** de 0 a 10, **sem normalização** (0,70/0,30 nesta
@@ -368,6 +373,9 @@ permissões, nenhuma tabela.
 - [ ] `banca_conferida_em` vazio → todas as turmas com aviso "não é o resultado oficial" e nenhuma nota final exibida
 - [ ] `banca_conferida_em` preenchido e um projeto da turma A sem nota de banca → turma A com aviso e sem nota final; turma B com ranking oficial
 - [ ] Pesos ausentes ou que não somam 1 → erro "Pesos da edição não configurados"
+
+**Ranking geral, por curso e boletim (ADR-013)**
+- [ ] Teste do desempate com `peso_convidados = 0`: A e B empatados em final e em banca bruta, convidados 7 (A) × 9 (B), A com mais avaliações do público → A na frente (a nota de convidados não entra no desempate). Com `peso_convidados > 0` e os mesmos dados → B na frente
 
 **Participação e operacional**
 - [ ] Zero tokens votantes → média de votos por token mostra "—", sem erro
