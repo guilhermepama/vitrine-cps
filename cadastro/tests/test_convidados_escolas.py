@@ -179,3 +179,13 @@ def test_importacao_separa_as_escolas_pela_coluna_escola(tmp_path):
     _, falhou = _rodar(e, _csv(tmp_path, [linha + ["e.e. reis neves"]], CABECALHO + ["Escola"], "com.csv"))
     assert falhou is None
     assert Projeto.objects.get().turma == rn
+
+
+def test_importacao_com_escola_que_nao_casa_nenhuma_turma_e_turma_inexistente(tmp_path):
+    e = fabricas.edicao()
+    _turmas_das_escolas(e)
+    linha = ["EM — 3º ano do Ensino Médio", "3º ano", "Ano", "Horta na Escola", "Ana", "1234567890123", "E.E. Outra"]
+    saida, falhou = _rodar(e, _csv(tmp_path, [linha], CABECALHO + ["Escola"], "outra.csv"))
+    assert falhou and "turma inexistente nesta edição" in saida
+    assert "turma ambígua" not in saida
+    assert not Projeto.objects.exists()
