@@ -2,7 +2,7 @@
 {% load static %}
 {% comment %}
 Página da Semana da Tecnologia da Fatec Olímpia (spec 07). Texto fixo; nome e data da Mostra vêm
-da Edicao ativa, e a seção da Mostra sorteia 4 projetos como a home. A programação por dia fica para a próxima edição (ADR-011).
+da Edicao ativa, e a seção da Mostra sorteia 4 projetos a cada visita, pelo mesmo mecanismo da home. A programação por dia fica para a próxima edição (ADR-011).
 Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de voto (G8).
 {% endcomment %}
 
@@ -67,7 +67,9 @@ Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de vot
     <div class="cartoes semana__cartoes">
       {% for projeto in destaques %}{% include "vitrine/_cartao_projeto.html" %}{% endfor %}
     </div>
-    <div class="secao__cta"><a class="botao botao--vermelho" href="{% url 'vitrine:projetos' %}">Ver todos os {{ total_projetos }} projetos</a></div>
+    {% if total_projetos > destaques|length %}
+    <div class="secao__cta"><a class="botao botao--vermelho" href="{% url 'vitrine:projetos' %}">Ver todos os {{ total_projetos }} projeto{{ total_projetos|pluralize }}</a></div>
+    {% endif %}
     {% endif %}
   </div>
 </section>

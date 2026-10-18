@@ -8,6 +8,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
+from cadastro.models import Projeto
 from cadastro.tests import fabricas
 from vitrine.tests import auxiliares as aux
 from vitrine.tests.test_inicio import ROTAS_DE_VOTO, _publicado, _turma
@@ -79,6 +80,31 @@ def test_mostra_sorteia_quatro_projetos_e_chama_para_todos(client):
     assert mostra.count('class="cartao-projeto"') == 4
     assert mostra.index('class="cartao-projeto"') < mostra.index('href="/projetos/">Ver todos os 6 projetos')
     assert "A Mostra de Projetos é um dos dias da <strong>Semana da Tecnologia</strong>" in mostra
+
+
+@pytest.mark.django_db
+def test_com_ate_quatro_publicados_mostra_todos_sem_o_botao(client):
+    edicao = aux.nova_edicao(data_evento=date(2099, 10, 29))
+    turma = _turma(edicao, "DSM", 3)
+    for i in range(4):
+        _publicado(turma, f"Projeto {i:02d}")
+    html = _html(client)
+    assert html.count('class="cartao-projeto"') == 4
+    assert "Ver todos os" not in html
+
+
+@pytest.mark.django_db
+def test_so_publicados_da_edicao_ativa(client):
+    edicao = aux.nova_edicao(data_evento=date(2099, 10, 29))
+    turma = _turma(edicao, "DSM", 3)
+    _publicado(turma, "Visivel")
+    oculto = fabricas.projeto(turma, titulo="Oculto em revisão")
+    oculto.status = Projeto.Status.EM_REVISAO
+    oculto.save()
+    _publicado(_turma(aux.nova_edicao(ativa=False, data_evento=date(2026, 5, 1)), "GTUR", 2), "Edicao Antiga")
+    html = _html(client)
+    assert html.count('class="cartao-projeto"') == 1
+    assert "Visivel" in html and "Oculto" not in html and "Edicao Antiga" not in html
 
 
 @pytest.mark.django_db
