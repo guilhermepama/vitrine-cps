@@ -280,7 +280,7 @@ def test_conferencia_mostra_projeto_sem_avaliacao_de_convidado(conferente):
     assert sem == f"<li>#{projetos[1].pk} — {projetos[1].titulo}</li>"
     assert '<ul class="sem-avaliacao">' not in html  # a banca cobriu todos
     assert "<h3>Avaliadores convidados</h3>" in html and 'id="amostra-convidado"' in html
-    assert "ou de convidado fica com o resultado pendente" in html
+    assert "ou, quando os convidados têm peso, sem avaliação de convidado fica com o resultado pendente" in html
     assert "Sem nenhuma avaliação (banca pendente)" not in html
 
 

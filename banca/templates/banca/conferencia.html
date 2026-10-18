@@ -80,7 +80,7 @@ Conferência da banca (spec 06). Só no admin: notas por jurado nunca em página
 </form>
 {% else %}
 <form method="post">{% csrf_token %}
-  {% if total_sem_avaliacao %}{% if varios_tipos %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} falta{{ total_sem_avaliacao|pluralize }} de avaliação em projetos publicados (ver "Cobertura por turma"). Projeto sem avaliação da banca ou de convidado fica com o resultado pendente.</p>{% else %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} projeto{{ total_sem_avaliacao|pluralize }} publicado{{ total_sem_avaliacao|pluralize }} sem nenhuma avaliação. A turma fica com banca pendente no resultado.</p>{% endif %}{% endif %}
+  {% if total_sem_avaliacao %}{% if varios_tipos %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} falta{{ total_sem_avaliacao|pluralize }} de avaliação em projetos publicados (ver "Cobertura por turma"). Projeto sem avaliação da banca ou, quando os convidados têm peso, sem avaliação de convidado fica com o resultado pendente.</p>{% else %}<p class="errornote">Atenção: {{ total_sem_avaliacao }} projeto{{ total_sem_avaliacao|pluralize }} publicado{{ total_sem_avaliacao|pluralize }} sem nenhuma avaliação. A turma fica com banca pendente no resultado.</p>{% endif %}{% endif %}
   <input type="hidden" name="versao" value="{{ versao }}">
   <button type="submit" name="acao" value="concluir">Concluir conferência</button>
 </form>
