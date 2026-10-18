@@ -8,8 +8,8 @@
   ADR-002 aceita: Python + Django; a emenda só muda o voto, que passa a
   ser avaliação por notas)
 - **Depende de**: ADR-001, ADR-012 (avaliação por notas), ADR-013
-  (pedido pelo plano da emenda; **não existe em `docs/02-decisoes.md` na
-  `main`** — ver "Perguntas em aberto", P-D), ADR-003, ADR-006 (logs da hospedagem e
+  (PR #80: só muda o recorte em que a spec 04 calcula a média do
+  público; nada do voto), ADR-003, ADR-006 (logs da hospedagem e
   cabeçalho do IP real em `DJANGO_IP_HEADER`, até 08/10),
   `cadastro/seguranca.py` (na `main`, PR #25: `ip_do_cliente` e
   `chave_ip`), spec 01 (na `main`, PRs #16 e #17:
@@ -801,27 +801,30 @@ a spec 04 e o G6 citam:
   Rotas e nomes no código não mudam.
 
 ## Perguntas em aberto
-Para o coordenador responder; esta emenda não decide.
+Para o coordenador responder; esta emenda não decide. Cada uma traz a
+sugestão do responsável.
 
 - **P-A**: a troca da view do `resultados` (consulta agregada das notas +
   `publico_por_media_bayesiana`, spec 04 "Transição") entra no mesmo PR do
   model, com o ok do Guilherme para tocar em `resultados/views.py`, ou num
   PR dele logo depois? A spec 04 pede a troca antes do pré-ensaio de 21/10.
-- **P-B**: confirmar a migration "só com `votos` vazia". Há votos de teste
-  no banco do ensaio? (O pré-ensaio de 21/10 grava votos fictícios na
-  edição "Pré-ensaio" — ver "Decisões do PR #37" —; se a migration rodar
-  depois dele, a tabela não estará vazia.)
+  *Sugestão:* no mesmo PR, com o ok do Guilherme, para o model e a leitura
+  das notas entrarem juntos e a `main` nunca ficar com o voto novo e o
+  ranking antigo.
+- **P-B**: confirmar a migration "só com `votos` vazia". O pré-ensaio de
+  21/10 grava votos fictícios na edição "Pré-ensaio" (`medir_voto`, ver
+  "Decisões do PR #37"); se a migration rodar depois dele, a tabela não
+  estará vazia. Há votos de teste no banco do ensaio hoje?
+  *Sugestão:* a migration roda antes do pré-ensaio, com a tabela vazia.
 - **P-C**: a cédula com notas sai em cima do template do #79 (cédula na
   identidade nova). A implementação espera o #79 entrar na `main`?
-- **P-D**: o plano cita o ADR-013, mas `docs/02-decisoes.md` na `main`
-  (2c1d9fb) só vai até o ADR-012. Qual é o ADR-013 e o que a spec deve
-  tomar dele? O cabeçalho o lista como dependência por pedido do plano.
-- **P-E**: o `--cor-foco` e a spec 07 não estão na `main` (nenhuma
-  ocorrência no repositório). O critério de foco visível aponta para eles;
-  confirmar o nome do token.
-- **P-F**: o comando `medir_voto` (PR #37) e o `votacao/templates/votacao/cedula.html`
-  atual enviam só `projeto_id`; a implementação precisa atualizá-los para
-  enviar as três notas. Entram no mesmo PR da emenda?
+  *Sugestão:* sim; o model, a view e os testes podem começar antes, e o
+  template entra depois do #79.
+
+Já decidido nesta emenda (não é pergunta): o `votacao/templates/votacao/cedula.html`
+e o comando `medir_voto` (PR #37) passam a enviar as três notas no PR de
+implementação, junto com o model. O foco visível segue o `--cor-foco` da
+spec 07 (PR #73).
 
 ## Decisões do PR #18
 Respostas do coordenador à revisão da spec 03 (decisão do coordenador no
