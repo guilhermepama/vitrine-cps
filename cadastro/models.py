@@ -187,11 +187,17 @@ class Turma(models.Model):
 
     def clean(self):
         super().clean()
+        self._verificar_escola()
         self._verificar_travas()
 
     def save(self, *args, **kwargs):
         self._verificar_travas()
         super().save(*args, **kwargs)
+
+    def _verificar_escola(self):
+        """`escola` é só das turmas do Ensino Médio (ADR-013): Fatec e Etec têm uma turma por período."""
+        if self.escola and self.curso_id and self.curso.unidade != Curso.Unidade.MEDIO:
+            raise ValidationError({"escola": "Escola só se aplica a turma de curso do Ensino Médio (ADR-013)."})
 
     def _verificar_travas(self):
         """Turma com projeto não muda de edição nem de curso: os votos iriam junto."""

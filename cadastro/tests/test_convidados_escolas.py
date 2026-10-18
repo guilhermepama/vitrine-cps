@@ -113,6 +113,20 @@ def test_turma_sem_escola_continua_com_o_rotulo_de_antes():
     assert t.escola == "" and t.rotulo == "DSM — 3º semestre"
 
 
+@pytest.mark.parametrize("sigla,unidade", [("DSM", Curso.Unidade.FATEC), ("ADM", Curso.Unidade.ETEC)])
+def test_escola_so_em_curso_do_ensino_medio(sigla, unidade):
+    """Revisão do #81: escola preenchida em turma da Fatec ou da Etec é recusada no clean()."""
+    e = fabricas.edicao()
+    t = Turma(edicao=e, curso=fabricas.curso(sigla, unidade), numero_periodo=1, tipo_periodo=Turma.TipoPeriodo.ANO, escola="E.E. Wilquem")
+    with pytest.raises(ValidationError) as erro:
+        t.full_clean()
+    assert "escola" in erro.value.message_dict
+    t.escola = ""
+    t.full_clean()
+    em = fabricas.curso("EM", Curso.Unidade.MEDIO)
+    Turma(edicao=e, curso=em, numero_periodo=3, tipo_periodo=Turma.TipoPeriodo.ANO, escola="E.E. Wilquem").full_clean()
+
+
 def test_ensino_medio_so_aceita_o_primeiro_nome():
     e = fabricas.edicao()
     _, wil, _ = _turmas_das_escolas(e)
