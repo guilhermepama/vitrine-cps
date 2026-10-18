@@ -555,7 +555,7 @@ a { color: inherit; }
 .pessoa__papel { font-size: var(--texto-14); line-height: 1.3; color: var(--cor-texto-suave); }
 
 /* convite (vermelho) e registro de edição passada (preto) */
-.convite { background: var(--cor-acento); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
+.convite { background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
 .convite__grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding-block: var(--esp-12); }
 @media (min-width: 900px) { .convite__grade { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: end; } }
 .convite h2 { font-size: var(--texto-h2); color: inherit; }
@@ -565,8 +565,8 @@ a { color: inherit; }
 .convite__data { font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: clamp(3rem, 1rem + 5vw, 5rem); line-height: .9; text-transform: uppercase; }
 .convite__data small { display: block; margin-top: 10px; font: 500 var(--texto-14)/1.4 var(--fonte); text-transform: none; opacity: .9; }
 .convite .botao--vazado { margin-top: 16px; color: var(--cor-acento-texto); border-color: var(--cor-acento-texto); }
-.convite .botao--vazado:hover { background: var(--cor-acento-texto); color: var(--cor-acento); }
-.convite--passado { background: var(--cor-texto); color: var(--cor-fundo); }
+.convite .botao--vazado:hover { background: var(--cor-acento-texto); --cor-foco: var(--cor-acento); color: var(--cor-acento); }
+.convite--passado { background: var(--cor-texto); --cor-foco: var(--cor-fundo); color: var(--cor-fundo); }
 
 /* ============================================================
    ÁREA DO GRUPO (spec 02, layout da spec 07)
