@@ -37,6 +37,7 @@
   --cor-confirmacao: #1E7F3E;     /* só para confirmação */
   --cor-erro: #B20000;
   --cor-erro-fundo: #F7E6E1;
+  --cor-erro-texto: #6E0E0E;      /* texto sobre --cor-erro-fundo */
 
   /* tipografia */
   --fonte: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
@@ -99,6 +100,8 @@ a { color: inherit; }
   outline-color: var(--cor-acento-texto);
 }
 .chamada .botao--branco:focus-visible:not(:hover) { outline-color: var(--cor-acento); }
+/* O vazado da chamada fica branco ao passar o mouse: o foco volta ao vermelho para não sumir. */
+.chamada .botao--vazado:focus-visible:hover { outline-color: var(--cor-acento); }
 
 /* ---------- TIPOS ---------- */
 .display {
@@ -279,7 +282,7 @@ a { color: inherit; }
   display: flex; gap: var(--esp-3); padding: var(--esp-4);
   border-radius: var(--raio); font-size: 13px;
 }
-.aviso--erro { background: var(--cor-erro-fundo); border: 1px solid var(--cor-erro); color: #6E0E0E; }
+.aviso--erro { background: var(--cor-erro-fundo); border: 1px solid var(--cor-erro); color: var(--cor-erro-texto); }
 
 /* ---------- TABELAS (admin/resultados) ---------- */
 .tabela { width: 100%; border-collapse: collapse; border: 1px solid var(--cor-linha); }
@@ -675,7 +678,7 @@ a { color: inherit; }
 .acesso__acoes { display: flex; flex-wrap: wrap; gap: 12px; }
 .acesso--aviso .container { padding-block: var(--esp-12); }
 /* alerta: faixa com borda à esquerda, sem cantos nem sombra */
-.alerta { display: grid; gap: 6px; padding: var(--esp-4); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: #6E0E0E; font-size: var(--texto-14); }
+.alerta { display: grid; gap: 6px; padding: var(--esp-4); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: var(--cor-erro-texto); font-size: var(--texto-14); }
 .alerta strong { color: inherit; }
 .alerta--neutro { border-color: var(--cor-linha); background: transparent; color: var(--cor-texto-suave); }
 

@@ -56,6 +56,7 @@ def test_cabecalho_e_rodape_sem_caminho_de_voto_nem_formulario():
     assert "<form" not in html
     destinos = re.findall(r'(?:href|src|action)="([^"]*)"', html)
     assert not [d for d in destinos if d.startswith(ROTAS_DE_VOTO)]
+    assert "/como-votar/" not in destinos
     assert {"/", "/grupo/"} <= set(destinos)
 
 
