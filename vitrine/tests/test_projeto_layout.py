@@ -1,5 +1,7 @@
 """Layout da página do projeto (spec 07). O comportamento é da spec 02 (test_publica.py)."""
 
+import re
+
 import pytest
 
 from vitrine.templatetags.vitrine_extras import dominio
@@ -14,6 +16,7 @@ from vitrine.tests.test_publica import publicado
         ("https://exemplo.com/demo?x=1", "exemplo.com"),
         ("", ""),
         (None, ""),
+        ("https://[abc", ""),  # urlsplit levanta ValueError; o filtro devolve vazio
     ],
 )
 def test_dominio(url, esperado):
@@ -39,5 +42,5 @@ def test_menu_leva_aos_projetos_e_a_area_do_grupo(client):
 def test_sem_secao_de_impacto_nesta_edicao(client):
     p = publicado()
     html = client.get(f"/projeto/{p.slug}/").content.decode()
-    assert "Impacto" not in html
+    assert not re.search(r"\d\d — Impacto", html)  # o cabeçalho da seção, não a palavra solta
     assert "01 — Sobre o projeto" in html and "02 — Galeria" in html and "03 — Equipe" in html

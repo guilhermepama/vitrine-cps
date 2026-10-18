@@ -5,6 +5,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
+from django.contrib.staticfiles import finders
 from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
@@ -229,3 +230,10 @@ def test_sem_fontes_externas_e_sem_largura_fixa(client, edicao):
     fora_do_svg = re.sub(r"(?s)<svg\b.*?</svg>", "", html)
     for largura in re.findall(r'\swidth="(\d+)"', fora_do_svg):
         assert int(largura) <= 360
+
+
+def test_css_sem_url_do_google():
+    """Spec 07: fontes servidas de static/fonts/; nenhuma URL do Google no CSS."""
+    with open(finders.find("css/base.css"), encoding="utf-8") as arquivo:
+        css = arquivo.read()
+    assert "googleapis" not in css and "gstatic" not in css
