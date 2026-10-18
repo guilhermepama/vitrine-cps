@@ -605,9 +605,10 @@ a { color: inherit; }
 
 /* ============================================================
    ESTAÇÃO DE CREDENCIAMENTO (/estacao/<id>, spec 03; layout da spec 07)
-   Tela da recepção (notebook, TV ou tablet): cabe na janela sem rolagem.
-   O QR é a peça central; o quadrado vermelho fica atrás da quina, como a
-   capa do projeto. O SVG vem do servidor sem cor: a tinta vem daqui.
+   Tela da recepção (notebook, TV ou tablet): cabe na janela; só rola se
+   não couber. O QR é a peça central; o quadrado vermelho fica atrás da
+   quina, como a capa do projeto. O SVG vem do servidor com fill="#000000"
+   no path: a regra abaixo sobrescreve com a cor do texto.
    ============================================================ */
 .estacao { display: flex; }
 .tela-estacao .container { max-width: 1600px; } /* TV: QR maior, lido de mais longe */
@@ -636,8 +637,10 @@ a { color: inherit; }
 /* paisagem: texto à esquerda, QR à direita ocupando a altura que sobra.
    Retrato (tablet em pé): empilha e rola se a tela for baixa demais. */
 @media (min-width: 900px) and (min-aspect-ratio: 1/1) {
-  /* paisagem é a tela da recepção: trava na altura da janela, sem rolagem */
-  .tela-estacao { height: 100vh; height: 100dvh; overflow: hidden; }
+  /* paisagem é a tela da recepção: ocupa a altura da janela e centraliza
+     a grade no que sobra; rola só se o conteúdo não couber (TV baixa, zoom) */
+  .tela-estacao { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; overflow: auto; }
+  .estacao { flex: 1; }
   .estacao__grade {
     grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
     grid-template-areas: "cabeca codigo" "passos codigo" "nota codigo";
