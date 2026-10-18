@@ -198,7 +198,18 @@ def test_data_nome_e_pesos_vem_da_edicao(client):
     assert "Edição 2026/2" in html
     assert '29<span class="ponto">.</span>10' in html
     assert "Quinta-feira, 29 de outubro" in html and "a partir das 19h" in html
-    assert "banca (60%) + público (40%)" in html
+    assert "banca (60%) + público (40%)." in html
+
+
+@pytest.mark.django_db
+def test_premiacao_so_cita_convidados_quando_a_edicao_da_peso(client):
+    """`peso_convidados` chega com a ADR-013 (#81): sem o campo (ou com peso zero) o termo não aparece.
+
+    O caso com peso > 0 ("+ avaliadores convidados (N%)") fica para o merge com o #81.
+    """
+    fabricas.edicao(ativa=True, nome="2026/2", data_evento=date(2099, 10, 29))
+    html = _html(client)
+    assert "convidados" not in html[html.index("Premiação"):html.index('id="quem-faz"')]
 
 
 @pytest.mark.django_db

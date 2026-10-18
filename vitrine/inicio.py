@@ -112,11 +112,15 @@ def contexto_da_pagina_inicial():
         contexto["evento_passou"] = edicao.data_evento < timezone.localdate()
         contexto["percentual_banca"] = round(edicao.peso_banca * 100)
         contexto["percentual_publico"] = round(edicao.peso_publico * 100)
+        # peso_convidados chega com a ADR-013 (#81); até lá o termo fica fora da premiação.
+        peso_convidados = getattr(edicao, "peso_convidados", None)
+        if peso_convidados:
+            contexto["percentual_convidados"] = round(peso_convidados * 100)
     return contexto
 
 
 def contexto_da_pagina_da_semana():
-    """Semana da Tecnologia: edição ativa e os mesmos 4 sorteados da home, com o total para o botão."""
+    """Semana da Tecnologia: edição ativa e 4 projetos sorteados a cada visita, pelo mesmo mecanismo da home, com o total para o botão."""
     contexto = _projetos_da_edicao_ativa()
     contexto["destaques"] = sortear_destaques(contexto.pop("turmas"))
     return contexto

@@ -81,7 +81,8 @@ nenhum caminho de voto (G8).
       <li class="passo"><span class="passo__num" aria-hidden="true">03</span><h3 class="display">Avalie os projetos</h3><p>Esta é a oportunidade de a comunidade participar do desenvolvimento da tecnologia, avaliando o impacto social, o impacto ambiental e a inovação de cada projeto. <a href="{% url 'vitrine:como_votar' %}">Como funciona</a></p></li>
     </ol>
     {% if edicao %}
-    <p class="mostra__nota"><span class="destaque">Premiação:</span> banca ({{ percentual_banca }}%) + público ({{ percentual_publico }}%). Resultado divulgado pela coordenação após o evento.</p>
+    {# peso_convidados: ADR-013 (#81). Antes do campo existir, o atributo resolve para vazio e o termo não aparece. #}
+    <p class="mostra__nota"><span class="destaque">Premiação:</span> banca ({{ percentual_banca }}%) + público ({{ percentual_publico }}%){% if edicao.peso_convidados %} + avaliadores convidados ({{ percentual_convidados }}%){% endif %}. Resultado divulgado pela coordenação após o evento.</p>
     {% endif %}
   </div>
 </section>
@@ -92,7 +93,7 @@ nenhum caminho de voto (G8).
       <div><p class="mono">02 — Quem faz</p><h2 class="display">Na Fatec Olímpia, em casa de ferreiro o espeto é de ferro<span class="ponto">.</span> <span class="destaque">O Vitrine CPS é feito pelos alunos.</span></h2></div>
       <div class="quem__texto">
         <p>O <strong>Vitrine CPS</strong> mostra o que os alunos da Fatec Olímpia estão estudando e desenvolvendo. É por aqui que a cidade acompanha a <a href="{% url 'vitrine:semana' %}">Semana da Tecnologia</a> (oficinas, apresentações, palestras, workshops e a Mostra de Projetos), e cada projeto ganha uma página pública, com o que foi feito, por quem e por quê.</p>
-        <p>E o próprio Vitrine é um desses projetos. Os alunos de <strong>Desenvolvimento de Software Multiplataforma</strong> criaram a tecnologia que ajuda os alunos de <strong>Gestão de Turismo</strong> a divulgar e organizar o evento: votação segura por QR code, lista de presença e emissão de certificados, além do cálculo das notas da banca para a coordenação. Um evento real, com problemas reais, público, prazo e responsabilidade, tratado como trabalho de mercado.</p>
+        <p>E o próprio Vitrine é um desses projetos. Os alunos de <strong>Desenvolvimento de Software Multiplataforma</strong> criaram a tecnologia que ajuda os alunos de <strong>Gestão de Turismo</strong> a divulgar e organizar o evento: votação segura por QR code e o cálculo das notas da banca para a coordenação. Um evento real, com problemas reais, público, prazo e responsabilidade, tratado como trabalho de mercado.</p>
       </div>
     </div>
   </div>
