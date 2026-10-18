@@ -54,16 +54,16 @@ nenhum caminho de voto (G8).
 
 {% if edicao %}
 <div class="faixa">
-  <div class="container ficha" role="group" aria-label="Dados do evento">
-    <div class="ficha__data"><p class="display">{{ edicao.data_evento|date:"d" }}<span class="ponto">.</span>{{ edicao.data_evento|date:"m" }}</p></div>
+  <div class="container ficha-evento" role="group" aria-label="Dados do evento">
+    <div class="ficha-evento__data"><p class="display">{{ edicao.data_evento|date:"d" }}<span class="ponto">.</span>{{ edicao.data_evento|date:"m" }}</p></div>
     {% if evento_passou %}
-    <div class="ficha__linha"><span class="mono">Realizada em</span><span class="ficha__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F \d\e Y"|lower }}</span></div>
+    <div class="ficha-evento__linha"><span class="mono">Realizada em</span><span class="ficha-evento__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F \d\e Y"|lower }}</span></div>
     {% else %}
-    <div class="ficha__linha"><span class="mono">Dia e horário</span><span class="ficha__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F"|lower }}<small>a partir das 19h</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Dia e horário</span><span class="ficha-evento__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F"|lower }}<small>a partir das 19h</small></span></div>
     {% endif %}
-    <div class="ficha__linha"><span class="mono">Local</span><span class="ficha__valor">Campus da Fatec Olímpia<small>Av. Gov. Adhemar Pereira de Barros, km 3 — Recanto Bela Vista</small></span></div>
-    <div class="ficha__linha"><span class="mono">Entrada</span><span class="ficha__valor">Livre, sem inscrição<small>traga o celular</small></span></div>
-    <div class="ficha__linha"><span class="mono">Para quem</span><span class="ficha__valor">Aberto à comunidade<small>famílias, estudantes, empresas e poder público</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Local</span><span class="ficha-evento__valor">Campus da Fatec Olímpia<small>Av. Gov. Adhemar Pereira de Barros, km 3 — Recanto Bela Vista</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Entrada</span><span class="ficha-evento__valor">Livre, sem inscrição<small>traga o celular</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Para quem</span><span class="ficha-evento__valor">Aberto à comunidade<small>famílias, estudantes, empresas e poder público</small></span></div>
   </div>
 </div>
 {% endif %}
