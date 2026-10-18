@@ -250,6 +250,14 @@ def test_fichas_da_edicao_poem_a_banca_antes_dos_convidados(impressor):
     fabricas.jurado(edicao, turma, "Alice", Tipo.CONVIDADO)
     html = impressor.get(reverse("admin:banca_jurado_fichas_edicao", args=[edicao.pk])).content.decode()
     assert html.index("<strong>Jurado:</strong> Zé") < html.index("<strong>Avaliador convidado:</strong> Alice")
+    assert "<title>Fichas da banca e dos avaliadores convidados — " in html
+
+
+def test_fichas_da_edicao_so_com_banca_mantem_o_titulo_de_antes(impressor):
+    edicao, turma, _ = _cenario()
+    fabricas.jurado(edicao, turma, "Zé", Tipo.BANCA)
+    html = impressor.get(reverse("admin:banca_jurado_fichas_edicao", args=[edicao.pk])).content.decode()
+    assert "<title>Fichas da banca — " in html
 
 
 # --- Conferência -----------------------------------------------------------------------

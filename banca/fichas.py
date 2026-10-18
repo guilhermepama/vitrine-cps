@@ -109,4 +109,11 @@ def ficha_do_jurado(request, id):
 def fichas_da_edicao(request, id):
     edicao = get_object_or_404(Edicao, pk=id)
     jurados = list(Jurado.objects.filter(edicao=edicao).order_by("tipo", "nome"))  # banca antes dos convidados
-    return _render(request, edicao, jurados, "Fichas da banca")
+    tipos = {j.tipo for j in jurados}
+    if tipos == {Tipo.CONVIDADO}:
+        titulo = "Fichas dos avaliadores convidados"
+    elif Tipo.CONVIDADO in tipos:
+        titulo = "Fichas da banca e dos avaliadores convidados"
+    else:
+        titulo = "Fichas da banca"
+    return _render(request, edicao, jurados, titulo)
