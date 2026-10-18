@@ -244,7 +244,7 @@ def imagem_legenda(request, token, imagem_id):
         status = 400 if servicos.pode_editar(projeto) else 403
         return _tela_de_edicao(request, projeto, token, erro_imagem=mensagem if status == 400 else None, status=status)
     try:
-        servicos.atualizar_legenda(projeto.pk, token, imagem_id, form.cleaned_data["legenda"].strip())
+        servicos.atualizar_legenda(projeto.pk, token, imagem_id, form.cleaned_data["legenda"])
     except servicos.EdicaoEncerrada:
         return _403_com_estado_atual(request, token)
     except servicos.ImagemInexistente:
