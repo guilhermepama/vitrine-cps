@@ -26,7 +26,9 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 - **`templates/base.html`**: topo com a marca (logo SVG, link para `/`),
   bloco `menu` vazio por padrão e rodapé institucional. Os blocos existentes
   (`titulo`, `meta`, `conteudo`, `topo`, `rodape`, `classe_main`) não mudam.
-  Bloco novo `scripts` no fim do `body`.
+  Blocos novos: `scripts` no fim do `body` e `rodape_edicao` na última
+  linha do rodapé (vazio por padrão; a home preenche com "Edição {nome} ·
+  dd.mm" quando há edição ativa).
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
   fachada, ficha do evento, faixa dos cursos (DSM, GTUR), 01 A Mostra, 02 Projetos,
   03 Quem faz e a chamada da Fatec com o convite ao vestibular (links para
@@ -69,7 +71,9 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   vinte ("Oito projetos, cinco turmas"; "Um projeto, uma turma"); acima de
   vinte, em algarismos.
 - **Chips do filtro**: "Todos" + um chip por curso que tem projeto
-  publicado, na ordem das turmas, pela `Curso.sigla`.
+  publicado, na ordem das turmas, pela `Curso.sigla`. O filtro só aparece
+  quando há projeto publicado em dois ou mais cursos; com um curso só, não
+  há o que filtrar e o bloco nem é renderizado.
 - **Datas e pesos** vêm da `Edicao`: dia e mês no bloco grande, dia da
   semana por extenso na ficha, "Edição {nome}" no hero, pesos da banca e do
   público na nota de premiação. Horário (19h) e endereço são texto fixo,
