@@ -318,7 +318,7 @@ permissões, nenhuma tabela.
 - [ ] Teste da média bayesiana: numa turma com média ~4,2, 1 avaliação 5 fica abaixo de 60 avaliações de média 4,8; 40 avaliações nota 2 ficam abaixo de 15 avaliações nota 5; com a turma inteira perto de 4,8, a avaliação única fica um pouco acima (limite registrado no ADR-012); ranking completo com média da turma 4,0: 8 avaliações 5 passam à frente de 40 de média 4,5 (limite (2))
 - [ ] Soma de notas impossível para o nº de avaliações (fora de 0–15 por avaliação) → erro, sem resultado
 - [ ] Teste de posição após empate: dois empatados em 1º e um terceiro projeto → posições `1, 1, 3`
-- [ ] Projeto sem voto aparece com 0 votos (não some do ranking)
+- [ ] Projeto sem voto aparece com 0 votos (não some do ranking) (regra anterior)
 - [ ] `banca_conferida_em` vazio → todas as turmas com aviso "não é o resultado oficial" e nenhuma nota final exibida
 - [ ] `banca_conferida_em` preenchido e um projeto da turma A sem nota de banca → turma A com aviso e sem nota final; turma B com ranking oficial
 - [ ] Pesos ausentes ou que não somam 1 → erro "Pesos da edição não configurados"
