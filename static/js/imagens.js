@@ -92,16 +92,31 @@
     return true;
   }
 
+  // A prévia local (URL.createObjectURL) some junto com a seção trocada; libera
+  // a URL antes para não acumular blobs na memória da aba.
+  function revogarPrevia(form) {
+    var alvo = document.getElementById(form.getAttribute("data-previa"));
+    var img = alvo && alvo.querySelector(".previa img");
+    if (img && img.src.indexOf("blob:") === 0) URL.revokeObjectURL(img.src);
+  }
+
   // `aoFalhar`: desfaz o estado de envio (prévia "Enviando…", card escondido)
   // para a pessoa poder tentar de novo sem recarregar (revisão do #75).
+  // Um envio por vez: a segunda ação enquanto outra sobe não é descartada em
+  // silêncio — desfaz o estado e avisa no mesmo lugar dos outros avisos.
   function enviar(form, botao, aoFalhar) {
-    if (ocupado) return;
+    if (ocupado) {
+      if (aoFalhar) aoFalhar();
+      avisa(form, "Aguarde o envio anterior terminar.", true);
+      return;
+    }
     ocupado = true;
     if (botao) botao.disabled = true;
     fetch(form.action, { method: "POST", body: new FormData(form), credentials: "same-origin" })
       .then(function (r) { return r.text().then(function (html) { return { r: r, html: html }; }); })
       .then(function (res) {
         ocupado = false;
+        revogarPrevia(form);
         if (!aplicar(res.html, form)) window.location.reload();
       }, function () {
         ocupado = false;
