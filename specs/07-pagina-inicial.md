@@ -62,7 +62,9 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   vêm da `Edicao` ativa; consultas constantes. No rodapé, "Semana da Tecnologia".
 - **Menu** (home, `/projetos/` e Semana, partial `_nav_principal.html`): 01 A Mostra (seção da
   Mostra na página da Semana, `#mostra`), 02 Semana da Tecnologia, 03 Projetos (`/projetos/`) e
-  Área do grupo; a página atual fica marcada.
+  Área do grupo; a página atual fica marcada. Abaixo de 1000 px, "A Mostra" e "Semana da
+  Tecnologia" (`.so-desktop`) só entram no menu com JS (menu sanfona de `menu.js`); sem JS, nessa
+  largura, a Semana continua alcançável pelo link do rodapé e pelo texto de "Quem faz".
 - **"02 Quem faz" na home** fala só do Vitrine CPS (o que mostra e o que DSM construiu para GTUR
   e a coordenação), com link para a página da Semana; sem os quatro blocos de
   itens. "Quem faz" (02) vem antes de "Projetos" (03).
