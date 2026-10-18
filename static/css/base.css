@@ -130,7 +130,7 @@ a { color: inherit; }
 /* Grades de uma coluna no celular: minmax(0,1fr) para conteúdo largo (título
    em caixa alta) nunca alargar a coluna além da tela. */
 .hero__grade, .secao__cabeca, .mostra__cabeca, .quem__cabeca, .grupo__grade,
-.ficha, .passos, .tecnica, .rodape__grade, .cartoes { grid-template-columns: minmax(0, 1fr); }
+.ficha-evento, .passos, .tecnica, .rodape__grade, .cartoes { grid-template-columns: minmax(0, 1fr); }
 .hero__grade > *, .secao__cabeca > *, .mostra__cabeca > *, .quem__cabeca > *, .grupo__grade > * { min-width: 0; }
 
 /* ---------- TOPO (base.html) ---------- */
@@ -350,18 +350,18 @@ a { color: inherit; }
 .hero__prancha .coord--sobre-vermelho { fill: var(--cor-fundo); }
 
 /* ---------- FICHA DO EVENTO: uma linha de células ---------- */
-.ficha { display: grid; }
-@media (min-width: 720px) { .ficha { grid-template-columns: auto repeat(4, minmax(0, 1fr)); } }
-.ficha__data { display: flex; align-items: center; padding: 12px var(--gutter) 12px 0; border-bottom: 1px solid var(--cor-borda); }
-@media (min-width: 720px) { .ficha__data { border-bottom: 0; border-right: 1px solid var(--cor-linha); padding-right: calc(var(--gutter) * 1.5); } }
-.ficha__data .display { font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
-.ficha__linha { display: grid; gap: 4px; align-content: start; padding: 14px var(--gutter) 14px 0; border-bottom: 1px solid var(--cor-borda); }
+.ficha-evento { display: grid; }
+@media (min-width: 720px) { .ficha-evento { grid-template-columns: auto repeat(4, minmax(0, 1fr)); } }
+.ficha-evento__data { display: flex; align-items: center; padding: 12px var(--gutter) 12px 0; border-bottom: 1px solid var(--cor-borda); }
+@media (min-width: 720px) { .ficha-evento__data { border-bottom: 0; border-right: 1px solid var(--cor-linha); padding-right: calc(var(--gutter) * 1.5); } }
+.ficha-evento__data .display { font-size: clamp(2.5rem, 1rem + 4vw, 4rem); }
+.ficha-evento__linha { display: grid; gap: 4px; align-content: start; padding: 14px var(--gutter) 14px 0; border-bottom: 1px solid var(--cor-borda); }
 @media (min-width: 720px) {
-  .ficha__linha { padding-left: var(--gutter); border-bottom: 0; border-right: 1px solid var(--cor-borda); }
-  .ficha__linha:last-child { border-right: 0; }
+  .ficha-evento__linha { padding-left: var(--gutter); border-bottom: 0; border-right: 1px solid var(--cor-borda); }
+  .ficha-evento__linha:last-child { border-right: 0; }
 }
-.ficha__valor { font-weight: 500; line-height: 1.35; font-size: var(--texto-14); }
-.ficha__valor small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-13); }
+.ficha-evento__valor { font-weight: 500; line-height: 1.35; font-size: var(--texto-14); }
+.ficha-evento__valor small { display: block; font-weight: 400; color: var(--cor-texto-suave); font-size: var(--texto-13); }
 
 /* ---------- FAIXA DOS CURSOS em vermelho ---------- */
 .faixa--vermelha { background: var(--cor-acento); color: var(--cor-acento-texto); }
