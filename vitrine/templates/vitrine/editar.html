@@ -28,7 +28,9 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
 </header>
 
 <div class="container edicao__avisos">
-  {% for mensagem in messages %}<p class="alerta alerta--ok" role="status">{{ mensagem }}</p>{% endfor %}
+  {% for mensagem in messages %}
+  {% if mensagem.level_tag == "error" %}<p class="alerta" role="alert">{{ mensagem }}</p>{% else %}<p class="alerta alerta--ok" role="status">{{ mensagem }}</p>{% endif %}
+  {% endfor %}
   {% if projeto.status == "ajustes" and projeto.motivo_ajustes %}
   <div class="alerta" role="alert">
     <strong>A coordenação pediu ajustes:</strong>
@@ -91,7 +93,6 @@ lateral ficam fora do <form> e o apontam pelo atributo `form`.
       </div>
       <p class="alerta alerta--neutro" id="aviso-salvar-texto">Salve o texto antes de enviar imagens: o envio recarrega a página e o que não foi salvo se perde.</p>
       {% if etec %}<p class="alerta alerta--neutro"><strong>Não envie fotos de pessoas.</strong></p>{% endif %}
-      {% if erro_imagem %}<p class="alerta" role="alert">{{ erro_imagem }}</p>{% endif %}
 
       <div class="edicao-capa">
         <div class="edicao-capa__quadro" id="previa-capa">
