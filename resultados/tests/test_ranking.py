@@ -96,21 +96,23 @@ def test_votacao_nao_configurada_sem_participacao_por_turma(admin):
 
 
 def test_ranking_oficial_com_duas_casas_e_projeto_sem_voto(admin):
-    ed, _ = cenario.edicao({"DSM": [("Agenda", 10, 8), ("Horta", 5, 7), ("Robô", 0, 6)]})
+    ed, _ = cenario.edicao({"DSM": [("Agenda", 10, 8, 5), ("Horta", 5, 7, 4), ("Robô", 0, 6)]})
     resposta, html = abrir(admin, ed)
     turma, por_titulo = linhas(resposta, "DSM")
     assert not turma.banca_pendente
     assert [linha.titulo for linha in turma.linhas] == ["Agenda", "Horta", "Robô"]
     assert por_titulo["Robô"].votos == 0
-    assert por_titulo["Horta"].p == Decimal("0.5") and por_titulo["Horta"].b == Decimal("0.5")
-    assert [linha.final for linha in turma.linhas] == [1, Decimal("0.5"), 0]
+    # Público pela média bayesiana (ADR-012): o projeto sem avaliação fica na média da turma, entre os dois.
+    assert por_titulo["Horta"].p == 0 and por_titulo["Horta"].b == Decimal("0.5")
+    assert 0 < por_titulo["Robô"].p < 1 and por_titulo["Robô"].b == 0
+    assert [linha.final for linha in turma.linhas][:2] == [1, Decimal("0.35")]
     assert PENDENTE not in html
     # Linhas inteiras (posição, projeto, votos, banca, p, b, final, empate), 2 casas.
     tabela = compacto(html)
     assert '<td class="n">2º</td><td>Horta</td><td class="n">5</td><td class="n">7,00</td>' \
-        '<td class="n">0,50</td><td class="n">0,50</td><td class="n">0,50</td><td></td>' in tabela
+        '<td class="n">0,00</td><td class="n">0,50</td><td class="n">0,35</td><td></td>' in tabela
     assert '<td class="n">3º</td><td>Robô</td><td class="n">0</td><td class="n">6,00</td>' \
-        '<td class="n">0,00</td><td class="n">0,00</td><td class="n">0,00</td><td></td>' in tabela
+        '<td class="n">0,57</td><td class="n">0,00</td><td class="n">0,17</td><td></td>' in tabela
 
 
 def test_empate_mesma_posicao_e_marca(admin):
@@ -150,7 +152,7 @@ def test_turma_sem_projeto_publicado_nao_aparece(admin):
 
 def test_banca_nao_conferida_todas_as_turmas_pendentes_sem_final(admin):
     ed, _ = cenario.edicao(
-        {"DSM": [("Agenda", 3, 8), ("Horta", 1, 7)], "GTUR": [("Roteiro", 2, 9), ("Mapa", 0, 6)]},
+        {"DSM": [("Agenda", 3, 8, 5), ("Horta", 1, 7, 1)], "GTUR": [("Roteiro", 2, 9), ("Mapa", 0, 6)]},
         conferida=False,
     )
     resposta, html = abrir(admin, ed)
@@ -168,7 +170,7 @@ def test_banca_nao_conferida_todas_as_turmas_pendentes_sem_final(admin):
 
 def test_conferida_com_projeto_sem_nota_so_aquela_turma_pendente(admin):
     ed, _ = cenario.edicao(
-        {"DSM": [("Agenda", 3, 8), ("Horta", 1, None)], "GTUR": [("Roteiro", 2, 9), ("Mapa", 0, 6)]},
+        {"DSM": [("Agenda", 3, 8, 5), ("Horta", 1, None, 1)], "GTUR": [("Roteiro", 2, 9, 5), ("Mapa", 0, 6)]},
     )
     resposta, html = abrir(admin, ed)
     dsm, dsm_linhas = linhas(resposta, "DSM")
@@ -176,7 +178,7 @@ def test_conferida_com_projeto_sem_nota_so_aquela_turma_pendente(admin):
     assert dsm.banca_pendente and not gtur.banca_pendente
     assert set(dsm_linhas) == {"Agenda", "Horta"}  # o projeto sem nota não sai do ranking
     assert all(linha.final is None and linha.b is None for linha in dsm.linhas)
-    assert [linha.final for linha in gtur.linhas] == [1, 0]
+    assert [linha.final for linha in gtur.linhas] == [1, Decimal("0.3")]  # Mapa, sem avaliação, fica na média da turma (= Roteiro, só ele avaliou): p = 1
     assert html.count(PENDENTE) == 1
     assert html.index(PENDENTE) < html.index("Roteiro")  # o aviso é da turma DSM
 
@@ -308,3 +310,17 @@ def test_numero_de_consultas_nao_depende_do_tamanho(admin):
     assert sum(len(t.linhas) for t in r_grande.context["ranking"]) == 100
     assert not any(t.banca_pendente for t in r_grande.context["ranking"])
     assert n_grande == n_pequena
+
+
+# --- Público pela média bayesiana das notas (ADR-012) -----------------------------
+
+
+def test_publico_vem_da_media_das_notas_nao_da_contagem(admin):
+    """O projeto com MAIS avaliações, mas notas menores, fica atrás."""
+    ed, _ = cenario.edicao({"DSM": [("Muitos", 8, 7, 2), ("Poucos", 2, 7, 5)]})
+    resposta, html = abrir(admin, ed)
+    turma, por_titulo = linhas(resposta, "DSM")
+    assert (por_titulo["Muitos"].votos, por_titulo["Poucos"].votos) == (8, 2)
+    assert por_titulo["Muitos"].media == 2 and por_titulo["Poucos"].media == 5
+    assert (por_titulo["Poucos"].p, por_titulo["Muitos"].p) == (1, 0)
+    assert [linha.titulo for linha in turma.linhas] == ["Poucos", "Muitos"]
