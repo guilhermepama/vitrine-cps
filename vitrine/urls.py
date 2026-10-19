@@ -7,6 +7,7 @@ from vitrine import views
 app_name = "vitrine"
 
 urlpatterns = [
+    path("", views.inicio, name="inicio"),
     path("projeto/<slug:slug>/", views.pagina_do_projeto, name="projeto"),
     path("como-votar/", views.como_votar, name="como_votar"),
     path("grupo/", views.grupo, name="grupo"),

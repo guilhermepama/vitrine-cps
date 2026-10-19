@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Página inicial (spec 07), porte do index.html do protótipo v1.
+Links só para âncoras desta página, /projeto/…, /grupo/ e /como-votar/:
+nenhum caminho de voto (G8).
+{% endcomment %}
+
+{% block titulo %}Vitrine CPS — Mostra de Projetos Fatec Olímpia{% endblock %}
+
+{% block meta %}
+  <meta name="description" content="Mostra de Projetos da Fatec Olímpia: conheça os projetos dos alunos e venha ao evento.">
+  <meta property="og:title" content="Vitrine CPS — Mostra de Projetos">
+  <meta property="og:description" content="Conheça os projetos dos alunos da Fatec Olímpia e venha ao evento.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  {# menu.js entra no bloco meta, sem defer: marca <html class="js"> antes da primeira pintura, para o menu não piscar. #}
+  <script src="{% static 'js/menu.js' %}"></script>
+{% endblock %}
+
+{% block menu %}
+<button class="nav-alterna" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu"><span></span></button>
+<nav class="nav" id="menu" aria-label="Principal">
+  <a href="#mostra" class="so-desktop"><span class="idx" aria-hidden="true">01</span>A Mostra</a>
+  <a href="#projetos"><span class="idx" aria-hidden="true">02</span>Projetos</a>
+  <a href="#quem-faz" class="so-desktop"><span class="idx" aria-hidden="true">03</span>Quem faz</a>
+  <a href="{% url 'vitrine:grupo' %}" class="nav__botao">Área do grupo</a>
+</nav>
+{% endblock %}
+
+{% block classe_main %}{% endblock %}
+
+{% block conteudo %}
+<section class="hero">
+  <div class="container hero__grade">
+    <div class="hero__esq">
+      <div class="hero__edicao mono">
+        <span>Mostra de Projetos{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</span>
+        <span>Fatec Olímpia</span>
+      </div>
+      <h1 class="display">Venha ver a <span class="destaque">inovação crescendo em Olímpia</span> com seus próprios olhos<span class="ponto">.</span></h1>
+      <p class="hero__texto">Turismo e tecnologia movem Olímpia, e são exatamente os cursos que a Fatec trouxe para a cidade. Na <strong>Mostra de Projetos</strong>, os alunos da <strong>Fatec Olímpia</strong> apresentam o que criaram neste semestre: software, soluções para problemas reais da cidade, roteiros e eventos para quem vive aqui e para quem nos visita. Uma noite para a comunidade ver de perto o que está nascendo em Olímpia, conversar com quem fez e escolher seus favoritos.</p>
+      <div class="hero__acoes">
+        <a class="botao botao--vermelho" href="#projetos">Ver os projetos</a>
+        <a class="botao botao--vazado" href="#mostra">Sobre a Mostra</a>
+      </div>
+    </div>
+    <figure class="hero__foto">
+      {% include "vitrine/_hero_fachada.html" %}
+      <figcaption class="mono"><span>Fatec Olímpia — onde a Mostra acontece</span><span>Av. Gov. Adhemar Pereira de Barros, km 3</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+{% if edicao %}
+<div class="faixa">
+  <div class="container ficha-evento" role="group" aria-label="Dados do evento">
+    <div class="ficha-evento__data"><p class="display">{{ edicao.data_evento|date:"d" }}<span class="ponto">.</span>{{ edicao.data_evento|date:"m" }}</p></div>
+    {% if evento_passou %}
+    <div class="ficha-evento__linha"><span class="mono">Realizada em</span><span class="ficha-evento__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F \d\e Y"|lower }}</span></div>
+    {% else %}
+    <div class="ficha-evento__linha"><span class="mono">Dia e horário</span><span class="ficha-evento__valor">{{ edicao.data_evento|date:"l"|capfirst }}, {{ edicao.data_evento|date:"j \d\e F"|lower }}<small>a partir das 19h</small></span></div>
+    {% endif %}
+    <div class="ficha-evento__linha"><span class="mono">Local</span><span class="ficha-evento__valor">Campus da Fatec Olímpia<small>Av. Gov. Adhemar Pereira de Barros, km 3 — Recanto Bela Vista</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Entrada</span><span class="ficha-evento__valor">Livre, sem inscrição<small>traga o celular</small></span></div>
+    <div class="ficha-evento__linha"><span class="mono">Para quem</span><span class="ficha-evento__valor">Aberto à comunidade<small>famílias, estudantes, empresas e poder público</small></span></div>
+  </div>
+</div>
+{% endif %}
+
+<div class="faixa faixa--vermelha">
+  <div class="container unidades" aria-label="Cursos da Fatec Olímpia">
+    <div class="unidade"><span class="unidade__sigla">DSM</span><span class="unidade__nome">Desenvolvimento de Software Multiplataforma</span></div>
+    <div class="unidade"><span class="unidade__sigla">GTUR</span><span class="unidade__nome">Gestão de Turismo</span></div>
+  </div>
+</div>
+
+<section class="mostra" id="mostra">
+  <div class="container">
+    <div class="mostra__cabeca">
+      <div><p class="mono">01 — A Mostra</p><h2 class="display">Uma noite para ver, conversar e avaliar<span class="ponto">.</span></h2></div>
+      <p>O <strong>Vitrine CPS</strong> mostra o que acontece dentro da Fatec Olímpia. Na noite da Mostra{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço, os grupos apresentam o que construíram e a comunidade circula livremente. Uma <strong>banca de avaliadores</strong> avalia os projetos tecnicamente, e o público também participa, avaliando o impacto e a relevância para a sociedade.</p>
+    </div>
+    <ol class="passos">
+      <li class="passo"><span class="passo__num" aria-hidden="true">01</span><h3 class="display">Conheça os projetos</h3><p>Software, aplicativos, roteiros turísticos, eventos e soluções para problemas reais da cidade, apresentados por quem os fez. Pergunte, teste, opine.</p></li>
+      <li class="passo"><span class="passo__num" aria-hidden="true">02</span><h3 class="display">Converse com quem fez</h3><p>Os grupos estão lá para explicar o problema que escolheram, o que funcionou e o que ainda falta. É a melhor parte da noite.</p></li>
+      <li class="passo"><span class="passo__num" aria-hidden="true">03</span><h3 class="display">Escolha seus favoritos</h3><p>Com uma credencial gerada pelo QR code da recepção, você avalia pelo celular, uma vez por projeto. Sem aplicativo, sem cadastro prévio. <a href="{% url 'vitrine:como_votar' %}">Como funciona</a></p></li>
+    </ol>
+    {% if edicao %}
+    <p class="mostra__nota"><span class="destaque">Premiação:</span> banca ({{ percentual_banca }}%) + público ({{ percentual_publico }}%). Resultado divulgado pela coordenação após o evento.</p>
+    {% endif %}
+  </div>
+</section>
+
+<section id="projetos">
+  <div class="container">
+    <div class="secao__cabeca">
+      <div>
+        <p class="mono">02 — Projetos desta edição</p>
+        <h2 class="display">{% if titulo_projetos %}{{ titulo_projetos }}{% else %}Projetos em breve{% endif %}</h2>
+        <p>Software, turismo e gestão, feitos ao longo do semestre por quem estuda em Olímpia. Cada projeto tem a própria página: abra, conheça e compartilhe as que gostar.</p>
+      </div>
+      {% if cursos|length > 1 %}
+      <div class="filtros" role="group" aria-label="Filtrar por curso" data-filtro-cursos hidden>
+        <button class="chip chip--ativo" data-curso="todos" type="button" aria-pressed="true">Todos</button>
+        {% for curso in cursos %}<button class="chip" data-curso="{{ curso.sigla|slugify }}" type="button" aria-pressed="false">{{ curso.sigla }}</button>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% for grupo in turmas %}
+    <div class="turma" data-curso="{{ grupo.curso.sigla|slugify }}">
+      <h3 class="turma__titulo"><span class="display">{{ grupo.turma.rotulo }}</span><span class="mono">{{ grupo.curso.nome }}</span><span class="mono turma__n">{{ grupo.projetos|length }} projeto{{ grupo.projetos|length|pluralize }}</span></h3>
+      <div class="cartoes">
+        {% for projeto in grupo.projetos %}
+        <a class="cartao-projeto" href="{% url 'vitrine:projeto' projeto.slug %}">
+          {% if projeto.capa %}<img class="cartao-projeto__capa" src="{{ projeto.capa.url }}" alt="" loading="lazy" decoding="async">{% endif %}
+          <div class="cartao-projeto__corpo">
+            <div class="cartao-projeto__meta mono"><span>{{ grupo.periodo_curto }}</span><span>{{ projeto.n_integrantes }} integrante{{ projeto.n_integrantes|pluralize }}</span></div>
+            <h3 class="display">{{ projeto.titulo }}</h3>
+            {% if projeto.resumo %}<p>{{ projeto.resumo }}</p>{% endif %}
+            <div class="cartao-projeto__pe"><span class="mono">{{ projeto.links_resumo }}</span><span class="seta" aria-hidden="true">→</span></div>
+          </div>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <p class="vazio">Os projetos desta edição aparecem aqui assim que a coordenação publicar cada página.</p>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="quem" id="quem-faz">
+  <div class="container">
+    <div class="quem__cabeca">
+      <div><p class="mono">03 — Quem faz</p><h2 class="display">Na Fatec Olímpia, em casa de ferreiro o espeto é de ferro<span class="ponto">.</span> <span class="destaque">O Vitrine CPS é feito pelos alunos.</span></h2></div>
+      <div class="quem__texto">
+        <p>Esta edição conta com um sistema de publicação e avaliação dos projetos de forma digital e segura. A plataforma foi desenvolvida em conjunto por alunos do <strong>1º, 2º e 3º semestre de Desenvolvimento de Software Multiplataforma</strong> da Fatec Olímpia, aplicando o aprendizado adquirido em sala, com mentoria de professores. Ela dá a cada projeto uma página pública para divulgar, organiza o evento e registra a avaliação; a coordenação modera o conteúdo.</p>
+        <p>É software livre: o código fica público no GitHub, e a cada semestre uma nova turma pode melhorá-lo. A ideia é que, com o tempo, vire o portal permanente dos projetos da comunidade da Fatec Olímpia.</p>
+      </div>
+    </div>
+    <div class="tecnica">
+      <div class="tecnica__cel"><span class="mono">Publicação</span><h3 class="display">Página por projeto</h3><p>Cada grupo entra com o RA, recebe um link de edição e monta a própria página: capa, resumo, galeria, equipe e links. Nada vai ao ar sem a aprovação da coordenação do curso.</p></div>
+      <div class="tecnica__cel"><span class="mono">Divulgação</span><h3 class="display">Link que vira convite</h3><p>Cada projeto tem um endereço permanente, com prévia pronta para o WhatsApp. O grupo compartilha, a família compartilha, a cidade fica sabendo. O link continua valendo nas edições seguintes.</p></div>
+      <div class="tecnica__cel"><span class="mono">Evento</span><h3 class="display">Votação pelo celular</h3><p>QR code assinado nas recepções, credencial única por visitante, avaliação pelo próprio aparelho e voto separado dos dados pessoais. Tudo roda no navegador.</p></div>
+      <div class="tecnica__cel"><span class="mono">Comunidade</span><h3 class="display">Software livre</h3><p>Código público no GitHub, feito em equipe por alunos de DSM com revisão humana de cada mudança. A próxima turma pode continuar de onde esta parou.</p></div>
+    </div>
+  </div>
+</section>
+
+{# Convite ao vestibular. Datas de inscrição e prova (1º semestre de 2027): conferir com o calendário oficial a cada edição. #}
+<section class="chamada" id="fatec">
+  <div class="container chamada__grade">
+    <div>
+      <p class="mono">Vestibular Fatec 2027</p>
+      <h2 class="display">Queremos ver seu nome nos próximos projetos<span>.</span></h2>
+      <p>Os projetos desta Mostra nasceram na Fatec Olímpia, faculdade pública e gratuita do Centro Paula Souza, com dois cursos superiores: <strong>Desenvolvimento de Software Multiplataforma</strong> e <strong>Gestão de Turismo</strong>.</p>
+    </div>
+    <div class="chamada__lado">
+      <div class="chamada__datas">
+        <p class="chamada__data"><span class="chamada__rotulo display">Inscrições até</span><span class="chamada__dia display">06<span>.</span>11</span></p>
+        <p class="chamada__data"><span class="chamada__rotulo display">Prova</span><span class="chamada__dia display">13<span>.</span>12</span></p>
+      </div>
+      <div class="chamada__acoes">
+        <a class="botao botao--branco" href="https://vestibular.fatec.sp.gov.br/" rel="noopener noreferrer">Inscrições do vestibular</a>
+        <a class="botao botao--vazado" href="https://fatecolimpia.cps.sp.gov.br/" rel="noopener noreferrer">Conheça a Fatec Olímpia</a>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block rodape_edicao %}{% if edicao %}<span>Edição {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m" }}</span>{% endif %}{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/filtro-cursos.js' %}" defer></script>{% endblock %}
