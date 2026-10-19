@@ -10,6 +10,12 @@
   spec 03 (tokens, votos, estações, visitantes), spec 06 (função
   `nota_banca_por_projeto` e formato das notas da banca)
 
+> **Emenda ADR-013 (16/10):** três partes (banca, convidados e público),
+> ranking **geral** e **por curso**, e a **nota do boletim** — ver
+> "Nota composta, ranking geral e boletim (ADR-013)". Onde esta spec fala em
+> 70/30 banca/público **por turma**, vale a emenda: o recorte passa a ser
+> **por curso** (todas as turmas do curso juntas).
+
 ## Objetivo
 Dar ao administrador, ao encerrar a votação, o ranking de cada turma pela
 **nota composta da ADR-007** (70% banca + 30% público, min-max dentro da
@@ -36,7 +42,8 @@ visitantes — tudo em rotas só de admin.
 - **Cálculo** em função pura, testável sem HTTP (ex:
   `resultados/calculo.py`), recebendo votos e nota de banca por projeto e
   devolvendo o ranking. As views só buscam os dados e chamam essa função.
-- `resultados/urls.py` com `app_name = "resultados"` e as três rotas.
+- `resultados/urls.py` com `app_name = "resultados"` e as quatro rotas
+  (ranking, operacional, visitantes.csv e boletim.csv — ADR-013).
 - Permissões próprias do app (ver "Dados") e testes do caminho crítico.
 
 ## Fora de escopo
@@ -60,7 +67,8 @@ visitantes — tudo em rotas só de admin.
 - "Congelar" o resultado em tabela própria (snapshot): o registro oficial
   é a página impressa e assinada + o `pg_dump` após o resultado (ADR-006)
   — decisão do coordenador no PR #14.
-- Critério extra de desempate além de banca bruta e votos.
+- Critério extra de desempate além de banca bruta, convidados bruta
+  (só com `peso_convidados > 0` — ADR-013) e avaliações do público.
 - Bibliotecas novas (pandas etc.): CSV com o módulo `csv` da biblioteca
   padrão; agregações com o ORM do Django.
 - Alterar `urls.py` raiz ou `settings.py`: o coordenador adiciona
@@ -108,16 +116,17 @@ qualquer consulta aos dados de negócio:
 - Quando a votação está encerrada, o sistema, para cada turma:
   1. considera os projetos da turma na edição com status `publicado` —
      o mesmo filtro da cédula da spec 03 (decisão do coordenador no
-     PR #14); projeto sem voto entra com 0 votos;
-  2. calcula `p = (votos - menor) / (maior - menor)` entre os projetos da
-     turma; se maior = menor, `p = 1` para todos;
+     PR #14); projeto sem avaliação continua no ranking (ver "Público");
+  2. calcula `p = (público - menor) / (maior - menor)` entre os projetos
+     da turma, sobre o valor do público definido em "Público (ADR-012)";
+     se maior = menor, `p = 1` para todos;
   3. calcula `b` da mesma forma sobre a nota de banca do projeto
      (ADR-007); se maior = menor, `b = 1`;
   4. `final = peso_banca·b + peso_publico·p`, com os pesos lidos de
      `Edicao.peso_banca` e `Edicao.peso_publico` (0,70 e 0,30 nesta
      edição — ADR-007);
   5. ordena por `final` decrescente; desempate por maior nota de banca
-     bruta, depois mais votos do público;
+     bruta, depois mais avaliações do público;
   6. se ainda houver empate em tudo, os projetos recebem a **mesma
      posição** e a linha é marcada "empate" (ordem de exibição
      alfabética pelo título) — decisão do coordenador no PR #14. A
@@ -125,6 +134,78 @@ qualquer consulta aos dados de negócio:
      posições `1, 1, 3`.
 - A normalização é **local à turma**: o máximo e o mínimo de uma turma
   não influenciam outra.
+
+### Nota composta, ranking geral e boletim (ADR-013)
+- Três partes por projeto: `b` (banca), `c` (convidados) e `p` (público),
+  cada uma normalizada min-max no recorte (maior = menor → 1).
+  `final = peso_banca·b + peso_convidados·c + peso_publico·p`, com os
+  pesos da `Edicao` (0,50, 0,20 e 0,30 nesta edição).
+- **Dois recortes, na mesma página:**
+  - **Geral**: todos os projetos publicados da edição juntos (Fatec, Etec,
+    Ensino Médio). Normalização, `m` da média bayesiana e ordem sobre
+    todos. Vem primeiro na página — é o que se apresenta ao público.
+  - **Por curso**: DSM, GTUR, cada curso da Etec e o 3º ano do Ensino
+    Médio (as duas escolas juntas — é um curso só, com uma turma por
+    escola). Normalização e `m` locais ao curso; as turmas do curso
+    concorrem juntas. Substitui o recorte por turma.
+- Desempate (os dois recortes): final → nota de banca bruta → nota de
+  convidados bruta → mais avaliações do público; empate em tudo → mesma
+  posição e marca "empate". A nota de convidados **só entra no desempate
+  quando `peso_convidados > 0`**: com peso 0 a ordem é a do ADR-012
+  (final → banca bruta → mais avaliações), e uma nota de convidados que
+  por acaso exista não separa dois projetos (revisão do Renan no #80;
+  registrado no ADR-013).
+- **Nota do boletim** (por projeto, mesma para todos os integrantes):
+  `peso_boletim_banca·banca + (1 − peso_boletim_banca)·convidados`, sobre as
+  notas **brutas** de 0 a 10, **sem normalização** (0,70/0,30 nesta
+  edição). Tabela própria na página (projeto, turma, banca, convidados,
+  nota do boletim, ordem por curso, turma e título) e no CSV
+  `/resultados/<edicao_id>/boletim.csv` (permissão `ver_resultados`). Não
+  leva o público.
+- **Pendência:** projeto sem nota de banca **ou** sem nota de convidados
+  (ausente no retorno de `nota_banca_por_projeto(edicao, tipo)`) fica sem
+  final e sem boletim. A nota de convidados só é exigida onde tem peso:
+  no ranking quando `peso_convidados > 0`, no boletim quando
+  `peso_boletim_banca < 1` (revisão do Renan no #80). Com peso 0, a parte
+  de convidados não entra na conta nem trava nada — edição sem convidados
+  (padrões 0 e 1) calcula como antes. Por curso: só o curso dele fica pendente (aviso de
+  hoje). Geral: o ranking inteiro fica pendente, com o aviso e a lista dos
+  projetos que faltam. Boletim: a linha do projeto mostra "pendente".
+  `banca_conferida_em` vazio → tudo pendente, como hoje.
+- Pesos: `peso_banca + peso_convidados + peso_publico = 1` e
+  `0 ≤ peso_boletim_banca ≤ 1`, senão "Pesos da edição não configurados".
+- **Escopo:** o ranking geral e por curso é o do evento desta edição. A
+  página aplica a mesma regra a qualquer edição (o recorte por turma sai
+  do código); como o histórico aparece no portal público fica para
+  depois (coordenação, 16/10) — fora desta spec.
+
+### Público (ADR-012)
+- Cada avaliação do público (spec 03) dá notas **de 0 a 5** em três
+  critérios — impacto social, inovação e impacto ambiental. A **nota da
+  avaliação** é a média das três.
+- O **valor do público** de um projeto é a média bayesiana:
+  `(C·m + soma das notas das avaliações) / (C + nº de avaliações)`, com
+  `m` = média das notas de **todas as avaliações da turma** e
+  `C = 10` (constante `AVALIACOES_DE_REFERENCIA` em `resultados/calculo.py`).
+  Cada projeto começa com 10 avaliações "na média da turma": poucas
+  avaliações puxam o valor para a média; muitas o levam à média real do
+  projeto. Uma avaliação abaixo do **valor atual** do projeto o baixa
+  quando a turma tem muitas avaliações; como `m` inclui a própria
+  avaliação, num projeto bem abaixo da média uma nota baixa pode subir o
+  valor (limite (3) do ADR-012).
+- Projeto sem avaliação fica com `m`. Turma sem nenhuma avaliação: valor 0
+  para todos (e `p = 1`, pela regra de valores iguais).
+- A view soma por projeto, numa consulta agregada, o nº de avaliações e a
+  soma das três notas; a média de cada avaliação sai exata dessa soma
+  (`Fraction`), sem arredondar.
+- A tabela mostra, por projeto: nº de avaliações, média simples das notas
+  (só referência), valor do público, `p` e — com a banca conferida — `b`,
+  final e posição. É o que responde a uma contestação.
+- **Transição:** enquanto o `Voto` não tiver as três notas (spec 03, tarefa
+  do Renan), a view continua passando a contagem de votos como valor do
+  público (`calcular_ranking` aceita `int`) e a regra anterior vale. A troca
+  da view (consulta das notas + `publico_por_media_bayesiana`) entra junto
+  com o model novo, antes do pré-ensaio de 21/10.
 - Turma com 1 projeto: `p = 1`. Se a nota da banca dele estiver
   disponível, `b = 1`, final = 1, posição 1. Sem nota de banca, vale a
   regra de banca pendente abaixo.
@@ -139,7 +220,7 @@ qualquer consulta aos dados de negócio:
 - **Banca pendente** (decisão do coordenador no PR #14):
   - Quando `Edicao.banca_conferida_em` está vazio, a conferência das
     notas (30/10) não terminou: **todas** as turmas mostram só a parte do
-    público (votos e `p`), com o aviso "Nota da banca pendente — este não
+    público (avaliações, valor do público e `p`), com o aviso "Nota da banca pendente — este não
     é o resultado oficial", e **nenhuma** nota final.
   - Quando a conferência está registrada mas algum projeto da turma não
     tem nota de banca (ausente no retorno de `nota_banca_por_projeto`),
@@ -237,6 +318,7 @@ permissões, nenhuma tabela.
 | GET | `/resultados/<int:edicao_id>/` | admin + `ver_resultados` | HTML: participação + ranking por turma (ou aviso) | 302 login, 403, 404 |
 | GET | `/resultados/<int:edicao_id>/operacional/` | admin + `ver_resultados` | HTML: emissões por estação | 302 login, 403, 404 |
 | GET | `/resultados/<int:edicao_id>/visitantes.csv` | admin + `exportar_visitantes` | CSV (anexo) | 302 login, 403, 404 |
+| GET | `/resultados/<int:edicao_id>/boletim.csv` | admin + `ver_resultados` | CSV (anexo): nota do boletim por projeto (ADR-013) | 302 login, 403, 404 |
 
 - Rotas declaradas em `resultados/urls.py` (`app_name = "resultados"`);
   o prefixo `resultados/` vem do `include` no `urls.py` raiz, adicionado
@@ -244,8 +326,8 @@ permissões, nenhuma tabela.
 - `<int:edicao_id>` na rota + `get_object_or_404` (guardrail 12):
   segmento não inteiro → rota inexistente (404); edição inexistente → 404.
 - Só GET; nenhuma rota altera estado. POST/PUT/DELETE → 405.
-- Link para as três telas a partir do admin do Django (página da edição),
-  se o coordenador aceitar — senão, acesso pela URL.
+- Link para as quatro telas a partir do admin do Django (página da
+  edição), se o coordenador aceitar — senão, acesso pela URL.
 
 ## Guardrails aplicáveis
 6, 9, 10, 11, 12, 13, 15, 16, 17.
@@ -270,7 +352,7 @@ permissões, nenhuma tabela.
 - [ ] Usuário anônimo nas 3 rotas → redirect para o login
 - [ ] Usuário autenticado **não admin** (sem `is_staff`) **com** `ver_resultados` e `exportar_visitantes` → 403 nas 3 rotas, inclusive no CSV
 - [ ] Admin sem permissão (ex: grupo `digitacao-banca`) nas 3 rotas → 403
-- [ ] Admin com `ver_resultados` mas sem `exportar_visitantes` → 403 no CSV
+- [ ] Admin com `ver_resultados` mas sem `exportar_visitantes` → 403 no CSV de visitantes; o `boletim.csv` responde 200 com `ver_resultados` e 302/403/404 como as outras rotas (ADR-013)
 - [ ] `edicao_id` não inteiro (`abc`, `-1`, `1.5`) → 404 nas 3 rotas
 - [ ] `edicao_id` inteiro sem edição (`0`, id inexistente) → 404; POST em qualquer rota → 405
 
@@ -284,12 +366,26 @@ permissões, nenhuma tabela.
 - [ ] Teste do cálculo: turma com 1 projeto e nota de banca → final = 1, posição 1; sem nota de banca → turma com banca pendente
 - [ ] Teste do cálculo: duas turmas com escalas diferentes (turma A votos {100, 50, 0}; turma B votos {4, 2, 0}) → `p` = {1; 0,5; 0} nas duas (normalização local)
 - [ ] Teste do cálculo: com pesos 0,70/0,30, projeto com `b = 1, p = 0` (0,70) fica acima de `b = 0, p = 1` (0,30)
-- [ ] Teste do desempate: mesma nota final → maior banca bruta vence; mesma banca → mais votos vence; tudo igual → mesma posição e marca "empate"
+- [ ] Teste do desempate: mesma nota final → maior banca bruta vence; mesma banca → mais avaliações vence; tudo igual → mesma posição e marca "empate"
+- [ ] Teste da média bayesiana (ADR-012): fórmula com `m` da turma e `C = 10`; nota da avaliação = média dos 3 critérios; nota 0 conta; projeto sem avaliação = `m`; turma sem avaliações → `p = 1` para todos; `m` local à turma; uma nota abaixo do valor atual baixa o valor quando a turma é grande; contraexemplo do limite (3) do ADR-012 (A com 10 notas 0, B com 10 notas 5, uma nota 2 sobe A)
+- [ ] Teste da média bayesiana: numa turma com média ~4,2, 1 avaliação 5 fica abaixo de 60 avaliações de média 4,8; 40 avaliações nota 2 ficam abaixo de 15 avaliações nota 5; com a turma inteira perto de 4,8, a avaliação única fica um pouco acima (limite registrado no ADR-012); ranking completo com média da turma 4,0: 8 avaliações 5 passam à frente de 40 de média 4,5 (limite (2))
+- [ ] Soma de notas impossível para o nº de avaliações (fora de 0–15 por avaliação) → erro, sem resultado
 - [ ] Teste de posição após empate: dois empatados em 1º e um terceiro projeto → posições `1, 1, 3`
-- [ ] Projeto sem voto aparece com 0 votos (não some do ranking)
+- [ ] Projeto sem voto aparece com 0 votos (não some do ranking) (regra anterior)
 - [ ] `banca_conferida_em` vazio → todas as turmas com aviso "não é o resultado oficial" e nenhuma nota final exibida
 - [ ] `banca_conferida_em` preenchido e um projeto da turma A sem nota de banca → turma A com aviso e sem nota final; turma B com ranking oficial
 - [ ] Pesos ausentes ou que não somam 1 → erro "Pesos da edição não configurados"
+
+**Ranking geral, por curso e boletim (ADR-013)**
+- [ ] A página do ranking mostra o recorte **geral** (todos os projetos publicados da edição) e, abaixo, um recorte **por curso**; as turmas de um curso aparecem juntas (nenhuma tabela por turma)
+- [ ] Teste do cálculo: `m` da média bayesiana é do recorte — no geral, a média de todas as avaliações da edição; por curso, só as do curso (o mesmo projeto tem valores do público diferentes nos dois recortes quando as médias diferem)
+- [ ] Teste do cálculo: com pesos 0,50/0,20/0,30, `final = 0,50·b + 0,20·c + 0,30·p`, cada parte normalizada no recorte; projeto com `b = 1, c = 0, p = 0` (0,50) fica acima de `b = 0, c = 1, p = 0` (0,20)
+- [ ] Teste do boletim: banca 8,0 e convidados 6,0 com `peso_boletim_banca = 0,70` → 7,4; sem normalização (o boletim de um projeto não muda quando outro projeto do curso muda de nota) e sem o público (as avaliações do público não alteram o boletim)
+- [ ] `boletim.csv`: uma linha por projeto publicado com projeto, turma, banca, convidados e nota do boletim, ordenado por curso, turma e título; projeto pendente sai com "pendente" na nota
+- [ ] Pendência por curso: projeto do curso A sem nota de banca → só o curso A fica pendente no recorte por curso; o curso B sai oficial; o recorte **geral** fica pendente inteiro, com a lista dos projetos que faltam
+- [ ] Convidados exigidos só com peso: `peso_convidados = 0` e projeto sem nota de convidados → ranking oficial (nada pendente); `peso_convidados > 0` e o mesmo projeto → pendente. `peso_boletim_banca = 1` e sem nota de convidados → boletim calculado (= banca); `peso_boletim_banca < 1` → boletim "pendente"
+- [ ] Teste do desempate com `peso_convidados = 0`: A e B empatados em final e em banca bruta, convidados 7 (A) × 9 (B), A com mais avaliações do público → A na frente (a nota de convidados não entra no desempate). Com `peso_convidados > 0` e os mesmos dados → B na frente
+- [ ] Pesos com três partes que não somam 1 (ex: 0,50/0,20/0,20) ou `peso_boletim_banca` fora de 0–1 → erro "Pesos da edição não configurados"; 0,70/0,00/0,30 (padrões das colunas novas) calcula como antes
 
 **Participação e operacional**
 - [ ] Zero tokens votantes → média de votos por token mostra "—", sem erro
