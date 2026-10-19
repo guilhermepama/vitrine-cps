@@ -144,7 +144,10 @@ Formato:
   `CODEOWNERS`, senão nenhum PR de aluno é mergeável.
 
 ## ADR-007 — Avaliação da banca e nota final composta
-- Status: aceita (login de jurado substituído pela ADR-008 nesta edição)
+- Status: aceita (login de jurado substituído pela ADR-008 nesta edição;
+  o ranking **por turma** e os pesos **70/30 banca/público** substituídos
+  pela ADR-013 — três partes e recorte por curso; média entre jurados,
+  critérios divulgados antes e travas continuam)
 - Data: 2026-10-01
 - Contexto: além do voto do público, uma banca avalia os projetos, e o
   peso da banca deve ser maior. Os dois votos têm naturezas diferentes:
@@ -408,3 +411,147 @@ Formato:
   coordenador perto do evento; o prazo menor de 18/10 a 29/10 e a
   exceção cobrem a urgência. Em aberto: um check no `convencoes-pr` que
   exija a aprovação ou o marcador.
+
+## ADR-012 — Avaliação do público por notas e média bayesiana
+- Status: aceita (`m` passa a ser do **recorte** — da edição no ranking
+  geral, do curso no ranking por curso — pela ADR-013; onde esta ADR diz
+  "da turma", vale o recorte)
+- Data: 2026-10-16
+- Contexto: até aqui o público dava 1 toque = 1 voto e a parte do público
+  na nota final (30%, ADR-007) era a contagem de votos normalizada por
+  turma. A coordenação decidiu que o público **avalia** os projetos nos
+  mesmos três critérios do documento "Critérios de avaliação dos projetos
+  de extensão" — impacto social, inovação e impacto ambiental —, com notas
+  de 0 a 5. Faltava dizer como as notas viram o número do público.
+- Decisão:
+  - Cada avaliação traz as três notas, inteiras de 0 a 5, todas
+    obrigatórias. **0 é nota** ("não atende ao critério"); quem não quer
+    avaliar um projeto não envia avaliação. Uma avaliação por token e
+    projeto, sem edição depois de enviada (a unicidade do ADR-001 continua).
+  - Nota da avaliação = média das três notas.
+  - Valor do público = **média bayesiana**
+    `(C·m + soma das notas) / (C + nº de avaliações)`, com `m` = média de
+    todas as avaliações **da turma** e **C = 10**, fixo nesta edição
+    (constante em `resultados/calculo.py`). Depois, a normalização min-max
+    por turma e os pesos do ADR-007 seguem iguais. Desempate: final →
+    banca bruta → mais avaliações.
+- Consequências:
+  - **Descartada a soma das notas** (média × nº de avaliações): uma nota
+    baixa aumentava a pontuação — avaliar mal ajudava mais que não avaliar
+    — e 40 notas 2 venciam 15 notas 5; na prática continuava sendo
+    contagem de público.
+  - **Descartada a média simples**: 1 avaliação 5 vencia 60 avaliações de
+    média 4,8.
+  - A média bayesiana deixa de premiar quem atraiu mais gente: os 30% do
+    público medem como o projeto foi avaliado, não quantos o visitaram.
+  - **Limites conhecidos:** (1) quando a turma inteira já tem média alta
+    (~4,8), um projeto com muitas avaliações nessa média fica *abaixo* da
+    média da turma, e uma avaliação única 5 passa um pouco à frente
+    (4,82 × 4,80 no teste); com a média da turma menor, o de muitas
+    avaliações vence. (2) **Um grupo de amigos vence por pouco**: com
+    C = 10 e média da turma 4,0, 8 avaliações 5 ficam com 4,44 e 40
+    avaliações honestas de média 4,5 ficam com 4,40 — os amigos passam à
+    frente (teste com o ranking completo). Com C maior a ordem inverte,
+    mas cada projeto novo demora mais a sair da média; ficou C = 10. O
+    token físico (ADR-001) limita, não zera. (3) **Uma nota abaixo da média
+    da turma nem sempre baixa o valor.** Com `m` fixo, uma avaliação abaixo
+    do *valor atual* do projeto sempre o baixa; mas `m` inclui a própria
+    avaliação, e isso soma `C·(x − m)/(N + 1)` **ao numerador** da média
+    bayesiana (N = avaliações da turma); o efeito no valor é esse termo
+    dividido por `(C + n + 1)` (n = avaliações do projeto).
+    Num projeto bem abaixo da média, uma nota baixa que ainda está acima do
+    valor dele o sobe: A com 10 avaliações 0 e B com 10 avaliações 5
+    (m = 2,5) dão A = 1,25; uma avaliação 2 em A leva o valor a ≈ 1,27.
+    Com dezenas de avaliações na turma, o termo de `m` some.
+  - O relatório mostra nº de avaliações, média simples, valor do público,
+    `p` e final, para que qualquer contestação seja respondida com os
+    números.
+  - `C` vira campo da `Edicao` só se a coordenação quiser ajustar por
+    edição — hoje não.
+
+## ADR-013 — Avaliadores convidados, ranking geral e nota do boletim
+- Status: aceita (decisões da coordenação em 16/10; detalhes de
+  implementação propostos pelo coordenador do projeto)
+- Data: 2026-10-16
+- Contexto: a coordenação definiu em 16/10 como a mostra é avaliada nesta
+  edição. Além da banca (critérios técnicos), **avaliadores convidados**
+  dão notas em impacto ambiental, impacto social, inovação e viabilidade
+  econômica. O público avalia os mesmos três critérios do ADR-012 em todos
+  os projetos. O 3º ano do Ensino Médio e a Etec foram convidados a expor e
+  **concorrem junto** com os cursos da Fatec. Há duas saídas: o ranking
+  apresentado ao público (banca + convidados + público) e a nota do
+  **boletim** do aluno (banca + convidados, sem o público). O ADR-007 previa
+  só banca e público, por turma.
+- Decisão:
+  - **Convidados são jurados de outro tipo.** `Jurado.tipo` e
+    `Criterio.tipo` ∈ {`banca`, `convidado`}. Cada tipo tem seus critérios
+    na edição; a ficha de um jurado traz só os critérios do tipo dele.
+    Mesmo fluxo da banca (ADR-008): ficha impressa, digitação no admin,
+    conferência única para os dois tipos. Mesma escala (0 a 10, uma casa).
+  - Nota de cada tipo no projeto: média dos critérios em cada avaliação,
+    média entre os avaliadores daquele tipo (regra do ADR-007, por tipo).
+  - **Ranking apresentado ao público** = `0,50·b + 0,20·c + 0,30·p`
+    (banca, convidados, público), cada parte normalizada min-max. Pesos na
+    `Edicao` (`peso_banca`, `peso_convidados`, `peso_publico`, somando 1),
+    travados depois de aberta a votação, como hoje. Desempate: final →
+    banca bruta → convidados bruta → mais avaliações do público; a nota
+    de convidados **só desempata quando `peso_convidados > 0`** — com
+    peso 0 vale a ordem do ADR-012 (final → banca bruta → avaliações), e
+    uma nota de convidados que exista por acaso não separa dois projetos
+    (revisão do Renan no #80).
+  - **Dois recortes do mesmo ranking:** **geral** (todos os projetos
+    publicados da edição juntos — Fatec, Etec e Ensino Médio — com a
+    normalização e a média do público sobre todos) e **por curso** (DSM,
+    GTUR, cada curso da Etec separado e o 3º ano do Ensino Médio, com as
+    duas escolas estaduais — E.E. Wilquem e E.E. Reis Neves — juntas;
+    normalização local ao curso, todas as turmas do curso juntas). A média
+    bayesiana do público (ADR-012) usa `m` do recorte: da edição no geral,
+    do curso no por curso.
+  - **Jurados por curso:** com a comparação dentro do curso, a mesma banca
+    (e os mesmos convidados) cobre todas as turmas do curso — senão a nota
+    mediria o jurado, não o projeto. Regra de distribuição da coordenação;
+    a conferência mostra a cobertura.
+  - **Escolas estaduais:** unidade nova "Ensino Médio" no `Curso`, curso
+    "3º ano do Ensino Médio" com uma turma por escola (campo `escola` na
+    turma). Alunos menores de idade: as mesmas regras da Etec (só o
+    primeiro nome, sem fotos de pessoas).
+  - **Nota do boletim** = `0,70·banca + 0,30·convidados`, sobre as notas
+    **brutas** (0 a 10), **sem normalização**: a nota de um aluno não pode
+    depender de quem ficou em último na turma, que é o que o min-max faria.
+    Peso na `Edicao` (`peso_boletim_banca`; convidados = 1 − ele).
+  - **Pendência:** projeto sem avaliação de banca **ou** sem avaliação de
+    convidado não tem nota final nem nota de boletim. A de convidado só é
+    exigida onde tem peso (`peso_convidados > 0` no ranking,
+    `peso_boletim_banca < 1` no boletim); edição sem convidados calcula
+    como antes. No recorte por curso,
+    só o curso dele fica pendente; no geral, o ranking inteiro fica
+    pendente (a normalização é sobre todos). A coordenação distribui banca
+    e convidados para cobrir todos os projetos.
+- Consequências:
+  - Substitui a parte do ADR-007 que fixava 70/30 banca/público por turma
+    (o ranking por turma deixa de existir; vira por curso);
+    o resto do ADR-007 (média entre jurados, critérios divulgados antes,
+    travas) continua.
+  - Jurados e critérios já cadastrados viram `banca` na migration; nada se
+    perde.
+  - Mais fichas para imprimir e digitar no mesmo dia; a conferência cobre
+    os dois tipos.
+  - Pendência no geral é mais frágil que por curso: um projeto sem
+    convidado trava o geral. A página de conferência mostra a cobertura
+    por tipo antes de concluir.
+  - **Limite conhecido — o geral compara bancas diferentes.** A mesma
+    banca cobre um curso, não a edição: no geral, projetos de cursos
+    diferentes, julgados por bancas diferentes, entram na mesma
+    normalização, e a banca pesa 50%. Uma banca mais rigorosa num curso
+    puxa todos os projetos dele para baixo no geral. Considerado e aceito
+    pelo coordenador (16/10, revisão do Renan no #80): banca comum para
+    finalistas exigiria uma segunda rodada de avaliação no mesmo dia, e
+    montar o geral só com as partes já normalizadas por curso daria 1 ao
+    melhor de cada curso, inclusive de curso com 2 projetos. O recorte por
+    curso é o comparável; o geral é a vitrine do evento.
+  - **Escopo:** este ranking (geral e por curso) é o do evento desta
+    edição; o recorte por turma sai do código e a página aplica a mesma
+    regra a qualquer edição. Como o histórico aparece no portal público
+    fica para depois (coordenação, 16/10).
+  - Fica fora desta edição: pesos diferentes por critério, convidados pelo
+    celular, nota do boletim em outra escala.

@@ -116,7 +116,7 @@ def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias
         "motivo_somente_leitura": motivo,
         "pendencias": projeto.pendencias_para_publicar() if pendencias is None else pendencias,
         "erro_imagem": erro_imagem,
-        "etec": projeto.turma.curso.unidade == "etec",
+        "etec": projeto.turma.curso.atende_menores,  # Etec e Ensino Médio: regras de menores (ADR-013)
         "imagens": projeto.imagens.all(),
         "maximo_imagens": ImagemProjeto.MAXIMO_POR_PROJETO,
         "integrantes": projeto.integrantes.all(),
