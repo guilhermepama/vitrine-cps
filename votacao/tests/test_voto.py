@@ -39,6 +39,7 @@ pytestmark = pytest.mark.django_db
 ROTA = "/votos"
 REJEITADO = '{"status": "rejeitado", "mensagem": "voto já registrado"}'.encode()
 INVALIDO = '{"status": "invalido", "mensagem": "requisição inválida"}'.encode()
+NOTAS = {"impacto_social": "5", "inovacao": "3", "impacto_ambiental": "0"}
 
 
 @pytest.fixture
@@ -47,7 +48,7 @@ def cenario():
 
 
 def _votar(client, projeto_id):
-    return client.post(ROTA, {"projeto_id": str(projeto_id)})
+    return client.post(ROTA, {"projeto_id": str(projeto_id), **NOTAS})
 
 
 def _rejeitado(resposta, votos=0):
@@ -70,6 +71,7 @@ def test_voto_valido_registra_e_responde_201(client, cenario):
     assert json.loads(resposta.content) == {"status": "registrado"}
     voto = Voto.objects.get()
     assert (voto.token, voto.projeto) == (cenario.token, cenario.publicado)
+    assert (voto.impacto_social, voto.inovacao, voto.impacto_ambiental) == (5, 3, 0)
     assert "no-store" in resposta["Cache-Control"]
 
 
@@ -169,12 +171,12 @@ MALFORMADOS = ["abc", "1.5", "", "0", "-1", "+1", "2147483648", "1" * 11, "１",
 def test_projeto_id_malformado_e_400_sem_consultar_o_banco(client, cenario, django_assert_num_queries, valor):
     cenario.votante(client)
     with django_assert_num_queries(0):
-        resposta = client.post(ROTA, {"projeto_id": valor})
+        resposta = client.post(ROTA, {"projeto_id": valor, **NOTAS})
     assert (resposta.status_code, resposta.content) == (400, INVALIDO)
     assert Voto.objects.count() == 0
 
 
-@pytest.mark.parametrize("dados", [{}, {"projeto_id": ["1", "1"]}, {"outro": "1"}])
+@pytest.mark.parametrize("dados", [{}, {"projeto_id": ["1", "1"], **NOTAS}, {"outro": "1", **NOTAS}])
 def test_projeto_id_ausente_ou_repetido_e_400(client, cenario, django_assert_num_queries, dados):
     cenario.votante(client)
     with django_assert_num_queries(0):
@@ -182,9 +184,75 @@ def test_projeto_id_ausente_ou_repetido_e_400(client, cenario, django_assert_num
     assert (resposta.status_code, resposta.content) == (400, INVALIDO)
 
 
+# --- Avaliação por notas (ADR-012) -----------------------------------------------------
+
+CRITERIOS = ["impacto_social", "inovacao", "impacto_ambiental"]
+NOTAS_MALFORMADAS = ["6", "-1", "05", "+1", "1.0", "a", " ", "", "１", "5\t", "10"]
+
+
+def _post(client, projeto_id, **notas):
+    return client.post(ROTA, {"projeto_id": str(projeto_id), **{**NOTAS, **notas}})
+
+
+def test_notas_zero_nos_tres_criterios_registram(client, cenario):
+    zeros = dict.fromkeys(CRITERIOS, "0")
+    assert _post(cenario.votante(client), cenario.publicado.pk, **zeros).status_code == 201
+    voto = Voto.objects.get()
+    assert (voto.impacto_social, voto.inovacao, voto.impacto_ambiental) == (0, 0, 0)
+
+
+def test_nota_com_espacos_ascii_nas_pontas_e_aceita(client, cenario):
+    assert _post(cenario.votante(client), cenario.publicado.pk, inovacao=" 4 ").status_code == 201
+    assert Voto.objects.get().inovacao == 4
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+@pytest.mark.parametrize("valor", NOTAS_MALFORMADAS)
+def test_nota_malformada_e_400_igual_ao_projeto_id_malformado(client, cenario, django_assert_num_queries, criterio, valor):
+    cenario.votante(client)
+    with django_assert_num_queries(0):
+        resposta = _post(client, cenario.publicado.pk, **{criterio: valor})
+    assert (resposta.status_code, resposta.content) == (400, INVALIDO)
+    assert resposta.content == client.post(ROTA, {"projeto_id": "abc", **NOTAS}).content
+    assert Voto.objects.count() == 0
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+@pytest.mark.parametrize("caso", ["ausente", "repetida"])
+def test_nota_ausente_ou_repetida_e_400(client, cenario, django_assert_num_queries, criterio, caso):
+    cenario.votante(client)
+    dados = {"projeto_id": str(cenario.publicado.pk), **NOTAS}
+    if caso == "ausente":
+        del dados[criterio]
+    else:
+        dados[criterio] = ["1", "1"]
+    with django_assert_num_queries(0):
+        resposta = client.post(ROTA, dados)
+    assert (resposta.status_code, resposta.content) == (400, INVALIDO)
+    assert Voto.objects.count() == 0
+
+
+def test_nota_malformada_vence_token_inexistente_e_votacao_fechada(client, cenario):
+    # Sem cookie de token: nota válida → 409; malformada → 400.
+    assert _post(client, cenario.publicado.pk).status_code == 409
+    assert _post(client, cenario.publicado.pk, inovacao="6").status_code == 400
+    encerrar_votacao(cenario.evento.pk)
+    assert _post(cenario.votante(client), cenario.publicado.pk).status_code == 409
+    assert _post(client, cenario.publicado.pk, inovacao="6").content == INVALIDO
+
+
+def test_segunda_avaliacao_com_notas_diferentes_e_409_e_a_primeira_nao_muda(client, cenario):
+    client = cenario.votante(client)
+    assert _post(client, cenario.publicado.pk).status_code == 201
+    primeira = Voto.objects.values().get()
+    resposta = _post(client, cenario.publicado.pk, impacto_social="0", inovacao="0", impacto_ambiental="5")
+    _rejeitado(resposta, votos=1)
+    assert Voto.objects.values().get() == primeira
+
+
 def test_400_vem_antes_da_trava_mesmo_com_votacao_fechada(client, cenario):
     encerrar_votacao(cenario.evento.pk)
-    assert client.post(ROTA, {"projeto_id": "abc"}).content == INVALIDO
+    assert client.post(ROTA, {"projeto_id": "abc", **NOTAS}).content == INVALIDO
 
 
 def test_sem_csrf_e_403(cenario):

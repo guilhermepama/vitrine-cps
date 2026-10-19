@@ -2,8 +2,8 @@
 
 Mede a trava por voto (spec 03, "Referência temporal" e "Decisões do PR #37"):
 simula visitantes contra a URL pública — `/entrar` → `/visitantes` → `/votar`
-→ V votos em `POST /votos` — e imprime p50, p95 e máximo do `POST /votos`
-por nível de concorrência, com a contagem de 201/409/5xx. Antes dos votos,
+→ V avaliações (três notas 0–5 cada) em `POST /votos` — e imprime p50, p95 e
+máximo do `POST /votos` por nível de concorrência, com a contagem de 201/409/5xx. Antes dos votos,
 os mesmos visitantes fazem V `GET /votar` juntos: é a linha de base sem a
 trava da `Edicao`, no mesmo nível, que separa a fila do servidor (workers,
 conexão, banco) da espera pela trava.
@@ -27,6 +27,7 @@ bloco de 45 s; com todas esgotadas, espera o bloco seguinte. O limite de
 300 emissões por IP em 10 min fica de pé: um visitante simulado = 1 emissão.
 """
 
+import random
 import re
 import statistics
 import threading
@@ -47,6 +48,7 @@ from cadastro.models import Projeto
 from votacao import assinatura, limite
 from votacao.models import Estacao
 from votacao.servicos import edicao_em_votacao
+from votacao.views_voto import CRITERIOS
 
 NOME_EXIGIDO = "pré-ensaio"
 PRAZO = 30  # segundos por requisição
@@ -122,9 +124,8 @@ class Visitante:
         """(status, segundos) de um `POST /votos`; status 0 = sem resposta."""
         inicio = time.perf_counter()
         try:
-            status, _ = self.pedir(
-                reverse("votacao:votos"), {"projeto_id": projeto_id}, [("X-CSRFToken", self.cookies["csrftoken"])]
-            )
+            dados = {"projeto_id": projeto_id, **{criterio: random.randint(0, 5) for criterio in CRITERIOS}}
+            status, _ = self.pedir(reverse("votacao:votos"), dados, [("X-CSRFToken", self.cookies["csrftoken"])])
         except (OSError, HTTPException):  # timeout, conexão caída, resposta truncada
             status = 0
         return status, time.perf_counter() - inicio

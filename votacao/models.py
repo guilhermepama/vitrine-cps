@@ -74,12 +74,22 @@ class Token(models.Model):
 class Voto(models.Model):
     token = models.ForeignKey(Token, on_delete=models.PROTECT, related_name="votos")
     projeto = models.ForeignKey(Projeto, on_delete=models.PROTECT, related_name="votos")
+    # Avaliação por notas 0–5 (ADR-012). Sem default: nota inventada não existe.
+    impacto_social = models.PositiveSmallIntegerField()
+    inovacao = models.PositiveSmallIntegerField()
+    impacto_ambiental = models.PositiveSmallIntegerField()
     criado_em = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "votos"
-        # Guardrail 4: a unicidade mora no banco, não só no código.
-        constraints = [models.UniqueConstraint(fields=["token", "projeto"], name="voto_unico_por_token_projeto")]
+        constraints = [
+            # Guardrail 4: a unicidade mora no banco, não só no código.
+            models.UniqueConstraint(fields=["token", "projeto"], name="voto_unico_por_token_projeto"),
+            *(
+                models.CheckConstraint(condition=Q(**{f"{campo}__gte": 0, f"{campo}__lte": 5}), name=f"voto_{campo}_0_a_5")
+                for campo in ("impacto_social", "inovacao", "impacto_ambiental")
+            ),
+        ]
 
 
 class Visitante(models.Model):

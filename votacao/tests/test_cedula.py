@@ -85,7 +85,7 @@ def test_cookies_limpos_com_a_cedula_aberta_dao_403_e_a_recarga_sai_da_cedula(ce
     csrf = re.search(r'name="csrfmiddlewaretoken" value="([^"]+)"', html)
     assert csrf, "a cédula perdeu o csrfmiddlewaretoken"
     votante.cookies.clear()
-    dados = {"projeto_id": cenario.publicado.pk}
+    dados = {"projeto_id": cenario.publicado.pk, "impacto_social": 4, "inovacao": 2, "impacto_ambiental": 5}
     assert votante.post("/votos", dados, HTTP_X_CSRFTOKEN=csrf[1]).status_code == 403
     recarga = votante.get(ROTA)
     assert recarga.status_code == 302 and recarga["Location"] == str(ROTA_COMO_VOTAR)
