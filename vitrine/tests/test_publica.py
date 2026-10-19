@@ -345,3 +345,11 @@ def test_atributo_hidden_vence_o_display_das_classes():
     `hidden` (sem JS ou sem Clipboard API). Uma regra global garante o `hidden`."""
     regras = _lista_regras(CSS.read_text(encoding="utf-8"))
     assert ("[hidden]", {"display": "none !important"}) in regras
+
+
+def test_nenhum_titulo_desfaz_a_quebra_de_palavra_longa():
+    """Revisões do #75 e #78: `overflow-wrap: normal` num h1 desfazia o `anywhere`
+    do `.display`, e título de até 120 caracteres sem espaço (ou palavra longa em
+    caixa alta) estourava os 360 px. `break-word` só quebra quando não cabe."""
+    regras = _lista_regras(CSS.read_text(encoding="utf-8"))
+    assert [seletor for seletor, props in regras if props.get("overflow-wrap") == "normal"] == []
