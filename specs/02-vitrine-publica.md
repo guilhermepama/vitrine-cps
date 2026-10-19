@@ -2,9 +2,8 @@
 
 - **Responsável**: Cleiton (@gustimmolp)
 - **Status**: implementada e na `main` (PRs #44 a #47, com os ajustes dos
-  pareceres e, depois, #66 e #70). Pendem só as conferências manuais no site
-  no ar: prévia no WhatsApp com capa de ~3 MB, upload de 3 MB e a página a
-  360 px no celular; e o export do wireframe em `docs/wireframes/`.
+  pareceres, e depois #66 e #70). Conferências manuais em produção feitas em
+  14/10. Pende só o export do wireframe em `docs/wireframes/`.
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
