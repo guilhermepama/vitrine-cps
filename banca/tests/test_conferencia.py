@@ -456,7 +456,9 @@ def test_banca_conferida_em_somente_leitura_no_admin_de_edicao():
         "prazo_edicao_0": "28/10/2026",
         "prazo_edicao_1": "23:59",
         "peso_banca": "0.70",
+        "peso_convidados": "0.00",
         "peso_publico": "0.30",
+        "peso_boletim_banca": "1.00",
         "banca_conferida_em": "30/10/2026 10:00",
     }
     form = form_class(dados, instance=edicao)
