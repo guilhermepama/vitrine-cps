@@ -1,48 +1,62 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Votação — Vitrine CPS</title>
-  <style>
-    body { margin: 0; font-family: system-ui, sans-serif; color: #111; background: #fff; }
-    main { max-width: 40rem; margin: 0 auto; padding: 1.5rem 1rem; }
-    h2 { margin-top: 2rem; font-size: 1.2rem; }
-    ul { list-style: none; padding: 0; margin: 0; }
-    li { display: flex; gap: 1rem; align-items: center; justify-content: space-between; padding: .75rem 0; border-bottom: 1px solid #ddd; }
-    button { flex: none; padding: .6rem 1rem; font-size: 1rem; }
-    button:disabled { background: #e6f4ea; color: #1e6b34; border: 1px solid #1e6b34; }
-    .aviso { padding: .75rem; background: #fde8e8; border: 1px solid #c00; }
-  </style>
+  {# Visual da spec 07. A lógica é da spec 03: o script fica neste arquivo (o teste o lê do HTML). #}
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
 <body>
-  <main>
+  <header class="topo">
+    <div class="container topo__linha">
+      {# Sem link: o visitante não sai da cédula pelo topo. #}
+      <span class="marca">{% include "partes/logo.svg" %}</span>
+      <span class="topo__selo mono">Votação</span>
+    </div>
+  </header>
+  <main class="cedula">
     {% if encerrada %}
-      <h1>Votação encerrada</h1>
+      <section class="cedula__cabeca">
+        <div class="container">
+          <p class="mono">Mostra de Projetos</p>
+          <h1 class="display">Votação encerrada<span class="ponto">.</span></h1>
+          <p>Obrigado pela participação. O resultado é divulgado pela coordenação depois do evento.</p>
+        </div>
+      </section>
     {% else %}
-      <h1>Vote nos projetos</h1>
-      <p>Um voto por projeto. Você pode votar em quantos projetos quiser.</p>
-      <p id="aviso" class="aviso" role="alert" hidden></p>
-      {% csrf_token %}
-      {# A turma é a categoria (spec 01). #}
-      {% regroup projetos by turma as turmas %}
-      {% for grupo in turmas %}
-        <h2>{{ grupo.grouper.rotulo }}</h2>
-        <ul>
-          {% for projeto in grupo.list %}
-            <li>
-              <span>{{ projeto.titulo }}</span>
-              {% if projeto.pk in votados %}
-                <button type="button" disabled>Votado</button>
-              {% else %}
-                <button type="button" data-projeto="{{ projeto.pk }}">Votar</button>
-              {% endif %}
-            </li>
-          {% endfor %}
-        </ul>
-      {% empty %}
-        <p>Nenhum projeto publicado nesta edição.</p>
-      {% endfor %}
+      <section class="cedula__cabeca">
+        <div class="container">
+          <p class="mono">Mostra de Projetos · votação do público</p>
+          <h1 class="display">Vote nos projetos<span class="ponto">.</span></h1>
+          <p>Um voto por projeto. Você pode votar em quantos projetos quiser.</p>
+        </div>
+      </section>
+      <div class="container">
+        <p id="aviso" class="aviso" role="alert" hidden></p>
+        {% csrf_token %}
+        {# A turma é a categoria (spec 01). #}
+        {% regroup projetos by turma as turmas %}
+        {% for grupo in turmas %}
+          <section class="cedula__turma">
+            <h2>{{ grupo.grouper.rotulo }}</h2>
+            <ul>
+              {% for projeto in grupo.list %}
+                <li>
+                  <span class="cedula__projeto"><strong>{{ projeto.titulo }}</strong>{% if projeto.resumo %}<span>{{ projeto.resumo }}</span>{% endif %}</span>
+                  {% if projeto.pk in votados %}
+                    <button type="button" disabled>Votado</button>
+                  {% else %}
+                    <button type="button" data-projeto="{{ projeto.pk }}">Votar</button>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          </section>
+        {% empty %}
+          <p class="cedula__vazio">Nenhum projeto publicado nesta edição.</p>
+        {% endfor %}
+      </div>
       <script>
         (function () {
           var rota = "{% url 'votacao:votos' %}";
@@ -51,6 +65,8 @@
           function marcar(botao) {
             botao.disabled = true;
             botao.textContent = "Votado";
+            // Sem data-projeto = votado (o CSS separa do "enviando", que também fica desabilitado).
+            botao.removeAttribute("data-projeto");
           }
           document.querySelectorAll("button[data-projeto]").forEach(function (botao) {
             botao.addEventListener("click", function () {

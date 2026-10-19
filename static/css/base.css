@@ -569,6 +569,40 @@ a { color: inherit; }
 .convite--passado { background: var(--cor-texto); --cor-foco: var(--cor-fundo); color: var(--cor-fundo); }
 
 /* ============================================================
+   CÉDULA DO VISITANTE (/votar, spec 03; layout da spec 07)
+   O template não leva classe no botão nem no <h2> (os testes conferem o
+   HTML exato): o estilo vem do contexto .cedula.
+   ============================================================ */
+.topo__selo { display: flex; align-items: center; padding-left: var(--gutter); white-space: nowrap; }
+.cedula { padding-bottom: var(--esp-12); }
+.cedula__cabeca { border-bottom: 1px solid var(--cor-linha); }
+.cedula__cabeca .container { padding-block: var(--esp-8); }
+.cedula__cabeca .mono { margin-bottom: 12px; }
+.cedula__cabeca h1 { font-size: var(--texto-h2); }
+.cedula__cabeca p:not(.mono) { margin-top: var(--esp-4); max-width: 36em; color: var(--cor-texto-suave); }
+.cedula .aviso { margin-top: var(--esp-6); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: #6E0E0E; font-size: var(--texto-14); }
+.cedula .aviso[hidden] { display: none; }
+.cedula__turma { margin-top: var(--esp-8); }
+.cedula h2 { padding-bottom: 10px; border-bottom: 1px solid var(--cor-linha); font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: var(--texto-22); text-transform: uppercase; line-height: 1; }
+.cedula ul { margin: 0; padding: 0; list-style: none; }
+.cedula li { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-4); padding-block: 14px; border-bottom: 1px solid var(--cor-borda); }
+.cedula__projeto { display: grid; gap: 2px; min-width: 0; }
+.cedula__projeto strong { font-weight: 600; line-height: 1.25; }
+.cedula__projeto span { font-size: var(--texto-13); line-height: 1.35; color: var(--cor-texto-suave); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cedula li button {
+  flex: none; min-width: 112px; min-height: var(--alvo-toque); padding: 0 var(--esp-5); cursor: pointer;
+  border: 1px solid var(--cor-acento); background: var(--cor-acento); --cor-foco: var(--cor-acento-texto); color: var(--cor-acento-texto);
+  font: 500 var(--texto-13)/1 var(--fonte-mono); letter-spacing: .04em; text-transform: uppercase;
+}
+.cedula li button:hover:not(:disabled) { background: var(--cor-texto); --cor-foco: var(--cor-fundo); border-color: var(--cor-texto); }
+/* enviando: desabilitado e ainda com data-projeto */
+.cedula li button[data-projeto]:disabled { cursor: wait; opacity: .55; }
+/* votado: desabilitado e sem data-projeto (vindo do servidor ou marcado pelo script no 201) */
+.cedula li button:disabled:not([data-projeto]) { cursor: default; background: transparent; --cor-foco: var(--cor-confirmacao); border-color: var(--cor-confirmacao); color: var(--cor-confirmacao); }
+.cedula li button:disabled:not([data-projeto])::before { content: "✓ "; }
+.cedula__vazio { margin-top: var(--esp-8); color: var(--cor-texto-suave); }
+
+/* ============================================================
    ÁREA DO GRUPO (spec 02, layout da spec 07)
    ============================================================ */
 .acesso { border-bottom: 1px solid var(--cor-linha); }
