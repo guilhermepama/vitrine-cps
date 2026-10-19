@@ -194,7 +194,8 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
   (`Edicao.edicao_aberta()`) aberto e votação ainda não aberta
   (`Edicao.votacao_foi_aberta()` falso). Nesse caso, `GET` mostra o
   formulário preenchido. Em `ajustes`, mostra o `motivo_ajustes` no topo.
-  Projeto da Etec mostra a orientação "não envie fotos de pessoas" (a
+  Projeto de curso que atende menores (Etec ou Ensino Médio — spec
+  01/ADR-013) mostra a orientação "não envie fotos de pessoas" (a
   conferência é humana, na moderação — spec 01).
 - **Texto não salvo × imagens.** O envio de imagem é outra requisição e
   recarrega a página: o que foi digitado e não foi salvo se perde. Para não

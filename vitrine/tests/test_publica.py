@@ -202,7 +202,7 @@ def test_capa_aparece_como_banner_recortado(client):
 @pytest.mark.django_db
 def test_pagina_404_tem_o_botao_conhecer_a_mostra(client):
     html = client.get("/projeto/nao-existe/").content.decode()
-    assert "Conhecer a Mostra" in html and 'href="/como-votar/"' in html
+    assert "Conhecer a Mostra" in html and '<a href="/">Conhecer a Mostra</a>' in html
 
 
 @pytest.mark.django_db
