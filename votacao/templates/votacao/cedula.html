@@ -43,11 +43,11 @@
             <ul>
               {% for projeto in grupo.list %}
                 <li>
-                  <span class="cedula__projeto"><strong>{{ projeto.titulo }}</strong>{% if projeto.resumo %}<span>{{ projeto.resumo }}</span>{% endif %}</span>
+                  <span class="cedula__projeto"><strong id="p-{{ projeto.pk }}-titulo">{{ projeto.titulo }}</strong>{% if projeto.resumo %}<span>{{ projeto.resumo }}</span>{% endif %}</span>
                   {% if projeto.pk in votados %}
-                    <button type="button" disabled>Avaliado</button>
+                    <button type="button" id="e-{{ projeto.pk }}" aria-labelledby="e-{{ projeto.pk }} p-{{ projeto.pk }}-titulo" disabled>Avaliado</button>
                   {% else %}
-                    <form class="cedula__form">
+                    <form class="cedula__form" aria-labelledby="p-{{ projeto.pk }}-titulo">
                       <fieldset class="cedula__criterio">
                         <legend>Impacto social</legend>
                         <div class="cedula__escala">
@@ -67,7 +67,7 @@
                         </div>
                       </fieldset>
                       <p class="cedula__dica" role="status" hidden></p>
-                      <button type="button" data-projeto="{{ projeto.pk }}">Enviar avaliação</button>
+                      <button type="button" id="e-{{ projeto.pk }}" aria-labelledby="e-{{ projeto.pk }} p-{{ projeto.pk }}-titulo" data-projeto="{{ projeto.pk }}">Enviar avaliação</button>
                     </form>
                   {% endif %}
                 </li>

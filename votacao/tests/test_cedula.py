@@ -33,7 +33,7 @@ from votacao.views_voto import ROTA_COMO_VOTAR
 pytestmark = pytest.mark.django_db
 
 ROTA = "/votar"
-DESABILITADO = '<button type="button" disabled>Avaliado</button>'
+DESABILITADO = re.compile(r'<button type="button" id="e-\d+" aria-labelledby="e-\d+ p-\d+-titulo" disabled>Avaliado</button>')
 CRITERIOS = {"impacto_social": "Impacto social", "inovacao": "Inovação", "impacto_ambiental": "Impacto ambiental"}
 
 
@@ -79,7 +79,8 @@ def test_cedula_tem_tres_fieldsets_e_dezoito_radios_sem_marcacao_por_projeto(cli
             assert f'<label for="n-{cenario.publicado.pk}-{campo}-{nota}">{nota}</label>' in bloco
     assert bloco.count('type="radio"') == 18
     assert "checked" not in html
-    assert f'<button type="button" data-projeto="{cenario.publicado.pk}">Enviar avaliação</button>' in bloco
+    pk = cenario.publicado.pk
+    assert f'<button type="button" id="e-{pk}" aria-labelledby="e-{pk} p-{pk}-titulo" data-projeto="{pk}">Enviar avaliação</button>' in bloco
     assert "<title>Avaliação — Vitrine CPS</title>" in html and "Avalie os projetos" in html
 
 
@@ -88,7 +89,7 @@ def test_projeto_avaliado_nao_tem_controle_que_envie(client, cenario):
     html = cenario.votante(client).get(ROTA).content.decode()
     assert html.count("<form") == 1  # só o outro projeto
     assert f"n-{cenario.publicado.pk}-" not in html
-    assert "Enviar avaliação" in html and html.count(DESABILITADO) == 1
+    assert "Enviar avaliação" in html and len(DESABILITADO.findall(html)) == 1
 
 
 def test_payload_montado_so_com_o_html_da_interface_e_aceito_por_post_votos(client, cenario):
@@ -158,7 +159,7 @@ def test_projeto_avaliado_aparece_marcado_e_desabilitado(client, cenario):
     fabricas.voto(cenario.token, cenario.publicado)
     html = cenario.votante(client).get(ROTA).content.decode()
     assert f'data-projeto="{cenario.publicado.pk}"' not in html
-    assert DESABILITADO in html
+    assert DESABILITADO.search(html)
     assert f'data-projeto="{cenario.outro_publicado.pk}"' in html
 
 
@@ -167,14 +168,14 @@ def test_votos_do_ensaio_nao_aparecem_no_evento_e_vice_versa(client, cenario):
     fabricas.voto(cenario.token_ensaio, cenario.publicado)
     html = cenario.votante(client).get(ROTA).content.decode()
     assert f'data-projeto="{cenario.publicado.pk}"' in html
-    assert DESABILITADO not in html
+    assert not DESABILITADO.search(html)
 
     fabricas.voto(cenario.token, cenario.do_ensaio)
     encerrar_votacao(cenario.evento.pk)
     assert abrir_votacao(cenario.ensaio.pk) is None
     html = cenario.votante(client, cenario.token_ensaio, cadastro_de=cenario.ensaio).get(ROTA).content.decode()
     assert f'data-projeto="{cenario.do_ensaio.pk}"' in html
-    assert DESABILITADO not in html and "Horta Viva" not in html
+    assert not DESABILITADO.search(html) and "Horta Viva" not in html
 
 
 @pytest.mark.parametrize(
@@ -274,3 +275,42 @@ def test_redirect_usa_a_rota_nomeada_e_nao_um_caminho_fixo(client, cenario, sett
         assert client.get(resposta["Location"]).status_code == 200
     finally:
         clear_url_caches()
+
+
+def _elemento_por_id(html, id_):
+    """Texto do elemento com esse id (até o próximo fechamento de tag), ou None."""
+    achados = re.findall(rf'<(\w+)[^>]*\sid="{re.escape(id_)}"[^>]*>(.*?)</\1>', html, re.S)
+    return achados[0][1] if achados else None
+
+
+def _tag_com(html, trecho):
+    padrao = rf"{re.escape(trecho)}[^>]*>" if trecho.startswith("<") else rf"<[^>]*{re.escape(trecho)}[^>]*>"
+    return re.search(padrao, html)[0]
+
+
+def test_form_e_botoes_tem_nome_acessivel_com_o_titulo_do_projeto(client, cenario):
+    fabricas.voto(cenario.token, cenario.outro_publicado)
+    html = cenario.votante(client).get(ROTA).content.decode()
+    # Não avaliado: o form e o botão "Enviar avaliação".
+    pk, titulo = cenario.publicado.pk, cenario.publicado.titulo
+    form = _tag_com(html, "<form")
+    ref = re.search(r'aria-labelledby="([^"]+)"', form)[1]
+    assert _elemento_por_id(html, ref) == titulo == _elemento_por_id(html, f"p-{pk}-titulo")
+    botao = _tag_com(html, f'data-projeto="{pk}"')
+    ids = re.search(r'aria-labelledby="([^"]+)"', botao)[1].split()
+    assert ids == [re.search(r' id="([^"]+)"', botao)[1], ref]
+    assert _elemento_por_id(html, ids[0]) == "Enviar avaliação"
+    assert _elemento_por_id(html, ids[1]) == titulo
+    # Avaliado: o botão desabilitado.
+    pk2, titulo2 = cenario.outro_publicado.pk, cenario.outro_publicado.titulo
+    avaliado = _tag_com(html, f'id="e-{pk2}"')
+    ids = re.search(r'aria-labelledby="([^"]+)"', avaliado)[1].split()
+    assert ids == [f"e-{pk2}", f"p-{pk2}-titulo"]
+    assert _elemento_por_id(html, ids[0]) == "Avaliado"
+    assert _elemento_por_id(html, ids[1]) == titulo2
+
+
+def test_ids_da_cedula_sao_unicos_com_varios_projetos(client, cenario):
+    html = cenario.votante(client).get(ROTA).content.decode()
+    ids = re.findall(r'\sid="([^"]+)"', html)
+    assert len(ids) > 40 and len(ids) == len(set(ids))
