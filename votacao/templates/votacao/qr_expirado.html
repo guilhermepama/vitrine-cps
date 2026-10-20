@@ -1,18 +1,29 @@
-<!doctype html>
+{% load static %}<!doctype html>
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>QR expirado — Vitrine CPS</title>
-  <style>
-    body { margin: 0; font-family: system-ui, sans-serif; color: #111; background: #fff; }
-    main { max-width: 32rem; margin: 0 auto; padding: 1.5rem 1rem; text-align: center; }
-  </style>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
 <body>
   {# Corpo constante: sem CSRF, data ou qualquer valor da requisição (A6). #}
-  <main>
-    <h1>QR expirado — escaneie novamente na estação</h1>
+  {# Texto genérico de propósito: a mesma página serve a todas as recusas (spec 03). #}
+  <header class="topo">
+    <div class="container topo__linha">
+      <span class="marca">{% include "partes/logo.svg" %}</span>
+      <span class="topo__selo mono">Votação</span>
+    </div>
+  </header>
+  <main class="cedula">
+    <section class="cedula__cabeca">
+      <div class="container">
+        <p class="mono">Mostra de Projetos · votação do público</p>
+        {# A frase do h1 é a da spec 03 (o teste a procura inteira). #}
+        <h1 class="display">QR expirado — escaneie novamente na estação</h1>
+        <p>Se o problema continuar, procure a equipe da Mostra.</p>
+      </div>
+    </section>
   </main>
 </body>
 </html>
