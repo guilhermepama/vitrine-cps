@@ -120,8 +120,13 @@ def test_foco_de_teclado_segue_a_cor_da_superficie():
     assert "--cor-foco: var(--cor-acento)" in raiz
     foco = next(decl for sel, decl in regras if sel == ":focus-visible")
     assert "outline: 3px solid var(--cor-foco)" in foco and "--cor-acento" not in foco
-    # Nenhuma exceção por seletor: o foco sobre vermelho é resolvido pela variável.
-    assert not [sel for sel, _ in regras if ":focus-visible" in sel and sel != ":focus-visible"]
+    # Nenhuma exceção de cor por seletor: o foco sobre vermelho é resolvido pela variável.
+    # Um seletor pode delegar o foco a outro elemento (ex.: campo oculto + card),
+    # desde que use a mesma variável.
+    assert not [
+        sel for sel, decl in regras
+        if ":focus-visible" in sel and sel != ":focus-visible" and "var(--cor-foco)" not in decl
+    ]
 
     vermelhas, brancas = [], []
     for seletor, declaracoes in regras:
