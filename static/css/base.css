@@ -670,6 +670,18 @@ a { color: inherit; }
 }
 
 /* ============================================================
+   CADASTRO DO VISITANTE (/visitantes, spec 03; layout da spec 07)
+   Mesma grade da Área do grupo (.acesso). No celular o texto é curto
+   para o formulário aparecer sem rolar.
+   ============================================================ */
+.visitante .acesso__texto { padding-block: var(--esp-8); }
+@media (min-width: 900px) { .visitante .acesso__texto { padding-block: var(--esp-10); } }
+.visitante__opcional { color: var(--cor-texto-suave); text-transform: none; letter-spacing: 0; }
+.visitante .rotulo + .campo { margin-bottom: var(--esp-2); }
+.visitante__aceite { display: flex; gap: var(--esp-3); align-items: flex-start; margin-top: var(--esp-2); font-size: var(--texto-14); line-height: 1.45; color: var(--cor-texto-suave); cursor: pointer; }
+.visitante__aceite input { flex: none; width: 24px; height: 24px; margin: 0; accent-color: var(--cor-acento); cursor: pointer; }
+
+/* ============================================================
    ÁREA DO GRUPO (spec 02, layout da spec 07)
    ============================================================ */
 .acesso { border-bottom: 1px solid var(--cor-linha); }
