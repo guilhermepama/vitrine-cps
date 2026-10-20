@@ -19,7 +19,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from cadastro.models import ImagemProjeto, Projeto
 from vitrine import inicio as pagina_inicial
 from vitrine import servicos
-from vitrine.forms import ImagemUploadForm, ProjetoGrupoForm, integrante_formset
+from vitrine.forms import ImagemUploadForm, LegendaForm, ProjetoGrupoForm, integrante_formset
 
 
 def paginas_do_grupo(view):
@@ -126,7 +126,7 @@ def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias
         "motivo_somente_leitura": motivo,
         "pendencias": projeto.pendencias_para_publicar() if pendencias is None else pendencias,
         "erro_imagem": erro_imagem,
-        "etec": projeto.turma.curso.unidade == "etec",
+        "etec": projeto.turma.curso.atende_menores,  # Etec e Ensino Médio: regras de menores (ADR-013)
         "imagens": projeto.imagens.all(),
         "maximo_imagens": ImagemProjeto.MAXIMO_POR_PROJETO,
         "integrantes": projeto.integrantes.all(),
@@ -238,4 +238,26 @@ def imagem_remover(request, token, imagem_id):
     except servicos.ImagemInexistente:
         return HttpResponseNotFound("Imagem não encontrada.")
     messages.success(request, "Imagem removida.")
+    return redirect("vitrine:editar", token=token)
+
+
+@paginas_do_grupo
+@require_POST
+def imagem_legenda(request, token, imagem_id):
+    """Legenda depois do envio: a imagem sobe sem legenda e o grupo escreve depois."""
+    projeto = servicos.projeto_do_token(token)
+    if projeto is None:
+        return _link_invalido(request)
+    form = LegendaForm(request.POST)
+    if not form.is_valid():
+        mensagem = " ".join(m for erros in form.errors.values() for m in erros)
+        status = 400 if servicos.pode_editar(projeto) else 403
+        return _tela_de_edicao(request, projeto, token, erro_imagem=mensagem if status == 400 else None, status=status)
+    try:
+        servicos.atualizar_legenda(projeto.pk, token, imagem_id, form.cleaned_data["legenda"])
+    except servicos.EdicaoEncerrada:
+        return _403_com_estado_atual(request, token)
+    except servicos.ImagemInexistente:
+        return HttpResponseNotFound("Imagem não encontrada.")
+    messages.success(request, "Legenda salva.")
     return redirect("vitrine:editar", token=token)

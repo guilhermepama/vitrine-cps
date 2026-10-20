@@ -269,6 +269,17 @@ def remover_imagem(projeto_pk, token, imagem_pk):
         transaction.on_commit(partial(_apagar_do_storage, nome, projeto.pk))
 
 
+def atualizar_legenda(projeto_pk, token, imagem_pk, legenda):
+    """Troca a legenda de uma imagem da galeria do próprio projeto (a imagem continua a mesma)."""
+    with transaction.atomic():
+        projeto = travar_para_edicao(projeto_pk, token)
+        imagem = projeto.imagens.filter(pk=imagem_pk).first()
+        if imagem is None:
+            raise ImagemInexistente
+        imagem.legenda = legenda
+        imagem.save(update_fields=["legenda"])
+
+
 # --- Links absolutos ----------------------------------------------------------
 
 

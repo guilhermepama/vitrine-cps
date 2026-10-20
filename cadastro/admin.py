@@ -19,11 +19,11 @@ from django.template.response import TemplateResponse
 from django.urls import NoReverseMatch, reverse
 from django.utils.cache import add_never_cache_headers
 
-from cadastro.models import Curso, Edicao, ImagemProjeto, Integrante, Projeto, Turma
+from cadastro.models import CAMPOS_DE_PESO, Curso, Edicao, ImagemProjeto, Integrante, Projeto, Turma
 from cadastro.seguranca import hash_ra
 
 MOTIVO_FOTOS_ETEC = (
-    "Retire as fotos em que aparecem pessoas (regra da Etec para menores de idade)"
+    "Retire as fotos em que aparecem pessoas (regra para menores de idade: Etec e Ensino Médio)"
 )
 
 
@@ -50,7 +50,16 @@ class SoSuperusuarioMixin:
 class EdicaoForm(forms.ModelForm):
     class Meta:
         model = Edicao
-        fields = ["nome", "data_evento", "ativa", "prazo_edicao", "peso_banca", "peso_publico"]
+        fields = [
+            "nome",
+            "data_evento",
+            "ativa",
+            "prazo_edicao",
+            "peso_banca",
+            "peso_convidados",
+            "peso_publico",
+            "peso_boletim_banca",
+        ]
 
     def clean(self):
         dados = super().clean()
@@ -73,7 +82,7 @@ class EdicaoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     def get_readonly_fields(self, request, obj=None):
         campos = list(super().get_readonly_fields(request, obj))
         if obj is not None and obj.votacao_aberta_em is not None:
-            campos += ["peso_banca", "peso_publico"]  # ADR-007: não mudam depois de abrir
+            campos += list(CAMPOS_DE_PESO)  # ADR-007/ADR-013: nenhum peso muda depois de abrir
         return campos
 
 
@@ -90,7 +99,7 @@ class CursoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
 @admin.register(Turma)
 class TurmaAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     list_display = ["rotulo", "edicao"]
-    list_filter = ["edicao", "curso"]
+    list_filter = ["edicao", "curso", "escola"]
     list_select_related = ["edicao", "curso"]
 
     @admin.display(description="turma")
@@ -162,7 +171,7 @@ class ProjetoForm(forms.ModelForm):
         ]
         help_texts = {
             "motivo_ajustes": (
-                "Mostrado ao grupo ao devolver para ajustes. Projeto da Etec com foto de pessoa: "
+                "Mostrado ao grupo ao devolver para ajustes. Projeto da Etec ou do Ensino Médio com foto de pessoa: "
                 f"“{MOTIVO_FOTOS_ETEC}”."
             ),
         }

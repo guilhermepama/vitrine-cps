@@ -86,3 +86,11 @@ class ImagemUploadForm(forms.Form):
         error_messages={"invalid_image": "Envie uma imagem JPG, PNG ou WebP.", "required": "Escolha uma imagem."},
     )
     legenda = forms.CharField(max_length=120, required=False)
+
+
+class LegendaForm(forms.Form):
+    legenda = forms.CharField(
+        max_length=120,
+        required=False,
+        error_messages={"max_length": "A legenda pode ter até 120 caracteres."},
+    )

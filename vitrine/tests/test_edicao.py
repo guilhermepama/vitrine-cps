@@ -374,3 +374,12 @@ def test_integrante_de_outro_projeto_no_formset_nao_e_alterado(client, db):
     alheio.refresh_from_db()
     assert (alheio.nome, alheio.papel, alheio.projeto_id) == ("Alheio", "Original", outro.pk)
     assert not p.integrantes.filter(nome="Invasor", pk=alheio.pk).exists()
+
+
+def test_ensino_medio_tem_as_regras_de_menores_na_tela_de_edicao(client, db):
+    # ADR-013: escola estadual (unidade "medio") segue as regras da Etec.
+    p, token = aux.projeto_com_link(unidade=Curso.Unidade.MEDIO)
+    html = client.get(url(token)).content.decode()
+    assert "Não envie fotos de pessoas." in html and "só o primeiro nome" in html
+    r = client.post(url(token), aux.dados_de_edicao(integrantes=(("Ana Souza", ""),)))
+    assert r.status_code == 400 and p.integrantes.count() == 0

@@ -16,4 +16,5 @@ urlpatterns = [
     path("grupo/editar/<str:token>/", views.editar, name="editar"),
     path("grupo/editar/<str:token>/imagem/", views.imagem, name="imagem"),
     path("grupo/editar/<str:token>/imagem/<int:imagem_id>/remover/", views.imagem_remover, name="imagem_remover"),
+    path("grupo/editar/<str:token>/imagem/<int:imagem_id>/legenda/", views.imagem_legenda, name="imagem_legenda"),
 ]
