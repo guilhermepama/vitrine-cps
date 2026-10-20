@@ -48,6 +48,11 @@ def inicio(request):
     return render(request, "vitrine/inicio.html", pagina_inicial.contexto_da_pagina_inicial())
 
 
+def projetos(request):
+    """Todos os projetos publicados da edição ativa, por turma, com o filtro por curso (spec 07)."""
+    return render(request, "vitrine/projetos.html", pagina_inicial.contexto_da_pagina_de_projetos())
+
+
 def pagina_do_projeto(request, slug):
     achados = list(
         Projeto.objects.select_related("turma__curso", "turma__edicao")
@@ -68,6 +73,11 @@ def pagina_do_projeto(request, slug):
         "og_imagem": servicos.url_absoluta(publicado.capa.url) if publicado.capa else None,
     }
     return render(request, "vitrine/projeto.html", contexto)
+
+
+def semana(request):
+    """Semana da Tecnologia (spec 07): texto fixo; edição ativa e 4 projetos sorteados."""
+    return render(request, "vitrine/semana.html", pagina_inicial.contexto_da_pagina_da_semana())
 
 
 def como_votar(request):

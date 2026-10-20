@@ -1,0 +1,10 @@
+{# Cartão de projeto da home e de /projetos/ (spec 07). Espera `projeto` com periodo_curto, n_integrantes e links_resumo. #}
+<a class="cartao-projeto" href="{% url 'vitrine:projeto' projeto.slug %}">
+  {% if projeto.capa %}<img class="cartao-projeto__capa" src="{{ projeto.capa.url }}" alt="" loading="lazy" decoding="async">{% endif %}
+  <div class="cartao-projeto__corpo">
+    <div class="cartao-projeto__meta mono"><span>{{ projeto.periodo_curto }}</span><span>{{ projeto.n_integrantes }} integrante{{ projeto.n_integrantes|pluralize }}</span></div>
+    <h3 class="display">{{ projeto.titulo }}</h3>
+    {% if projeto.resumo %}<p>{{ projeto.resumo }}</p>{% endif %}
+    <div class="cartao-projeto__pe"><span class="mono">{{ projeto.links_resumo }}</span><span class="seta" aria-hidden="true">→</span></div>
+  </div>
+</a>

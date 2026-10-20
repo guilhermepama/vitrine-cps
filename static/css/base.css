@@ -147,6 +147,7 @@ a { color: inherit; }
   padding-inline: var(--gutter); margin-left: calc(-1 * var(--gutter));
   background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto);
 }
+.marca { flex: none; }
 .marca::before { content: ""; position: absolute; top: 0; bottom: 0; right: 100%; width: 50vw; background: var(--cor-acento); } /* o vermelho segue até a borda da tela */
 .marca__logo { height: 34px; width: auto; color: var(--cor-acento-texto); }
 
@@ -154,15 +155,16 @@ a { color: inherit; }
 .nav a {
   display: inline-flex; align-items: center; gap: 10px; padding: 0 16px; text-decoration: none;
   font-family: var(--fonte-mono); font-size: var(--texto-13); text-transform: uppercase; letter-spacing: 0.04em;
-  border-left: 1px solid var(--cor-borda);
+  border-left: 1px solid var(--cor-borda); white-space: nowrap;
 }
 .nav a:first-child { border-left: 0; }
 .nav a:hover { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); }
 .nav .idx { color: var(--cor-acento); }
 .nav a:hover .idx { color: inherit; }
+.nav a[aria-current="page"] { box-shadow: inset 0 -3px 0 var(--cor-acento); }
 .nav a.nav__botao { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); border-left: 0; margin-left: 8px; }
 .nav a.nav__botao:hover { background: var(--cor-texto); color: var(--cor-fundo); }
-@media (min-width: 900px) { .nav a { padding: 0 24px; } }
+@media (min-width: 1100px) { .nav a { padding: 0 24px; } }
 
 /* menu no celular: hambúrguer (static/js/menu.js) */
 .nav-alterna {
@@ -177,16 +179,23 @@ a { color: inherit; }
 .nav-alterna[aria-expanded="true"] span { background: transparent; }
 .nav-alterna[aria-expanded="true"] span::before { top: 0; transform: rotate(45deg); }
 .nav-alterna[aria-expanded="true"] span::after { top: 0; transform: rotate(-45deg); }
-@media (max-width: 899px) {
+/* 999px: com "Semana da Tecnologia" o menu inteiro só cabe a partir de 1000px */
+@media (max-width: 999px) {
   .topo { overflow: visible; }
   .js .nav-alterna { display: flex; }
   .js .nav { display: none; position: absolute; left: 0; right: 0; top: 100%; flex-direction: column; background: var(--cor-fundo); border-bottom: 1px solid var(--cor-linha); z-index: 5; }
   .js .nav.aberto { display: flex; }
   .js .nav a { display: flex; min-height: 52px; padding: 0 var(--gutter); border-left: 0; border-top: 1px solid var(--cor-borda); font-size: var(--texto-14); }
   .js .nav a.nav__botao { margin-left: 0; border-top: 1px solid var(--cor-linha); }
-  /* sem JavaScript o menu fica visível e só o essencial cabe na linha */
+  /* Sem JavaScript o menu fica visível: só o essencial, numa segunda linha
+     abaixo da marca (na mesma linha não cabe a 360 px — revisão do #77). */
   .nav .so-desktop { display: none; }
   .js .nav .so-desktop { display: flex; }
+  html:not(.js) .topo__linha { flex-wrap: wrap; }
+  html:not(.js) .marca { min-height: 56px; }
+  html:not(.js) .nav { flex: 1 0 100%; margin-inline: calc(-1 * var(--gutter)); border-top: 1px solid var(--cor-linha); }
+  html:not(.js) .nav a { flex: 1 1 0; justify-content: center; min-height: 48px; padding: 0 12px; white-space: normal; text-align: center; }
+  html:not(.js) .nav a.nav__botao { margin-left: 0; }
 }
 
 /* ---------- RODAPÉ (base.html) ---------- */
@@ -383,12 +392,15 @@ a { color: inherit; }
   .mostra__cabeca { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); align-items: end; }
   .quem__cabeca { grid-template-columns: minmax(0, 6fr) minmax(0, 6fr); align-items: end; }
 }
-.secao__cabeca h2, .mostra__cabeca h2, .quem__cabeca h2 { font-size: var(--texto-h2); }
+.secao__cabeca h1, .secao__cabeca h2, .mostra__cabeca h2, .quem__cabeca h1, .quem__cabeca h2 { font-size: var(--texto-h2); }
 .secao__cabeca .mono, .mostra__cabeca .mono, .quem__cabeca .mono { margin-bottom: 12px; }
 .secao__cabeca p:not(.mono) { color: var(--cor-texto-suave); max-width: 36em; margin-top: 8px; }
 .mostra__cabeca p:not(.mono), .quem__texto { color: var(--cor-texto-suave); max-width: 34em; }
 .mostra__cabeca strong, .quem__texto strong { color: var(--cor-texto); font-weight: 600; }
 .quem__texto p + p { margin-top: 12px; }
+/* chamada de "Quem faz": área mais estreita e a frase vermelha começando em linha própria */
+.quem__cabeca h2 { max-width: 9.5em; }
+.quem__cabeca h2 .destaque { display: block; }
 
 /* ---------- 01 A MOSTRA: três passos ---------- */
 .mostra { border-bottom: 1px solid var(--cor-linha); }
@@ -418,6 +430,7 @@ a { color: inherit; }
 
 .cartoes { display: grid; border-bottom: 1px solid var(--cor-linha); }
 @media (min-width: 640px) { .cartoes { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); } }
+.secao__cta { padding-block: var(--esp-8); border-bottom: 1px solid var(--cor-linha); }
 .cartao-projeto {
   display: flex; flex-direction: column; min-width: 0; margin-bottom: -1px;
   text-decoration: none; color: inherit; background: var(--cor-superficie);
@@ -455,6 +468,13 @@ a { color: inherit; }
 }
 .tecnica h3 { font-size: var(--texto-22); }
 .tecnica p { font-size: var(--texto-14); color: var(--cor-texto-suave); }
+
+.quem__texto a { color: var(--cor-texto); text-decoration-color: var(--cor-acento); text-underline-offset: 3px; }
+
+/* ---------- SEMANA DA TECNOLOGIA (/semana-da-tecnologia/) ---------- */
+.sobre__secao { border-bottom: 1px solid var(--cor-linha); }
+.sobre__secao .mostra__cabeca { border-bottom-color: var(--cor-borda); }
+.semana__cartoes { border-top: 1px solid var(--cor-borda); }
 
 /* ---------- CHAMADA DA FATEC / VESTIBULAR (vermelho) ---------- */
 .chamada { background: var(--cor-acento); color: var(--cor-acento-texto); --cor-foco: var(--cor-acento-texto); border-bottom: 1px solid var(--cor-linha); }
