@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Votação — Vitrine CPS</title>
+  <title>Votação — Vitrine Fatec</title>
   {# Visual da spec 07. A lógica é da spec 03: o script fica neste arquivo (o teste o lê do HTML). #}
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
@@ -19,7 +19,7 @@
     {% if encerrada %}
       <section class="cedula__cabeca">
         <div class="container">
-          <p class="mono">Mostra de Projetos</p>
+          <p class="mono">Conexão Fatec</p>
           <h1 class="display">Votação encerrada<span class="ponto">.</span></h1>
           <p>Obrigado pela participação. O resultado é divulgado pela coordenação depois do evento.</p>
         </div>
@@ -27,7 +27,7 @@
     {% else %}
       <section class="cedula__cabeca">
         <div class="container">
-          <p class="mono">Mostra de Projetos · votação do público</p>
+          <p class="mono">Conexão Fatec · votação do público</p>
           <h1 class="display">Vote nos projetos<span class="ponto">.</span></h1>
           <p>Um voto por projeto. Você pode votar em quantos projetos quiser.</p>
         </div>

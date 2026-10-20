@@ -32,7 +32,7 @@ def test_rota():
 
 @pytest.mark.django_db
 def test_titulo_da_pagina(client):
-    assert "<title>Projetos — Vitrine CPS</title>" in _html(client)
+    assert "<title>Projetos — Vitrine Fatec</title>" in _html(client)
 
 
 @pytest.mark.django_db

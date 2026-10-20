@@ -1,4 +1,4 @@
-# Produção do Vitrine CPS no VPS com Coolify (ADR-006).
+# Produção do Vitrine Fatec no VPS com Coolify (ADR-006).
 # Build: Coolify usa este arquivo (build pack "Dockerfile").
 FROM python:3.12-slim
 

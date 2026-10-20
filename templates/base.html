@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titulo %}Vitrine CPS{% endblock %}</title>
+  <title>{% block titulo %}Vitrine Fatec{% endblock %}</title>
   {# Identidade visual: tokens no :root de static/css/base.css (spec 07). #}
   {% block icone %}<link rel="icon" href="{% static 'img/favicon.svg' %}" type="image/svg+xml">{% endblock %}
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
@@ -13,7 +13,7 @@
   {% block topo %}
   <header class="topo nao-imprime">
     <div class="container topo__linha">
-      <a class="marca" href="{% url 'vitrine:inicio' %}" aria-label="Vitrine CPS, página inicial">{% include "partes/logo.svg" %}</a>
+      <a class="marca" href="{% url 'vitrine:inicio' %}" aria-label="Vitrine Fatec, página inicial">{% include "partes/logo.svg" %}</a>
       {# Vazio por padrão: cada página pública decide o menu. Nenhum link leva ao voto (G8). #}
       {% block menu %}{% endblock %}
     </div>
@@ -27,11 +27,11 @@
     <div class="container">
       <div class="rodape__grade">
         <div class="rodape__col">
-          <p class="mono">Vitrine CPS</p>
-          <p>Plataforma de divulgação da Semana da Tecnologia e da Mostra de Projetos da Fatec Olímpia, unidade do Centro Paula Souza. Desenvolvida e mantida pela comunidade da Fatec Olímpia.</p>
+          <p class="mono">Vitrine Fatec</p>
+          <p>O espaço onde a Fatec Olímpia mostra seus projetos, seus eventos e o talento dos seus alunos. Desenvolvido e mantido pela comunidade da Fatec Olímpia, unidade do Centro Paula Souza.</p>
         </div>
         <div class="rodape__col">
-          <p class="mono">Mostra</p>
+          <p class="mono">Vitrine</p>
           <ul>
             <li><a href="{% url 'vitrine:inicio' %}">Página inicial</a></li>
             <li><a href="{% url 'vitrine:projetos' %}">Projetos</a></li>

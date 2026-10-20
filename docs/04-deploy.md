@@ -1,9 +1,15 @@
-# Deploy em produção — vitrinecps.com.br
+# Deploy em produção — vitrinefatec.com.br
 
 Infra da ADR-006: VPS Hostinger com Coolify, atrás de Cloudflare Tunnel.
 Banco no Neon, imagens no Cloudflare R2. Domínio registrado no Registro.br.
 
-Host canônico: **https://vitrinecps.com.br** (o `www` redireciona).
+> **Renomeação (20/10/2026):** a direção da Fatec chamou o produto de **Vitrine Fatec**
+> e o domínio passa a ser `vitrinefatec.com.br`, **ainda a registrar**. Até o registro,
+> este runbook descreve o destino. Os nomes internos (repositório, projeto Neon e
+> bucket R2 `vitrine-cps`) continuam como estão: são identificadores, não aparecem
+> para o público, e renomeá-los agora só traria risco.
+
+Host canônico: **https://vitrinefatec.com.br** (o `www` redireciona).
 
 ## Arquivos
 
@@ -13,7 +19,7 @@ Host canônico: **https://vitrinecps.com.br** (o `www` redireciona).
 
 ## 1. Zona no Cloudflare
 
-1. Cloudflare → Add a site → `vitrinecps.com.br` → plano Free.
+1. Cloudflare → Add a site → `vitrinefatec.com.br` → plano Free.
 2. Pular a importação de registros (a zona nasce vazia; o túnel cria os dele).
 3. Anotar os dois nameservers que o Cloudflare indicar.
 
@@ -37,8 +43,8 @@ Zero Trust → Networks → Tunnels → túnel existente → Public Hostname:
 
 | Hostname | Service |
 |---|---|
-| `vitrinecps.com.br` | o mesmo service/porta dos apps que já estão no túnel |
-| `www.vitrinecps.com.br` | idem |
+| `vitrinefatec.com.br` | o mesmo service/porta dos apps que já estão no túnel |
+| `www.vitrinefatec.com.br` | idem |
 
 Cada hostname cria o CNAME proxied na zona automaticamente. Usar exatamente a
 mesma configuração de service dos apps que já funcionam (inclusive
@@ -50,7 +56,7 @@ mesma configuração de service dos apps que já funcionam (inclusive
 Novo recurso → repositório `guilhermepama/vitrine-cps`, branch `main`,
 build pack **Dockerfile**.
 
-- **Domains**: `https://vitrinecps.com.br,https://www.vitrinecps.com.br`,
+- **Domains**: `https://vitrinefatec.com.br,https://www.vitrinefatec.com.br`,
   com redirecionamento para o domínio sem `www` (opção "Direction").
 - **Ports Exposes**: `8000`.
 - **Healthcheck**: HTTP GET, path `/saude/`, porta 8000, expected 200,
@@ -62,9 +68,9 @@ build pack **Dockerfile**.
 |---|---|
 | `DJANGO_DEBUG` | `0` |
 | `DJANGO_SECRET_KEY` | `python -c "import secrets; print(secrets.token_urlsafe(50))"` |
-| `DJANGO_ALLOWED_HOSTS` | `vitrinecps.com.br,www.vitrinecps.com.br,localhost` (o `localhost` é do healthcheck do Coolify, que testa de dentro do container) |
-| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://vitrinecps.com.br,https://www.vitrinecps.com.br` |
-| `DJANGO_URL_PUBLICA` | `https://vitrinecps.com.br` |
+| `DJANGO_ALLOWED_HOSTS` | `vitrinefatec.com.br,www.vitrinefatec.com.br,localhost` (o `localhost` é do healthcheck do Coolify, que testa de dentro do container) |
+| `DJANGO_CSRF_TRUSTED_ORIGINS` | `https://vitrinefatec.com.br,https://www.vitrinefatec.com.br` |
+| `DJANGO_URL_PUBLICA` | `https://vitrinefatec.com.br` |
 | `DJANGO_SECURE_SSL_REDIRECT` | `0` (o Cloudflare já redireciona HTTP→HTTPS na borda) |
 | `DJANGO_IP_HEADER` | `CF-Connecting-IP` — ver nota abaixo |
 | `DATABASE_URL` | connection string do Neon, projeto de produção `vitrine-cps` (`?sslmode=require`) |
@@ -74,7 +80,7 @@ build pack **Dockerfile**.
 | `R2_ACCOUNT_ID` | painel do Cloudflare (lateral direita da página do R2) |
 | `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` | token de API do R2 restrito ao bucket (Object Read & Write) |
 | `R2_BUCKET` | `vitrine-cps` |
-| `R2_PUBLIC_DOMAIN` | `media.vitrinecps.com.br` |
+| `R2_PUBLIC_DOMAIN` | `media.vitrinefatec.com.br` |
 
 Os três segredos HMAC são distintos entre si e distintos da SECRET_KEY —
 gerar quatro valores diferentes.
@@ -89,7 +95,7 @@ gerar quatro valores diferentes.
 ## 5. R2 (imagens)
 
 1. R2 → Create bucket → `vitrine-cps` (região automática).
-2. Bucket → Settings → **Custom Domains** → `media.vitrinecps.com.br`
+2. Bucket → Settings → **Custom Domains** → `media.vitrinefatec.com.br`
    (exige a zona ativa no Cloudflare — passo 1).
 3. R2 → Manage API tokens → token **Object Read & Write** restrito a este
    bucket → copiar Access Key ID e Secret.
@@ -100,14 +106,14 @@ gerar quatro valores diferentes.
 2. Superusuário: terminal do container no Coolify →
    `python manage.py createsuperuser`.
 3. Checklist:
-   - [ ] `https://vitrinecps.com.br/saude/` responde 200
+   - [ ] `https://vitrinefatec.com.br/saude/` responde 200
    - [ ] `http://` redireciona para `https://`; `www` redireciona para o apex
    - [ ] Login no `/admin/` funciona (exercita CSRF + cookies Secure —
          se falhar com erro de CSRF, o `X-Forwarded-Proto` não está
          chegando como `https`; rever o service do túnel, passo 3)
    - [ ] CSS carregando (whitenoise/manifest ok)
    - [ ] Upload de imagem num projeto → URL servida em
-         `media.vitrinecps.com.br` e prévia abrindo
+         `media.vitrinefatec.com.br` e prévia abrindo
    - [ ] IP real: acessar de 4G e de Wi-Fi e conferir no rate limit/logs que
          são IPs distintos (não pode aparecer IP interno do Docker)
    - [ ] Portas 80/443 fechadas na VPS (IPv4 e IPv6), no firewall do painel
@@ -116,7 +122,7 @@ gerar quatro valores diferentes.
    - [ ] Acesso direto pelo IP não responde:
 
          ```
-         curl -sk --max-time 5 --resolve vitrinecps.com.br:443:<IP_DA_VPS> -H "CF-Connecting-IP: 1.2.3.4" https://vitrinecps.com.br/saude/
+         curl -sk --max-time 5 --resolve vitrinefatec.com.br:443:<IP_DA_VPS> -H "CF-Connecting-IP: 1.2.3.4" https://vitrinefatec.com.br/saude/
          ```
 
          Esperado: timeout ou conexão recusada. Se responder 200, o firewall

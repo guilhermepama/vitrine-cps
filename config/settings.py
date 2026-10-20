@@ -1,4 +1,4 @@
-"""Configuração do Vitrine CPS (ADR-002).
+"""Configuração do Vitrine Fatec (ADR-002).
 
 Tudo que muda entre ambientes vem de variável de ambiente (ver .env.example).
 Este arquivo é do coordenador: precisou mudar, peça (TAREFAS.md).

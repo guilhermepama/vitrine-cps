@@ -7,8 +7,8 @@ from django.urls import include, path
 
 from config.views import saude
 
-admin.site.site_header = "Vitrine CPS — administração"
-admin.site.site_title = "Vitrine CPS"
+admin.site.site_header = "Vitrine Fatec — administração"
+admin.site.site_title = "Vitrine Fatec"
 admin.site.index_title = "Painel"
 
 urlpatterns = [

@@ -1,6 +1,6 @@
 ---
 name: implementar-spec
-description: Implementar um módulo do Vitrine CPS a partir de uma spec pronta, respeitando os guardrails. Usar quando a spec do módulo estiver com status "pronta para implementar" e a ADR-002 (stack) estiver aceita.
+description: Implementar um módulo do Vitrine Fatec a partir de uma spec pronta, respeitando os guardrails. Usar quando a spec do módulo estiver com status "pronta para implementar" e a ADR-002 (stack) estiver aceita.
 ---
 
 # Implementar uma spec

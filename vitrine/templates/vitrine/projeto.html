@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% load static %}
 
-{% block titulo %}{{ projeto.titulo }} — Vitrine CPS{% endblock %}
+{% block titulo %}{{ projeto.titulo }} — Vitrine Fatec{% endblock %}
 
 {% block meta %}
   <meta property="og:title" content="{{ projeto.titulo }}">
@@ -31,9 +31,9 @@
 <section class="convite convite--passado">
   <div class="container convite__grade">
     <div>
-      <p class="mono">Mostra de Projetos · Edição {{ edicao.nome }}</p>
-      <h2 class="display">Este projeto participou da Mostra<span class="ponto">.</span></h2>
-      <p>Este projeto participou da Mostra de Projetos realizada em {{ edicao.data_evento|date:"d/m/Y" }}, no campus da Fatec Olímpia.</p>
+      <p class="mono">Conexão Fatec · Edição {{ edicao.nome }}</p>
+      <h2 class="display">Este projeto participou da Conexão Fatec<span class="ponto">.</span></h2>
+      <p>Este projeto participou da Conexão Fatec, realizada em {{ edicao.data_evento|date:"d/m/Y" }}, no campus da Fatec Olímpia.</p>
     </div>
     <div><p class="convite__data">{{ edicao.data_evento|date:"d.m" }}<small>Edição {{ edicao.nome }} · Fatec Olímpia</small></p></div>
   </div>
@@ -42,9 +42,9 @@
 <section class="convite">
   <div class="container convite__grade">
     <div>
-      <p class="mono">Mostra de Projetos · Edição {{ edicao.nome }}</p>
+      <p class="mono">Conexão Fatec · Edição {{ edicao.nome }}</p>
       <h2 class="display">Venha conhecer ao vivo<span class="ponto">.</span></h2>
-      <p>Na noite da Mostra o grupo está no campus para apresentar, responder e ouvir. A votação do público acontece só presencialmente, durante o evento: este link divulga, não vota.</p>
+      <p>Na noite da Conexão Fatec o grupo está no campus para apresentar, responder e ouvir. A votação do público acontece só presencialmente, durante o evento: este link divulga, não vota.</p>
       <a class="botao botao--vazado" href="{% url 'vitrine:como_votar' %}">Como votar</a>
     </div>
     <div>

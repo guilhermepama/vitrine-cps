@@ -6,12 +6,12 @@ da Edicao ativa, e a seção da Mostra sorteia 4 projetos a cada visita, pelo me
 Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de voto (G8).
 {% endcomment %}
 
-{% block titulo %}Semana da Tecnologia — Vitrine CPS{% endblock %}
+{% block titulo %}Semana da Tecnologia — Vitrine Fatec{% endblock %}
 
 {% block meta %}
-  <meta name="description" content="Semana da Tecnologia da Fatec Olímpia: oficinas, apresentações, palestras, workshops e a Mostra de Projetos dos alunos.">
+  <meta name="description" content="Semana da Tecnologia da Fatec Olímpia: oficinas, apresentações, palestras, workshops e a Conexão Fatec, com os projetos dos alunos.">
   <meta property="og:title" content="Semana da Tecnologia — Fatec Olímpia">
-  <meta property="og:description" content="Oficinas, apresentações, palestras, workshops e a Mostra de Projetos dos alunos da Fatec Olímpia.">
+  <meta property="og:description" content="Oficinas, apresentações, palestras, workshops e a Conexão Fatec, com os projetos dos alunos da Fatec Olímpia.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   <script src="{% static 'js/menu.js' %}"></script>
@@ -30,7 +30,7 @@ Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de vot
       <div><p class="mono">Fatec Olímpia{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</p><h1 class="display">Semana da Tecnologia<span class="ponto">.</span> <span class="destaque">A Fatec Olímpia de portas abertas.</span></h1></div>
       <div class="quem__texto">
         <p>Uma semana de <strong>oficinas, apresentações, palestras e workshops</strong> em que a Fatec Olímpia recebe a cidade. É a chance de ver de perto o que se estuda aqui, conversar com alunos e professores e conhecer a faculdade pública e gratuita que Olímpia tem.</p>
-        <p>Um dos dias é a <strong>Mostra de Projetos</strong>{% if edicao %}, em {{ edicao.data_evento|date:"j \d\e F"|lower }}{% endif %}: os alunos apresentam o que criaram no semestre, e o público conversa com quem fez e avalia os projetos.</p>
+        <p>Um dos dias é a <strong>Conexão Fatec</strong>{% if edicao %}, em {{ edicao.data_evento|date:"j \d\e F"|lower }}{% endif %}: os alunos apresentam o que criaram no semestre, e o público conversa com quem fez e avalia os projetos.</p>
       </div>
     </div>
   </div>
@@ -44,7 +44,7 @@ Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de vot
     <ol class="passos">
       <li class="passo"><span class="passo__num" aria-hidden="true">01</span><h3 class="display">Oficinas e workshops</h3><p>Atividades práticas, em grupos pequenos, para aprender fazendo.</p></li>
       <li class="passo"><span class="passo__num" aria-hidden="true">02</span><h3 class="display">Palestras e apresentações</h3><p>Conversas sobre tecnologia, turismo e mercado de trabalho.</p></li>
-      <li class="passo"><span class="passo__num" aria-hidden="true">03</span><h3 class="display">Mostra de Projetos</h3><p>{% if edicao %}{{ edicao.data_evento|date:"d.m" }}, a partir das 19h. {% endif %}Os grupos apresentam o que construíram no semestre, e o público avalia pelo celular. <a href="{% url 'vitrine:projetos' %}">Ver os projetos</a></p></li>
+      <li class="passo"><span class="passo__num" aria-hidden="true">03</span><h3 class="display">Conexão Fatec</h3><p>{% if edicao %}{{ edicao.data_evento|date:"d.m" }}, a partir das 19h. {% endif %}Os grupos apresentam o que construíram no semestre, e o público avalia pelo celular. <a href="{% url 'vitrine:projetos' %}">Ver os projetos</a></p></li>
     </ol>
   </div>
 </section>
@@ -52,9 +52,9 @@ Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de vot
 <section class="sobre__secao" id="mostra">
   <div class="container">
     <div class="mostra__cabeca">
-      <div><p class="mono">02 — A Mostra de Projetos</p><h2 class="display">Do jeito que se trabalha numa empresa<span class="ponto">.</span></h2></div>
+      <div><p class="mono">02 — Conexão Fatec</p><h2 class="display">Do jeito que se trabalha numa empresa<span class="ponto">.</span></h2></div>
       <div>
-        <p>A Mostra de Projetos é um dos dias da <strong>Semana da Tecnologia</strong>, que reúne oficinas, apresentações, palestras e workshops. Na noite da Mostra{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
+        <p>A Conexão Fatec é um dos dias da <strong>Semana da Tecnologia</strong>, que reúne oficinas, apresentações, palestras e workshops. Na noite da Conexão Fatec{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
       </div>
     </div>
     <div class="tecnica">
