@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Todos os projetos publicados da edição ativa, por turma, com o filtro por curso (spec 07).
+Links só para /, /projeto/… e /grupo/: nenhum caminho de voto (G8).
+{% endcomment %}
+
+{% block titulo %}Projetos — Vitrine CPS{% endblock %}
+
+{% block meta %}
+  <meta name="description" content="Todos os projetos da Mostra de Projetos da Fatec Olímpia, por turma.">
+  <meta property="og:title" content="Projetos — Vitrine CPS">
+  <meta property="og:description" content="Conheça todos os projetos dos alunos da Fatec Olímpia nesta edição da Mostra.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <script src="{% static 'js/menu.js' %}"></script>
+{% endblock %}
+
+{% block menu %}
+{% include "vitrine/_nav_principal.html" with pagina="projetos" %}
+{% endblock %}
+
+{% block classe_main %}{% endblock %}
+
+{% block conteudo %}
+<section id="projetos">
+  <div class="container">
+    <div class="secao__cabeca">
+      <div>
+        <p class="mono">Projetos{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</p>
+        <h1 class="display">{% if titulo_projetos %}{{ titulo_projetos }}{% else %}Projetos em breve{% endif %}</h1>
+        <p>Software, turismo e gestão, feitos ao longo do semestre por quem estuda em Olímpia. Cada projeto tem a própria página: abra, conheça e compartilhe as que gostar.</p>
+      </div>
+      {% if cursos|length > 1 %}
+      <div class="filtros" role="group" aria-label="Filtrar por curso" data-filtro-cursos hidden>
+        <button class="chip chip--ativo" data-curso="todos" type="button" aria-pressed="true">Todos</button>
+        {% for curso in cursos %}<button class="chip" data-curso="{{ curso.sigla|slugify }}" type="button" aria-pressed="false">{{ curso.sigla }}</button>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+
+    {% for grupo in turmas %}
+    <div class="turma" data-curso="{{ grupo.curso.sigla|slugify }}">
+      <h2 class="turma__titulo"><span class="display">{{ grupo.turma.rotulo }}</span><span class="mono">{{ grupo.curso.nome }}</span><span class="mono turma__n">{{ grupo.projetos|length }} projeto{{ grupo.projetos|length|pluralize }}</span></h2>
+      <div class="cartoes">
+        {% for projeto in grupo.projetos %}{% include "vitrine/_cartao_projeto.html" %}{% endfor %}
+      </div>
+    </div>
+    {% empty %}
+    <p class="vazio">Os projetos desta edição aparecem aqui assim que a coordenação publicar cada página.</p>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}
+
+{% block rodape_edicao %}{% if edicao %}<span>Edição {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m" }}</span>{% endif %}{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/filtro-cursos.js' %}" defer></script>{% endblock %}

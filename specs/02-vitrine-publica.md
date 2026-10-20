@@ -84,8 +84,8 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Cédula, tokens de voto, estações, visitantes (spec 03).
 - Ranking, notas e a nota composta (specs 04 e 06): a vitrine não exibe
   votos, notas nem colocação.
-- Página-índice `/projetos/` com a lista de todos os projetos: fica fora do
-  prazo de 12/10; fatia pequena depois de 13/10, se houver folga.
+- Página-índice `/projetos/` com a lista de todos os projetos: ficou fora do
+  prazo de 12/10; entrou depois pela spec 07 (16/10).
 - Busca, filtros, comentários, curtidas, compartilhamento por botões.
 - Fotos de pessoas, redimensionar ou converter imagens (inclusive
   miniatura da capa), editor de texto rico (a descrição é texto simples).

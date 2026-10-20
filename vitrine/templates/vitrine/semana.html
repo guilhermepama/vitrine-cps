@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Página da Semana da Tecnologia da Fatec Olímpia (spec 07). Texto fixo; nome e data da Mostra vêm
+da Edicao ativa, e a seção da Mostra sorteia 4 projetos a cada visita, pelo mesmo mecanismo da home. A programação por dia fica para a próxima edição (ADR-011).
+Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de voto (G8).
+{% endcomment %}
+
+{% block titulo %}Semana da Tecnologia — Vitrine CPS{% endblock %}
+
+{% block meta %}
+  <meta name="description" content="Semana da Tecnologia da Fatec Olímpia: oficinas, apresentações, palestras, workshops e a Mostra de Projetos dos alunos.">
+  <meta property="og:title" content="Semana da Tecnologia — Fatec Olímpia">
+  <meta property="og:description" content="Oficinas, apresentações, palestras, workshops e a Mostra de Projetos dos alunos da Fatec Olímpia.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="pt_BR">
+  <script src="{% static 'js/menu.js' %}"></script>
+{% endblock %}
+
+{% block menu %}
+{% include "vitrine/_nav_principal.html" with pagina="semana" %}
+{% endblock %}
+
+{% block classe_main %}{% endblock %}
+
+{% block conteudo %}
+<section class="sobre__secao">
+  <div class="container">
+    <div class="quem__cabeca">
+      <div><p class="mono">Fatec Olímpia{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</p><h1 class="display">Semana da Tecnologia<span class="ponto">.</span> <span class="destaque">A Fatec Olímpia de portas abertas.</span></h1></div>
+      <div class="quem__texto">
+        <p>Uma semana de <strong>oficinas, apresentações, palestras e workshops</strong> em que a Fatec Olímpia recebe a cidade. É a chance de ver de perto o que se estuda aqui, conversar com alunos e professores e conhecer a faculdade pública e gratuita que Olímpia tem.</p>
+        <p>Um dos dias é a <strong>Mostra de Projetos</strong>{% if edicao %}, em {{ edicao.data_evento|date:"j \d\e F"|lower }}{% endif %}: os alunos apresentam o que criaram no semestre, e o público conversa com quem fez e avalia os projetos.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sobre__secao">
+  <div class="container">
+    <div class="mostra__cabeca">
+      <div><p class="mono">01 — O que acontece</p><h2 class="display">Uma semana para aprender, ouvir e ver a inovação de perto<span class="ponto">.</span></h2></div>
+    </div>
+    <ol class="passos">
+      <li class="passo"><span class="passo__num" aria-hidden="true">01</span><h3 class="display">Oficinas e workshops</h3><p>Atividades práticas, em grupos pequenos, para aprender fazendo.</p></li>
+      <li class="passo"><span class="passo__num" aria-hidden="true">02</span><h3 class="display">Palestras e apresentações</h3><p>Conversas sobre tecnologia, turismo e mercado de trabalho.</p></li>
+      <li class="passo"><span class="passo__num" aria-hidden="true">03</span><h3 class="display">Mostra de Projetos</h3><p>{% if edicao %}{{ edicao.data_evento|date:"d.m" }}, a partir das 19h. {% endif %}Os grupos apresentam o que construíram no semestre, e o público avalia pelo celular. <a href="{% url 'vitrine:projetos' %}">Ver os projetos</a></p></li>
+    </ol>
+  </div>
+</section>
+
+<section class="sobre__secao" id="mostra">
+  <div class="container">
+    <div class="mostra__cabeca">
+      <div><p class="mono">02 — A Mostra de Projetos</p><h2 class="display">Do jeito que se trabalha numa empresa<span class="ponto">.</span></h2></div>
+      <div>
+        <p>A Mostra de Projetos é um dos dias da <strong>Semana da Tecnologia</strong>, que reúne oficinas, apresentações, palestras e workshops. Na noite da Mostra{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
+      </div>
+    </div>
+    <div class="tecnica">
+      <div class="tecnica__cel"><span class="mono">Entrega</span><h3 class="display">Cliente e prazo reais</h3><p>A coordenação é o cliente e a comunidade é o público. O evento tem data marcada, e cada frente tem responsável e prazo de entrega.</p></div>
+      <div class="tecnica__cel"><span class="mono">Prática</span><h3 class="display">Trabalho em campo</h3><p>Nada de exercício de sala: um evento de verdade, com público, imprevistos e decisões que precisam ser tomadas na hora.</p></div>
+      <div class="tecnica__cel"><span class="mono">Equipe</span><h3 class="display">Dois cursos juntos</h3><p>Turismo e Software trabalhando lado a lado, cada um na sua área. Divisão de tarefas, combinados e cobrança, como numa equipe profissional.</p></div>
+      <div class="tecnica__cel"><span class="mono">Experiência</span><h3 class="display">Enquanto cursa</h3><p>Ninguém espera o diploma para começar. Quem participa sai do semestre com experiência real para contar numa entrevista e colocar no currículo.</p></div>
+    </div>
+    {% if destaques %}
+    <div class="cartoes semana__cartoes">
+      {% for projeto in destaques %}{% include "vitrine/_cartao_projeto.html" %}{% endfor %}
+    </div>
+    {% if total_projetos > destaques|length %}
+    <div class="secao__cta"><a class="botao botao--vermelho" href="{% url 'vitrine:projetos' %}">Ver todos os {{ total_projetos }} projeto{{ total_projetos|pluralize }}</a></div>
+    {% endif %}
+    {% endif %}
+  </div>
+</section>
+
+{% include "vitrine/_chamada_vestibular.html" %}
+{% endblock %}
+
+{% block rodape_edicao %}{% if edicao %}<span>Edição {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m" }}</span>{% endif %}{% endblock %}

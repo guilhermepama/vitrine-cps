@@ -1,0 +1,12 @@
+{% comment %}
+Menu principal da home, de /projetos/ e de /semana-da-tecnologia/ (spec 07). `pagina` = "inicio", "projetos" ou "semana".
+"A Mostra" leva à seção da Mostra na página da Semana.
+{% endcomment %}
+{% url 'vitrine:semana' as semana %}
+<button class="nav-alterna" type="button" aria-expanded="false" aria-controls="menu" aria-label="Abrir menu"><span></span></button>
+<nav class="nav" id="menu" aria-label="Principal">
+  <a href="{% if pagina != 'semana' %}{{ semana }}{% endif %}#mostra" class="so-desktop"><span class="idx" aria-hidden="true">01</span>A Mostra</a>
+  <a href="{{ semana }}" class="so-desktop"{% if pagina == 'semana' %} aria-current="page"{% endif %}><span class="idx" aria-hidden="true">02</span>Semana da Tecnologia</a>
+  <a href="{% url 'vitrine:projetos' %}"{% if pagina == 'projetos' %} aria-current="page"{% endif %}><span class="idx" aria-hidden="true">03</span>Projetos</a>
+  <a href="{% url 'vitrine:grupo' %}" class="nav__botao">Área do grupo</a>
+</nav>
