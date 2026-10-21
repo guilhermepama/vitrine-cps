@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Votação — Vitrine Fatec</title>
+  <title>Avaliação — Vitrine Fatec</title>
   {# Visual da spec 07. A lógica é da spec 03: o script fica neste arquivo (o teste o lê do HTML). #}
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
@@ -27,9 +27,9 @@
     {% else %}
       <section class="cedula__cabeca">
         <div class="container">
-          <p class="mono">Conexão Fatec · votação do público</p>
-          <h1 class="display">Vote nos projetos<span class="ponto">.</span></h1>
-          <p>Um voto por projeto. Você pode votar em quantos projetos quiser.</p>
+          <p class="mono">Conexão Fatec · avaliação do público</p>
+          <h1 class="display">Avalie os projetos<span class="ponto">.</span></h1>
+          <p>Dê uma nota de 0 a 5 em cada critério. Uma avaliação por projeto, sem edição depois de enviada. Avalie quantos projetos quiser.</p>
         </div>
       </section>
       <div class="container">
@@ -43,11 +43,32 @@
             <ul>
               {% for projeto in grupo.list %}
                 <li>
-                  <span class="cedula__projeto"><strong>{{ projeto.titulo }}</strong>{% if projeto.resumo %}<span>{{ projeto.resumo }}</span>{% endif %}</span>
+                  <span class="cedula__projeto"><strong id="p-{{ projeto.pk }}-titulo">{{ projeto.titulo }}</strong>{% if projeto.resumo %}<span>{{ projeto.resumo }}</span>{% endif %}</span>
                   {% if projeto.pk in votados %}
-                    <button type="button" disabled>Votado</button>
+                    <button type="button" id="e-{{ projeto.pk }}" aria-labelledby="e-{{ projeto.pk }} p-{{ projeto.pk }}-titulo" disabled>Avaliado</button>
                   {% else %}
-                    <button type="button" data-projeto="{{ projeto.pk }}">Votar</button>
+                    <form class="cedula__form" aria-labelledby="p-{{ projeto.pk }}-titulo">
+                      <fieldset class="cedula__criterio">
+                        <legend>Impacto social</legend>
+                        <div class="cedula__escala">
+                          {% for nota in "012345" %}<span class="cedula__nota"><input type="radio" name="impacto_social" id="n-{{ projeto.pk }}-impacto_social-{{ nota }}" value="{{ nota }}"><label for="n-{{ projeto.pk }}-impacto_social-{{ nota }}">{{ nota }}</label></span>{% endfor %}
+                        </div>
+                      </fieldset>
+                      <fieldset class="cedula__criterio">
+                        <legend>Inovação</legend>
+                        <div class="cedula__escala">
+                          {% for nota in "012345" %}<span class="cedula__nota"><input type="radio" name="inovacao" id="n-{{ projeto.pk }}-inovacao-{{ nota }}" value="{{ nota }}"><label for="n-{{ projeto.pk }}-inovacao-{{ nota }}">{{ nota }}</label></span>{% endfor %}
+                        </div>
+                      </fieldset>
+                      <fieldset class="cedula__criterio">
+                        <legend>Impacto ambiental</legend>
+                        <div class="cedula__escala">
+                          {% for nota in "012345" %}<span class="cedula__nota"><input type="radio" name="impacto_ambiental" id="n-{{ projeto.pk }}-impacto_ambiental-{{ nota }}" value="{{ nota }}"><label for="n-{{ projeto.pk }}-impacto_ambiental-{{ nota }}">{{ nota }}</label></span>{% endfor %}
+                        </div>
+                      </fieldset>
+                      <p class="cedula__dica" role="status" hidden></p>
+                      <button type="button" id="e-{{ projeto.pk }}" aria-labelledby="e-{{ projeto.pk }} p-{{ projeto.pk }}-titulo" data-projeto="{{ projeto.pk }}">Enviar avaliação</button>
+                    </form>
                   {% endif %}
                 </li>
               {% endfor %}
@@ -62,27 +83,43 @@
           var rota = "{% url 'votacao:votos' %}";
           var csrf = document.querySelector("input[name=csrfmiddlewaretoken]").value;
           var aviso = document.getElementById("aviso");
+          var campos = ["impacto_social", "inovacao", "impacto_ambiental"];
+          function controles(botao, desabilitados) {
+            botao.form.querySelectorAll("input, button").forEach(function (c) { c.disabled = desabilitados; });
+          }
           function marcar(botao) {
-            botao.disabled = true;
-            botao.textContent = "Votado";
-            // Sem data-projeto = votado (o CSS separa do "enviando", que também fica desabilitado).
+            controles(botao, true);
+            botao.textContent = "Avaliado";
+            // Sem data-projeto = avaliado (o CSS separa do "enviando", que também fica desabilitado).
             botao.removeAttribute("data-projeto");
           }
           document.querySelectorAll("button[data-projeto]").forEach(function (botao) {
+            var dica = botao.form.querySelector(".cedula__dica");
             botao.addEventListener("click", function () {
-              botao.disabled = true;
               aviso.hidden = true;
+              var dados = { projeto_id: botao.dataset.projeto };
+              var completo = campos.every(function (campo) {
+                dados[campo] = botao.form.elements[campo].value;
+                return dados[campo] !== "";
+              });
+              if (!completo) {
+                dica.textContent = "Escolha uma nota em cada critério.";
+                dica.hidden = false;
+                return;
+              }
+              dica.hidden = true;
+              controles(botao, true);
               fetch(rota, {
                 method: "POST",
                 credentials: "same-origin",
                 headers: { "X-CSRFToken": csrf },
-                body: new URLSearchParams({ projeto_id: botao.dataset.projeto })
+                body: new URLSearchParams(dados)
               }).then(function (resposta) {
                 if (resposta.status === 201) {
                   marcar(botao);
                   return;
                 }
-                // 409 é a rejeição genérica (já votado, votação encerrada, cookie
+                // 409 é a rejeição genérica (já avaliado, votação encerrada, cookie
                 // vencido...) e 403 é o CSRF (cookies limpos com a cédula
                 // aberta): recarrega e o servidor mostra o estado real, em vez
                 // de deixar o visitante preso no "Tente de novo".
@@ -92,8 +129,8 @@
                 }
                 throw new Error();
               }).catch(function () {
-                botao.disabled = false;
-                aviso.textContent = "Não foi possível votar agora. Tente de novo.";
+                controles(botao, false);
+                aviso.textContent = "Não foi possível enviar a avaliação agora. Tente de novo.";
                 aviso.hidden = false;
               });
             });

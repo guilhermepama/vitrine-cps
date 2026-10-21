@@ -68,6 +68,7 @@ def test_mede_contra_o_servidor_e_respeita_o_fluxo(live_server):
     assert "p50" in linhas[3] and "p95" in linhas[3] and "máx" in linhas[3]
     # Um token e um cadastro por visitante simulado (e pela sonda); votos em projetos diferentes.
     assert (Token.objects.count(), Visitante.objects.count(), Voto.objects.count()) == (5, 5, 8)
+    # 201 nos 8 votos prova que cada POST levou as três notas (sem elas, a view responde 400).
     assert settings.QR_HMAC_SECRET not in saida
 
 

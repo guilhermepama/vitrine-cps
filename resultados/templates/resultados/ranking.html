@@ -51,22 +51,24 @@ Só agregados: nenhum id de token, IP ou dado de visitante além da contagem.
     {% if turma.banca_pendente %}
       <p class="aviso">Nota da banca pendente — este não é o resultado oficial</p>
       <table>
-        <thead><tr><th>Projeto</th><th class="n">Votos</th><th class="n">p</th></tr></thead>
+        <thead><tr><th>Projeto</th><th class="n">Avaliações</th><th class="n">Média</th><th class="n">Público</th><th class="n">p</th></tr></thead>
         <tbody>
         {% for linha in turma.linhas %}
-          <tr><td>{{ linha.titulo }}</td><td class="n">{{ linha.votos }}</td><td class="n">{{ linha.p|floatformat:2 }}</td></tr>
+          <tr><td>{{ linha.titulo }}</td><td class="n">{{ linha.votos }}</td><td class="n">{% if linha.media is None %}—{% else %}{{ linha.media|floatformat:2 }}{% endif %}</td><td class="n">{{ linha.publico|floatformat:2 }}</td><td class="n">{{ linha.p|floatformat:2 }}</td></tr>
         {% endfor %}
         </tbody>
       </table>
     {% else %}
       <table>
-        <thead><tr><th class="n">Posição</th><th>Projeto</th><th class="n">Votos</th><th class="n">Banca</th><th class="n">p</th><th class="n">b</th><th class="n">Final</th><th></th></tr></thead>
+        <thead><tr><th class="n">Posição</th><th>Projeto</th><th class="n">Avaliações</th><th class="n">Média</th><th class="n">Público</th><th class="n">Banca</th><th class="n">p</th><th class="n">b</th><th class="n">Final</th><th></th></tr></thead>
         <tbody>
         {% for linha in turma.linhas %}
           <tr>
             <td class="n">{{ linha.posicao }}º</td>
             <td>{{ linha.titulo }}</td>
             <td class="n">{{ linha.votos }}</td>
+            <td class="n">{% if linha.media is None %}—{% else %}{{ linha.media|floatformat:2 }}{% endif %}</td>
+            <td class="n">{{ linha.publico|floatformat:2 }}</td>
             <td class="n">{{ linha.banca|floatformat:2 }}</td>
             <td class="n">{{ linha.p|floatformat:2 }}</td>
             <td class="n">{{ linha.b|floatformat:2 }}</td>

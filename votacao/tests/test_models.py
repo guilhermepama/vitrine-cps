@@ -26,6 +26,8 @@ from votacao.tests.fabricas import BRASILIA
 
 pytestmark = pytest.mark.django_db
 
+NOTAS = {"impacto_social": 3, "inovacao": 3, "impacto_ambiental": 3}
+
 
 # --- Voto: unicidade no banco (guardrail 4) ----------------------------------
 
@@ -33,7 +35,7 @@ pytestmark = pytest.mark.django_db
 def test_segundo_voto_do_mesmo_token_no_mesmo_projeto_e_recusado_pelo_banco():
     v = fabricas.voto()
     with pytest.raises(IntegrityError), transaction.atomic():
-        Voto.objects.create(token=v.token, projeto=v.projeto)
+        Voto.objects.create(token=v.token, projeto=v.projeto, **NOTAS)
     assert Voto.objects.count() == 1
 
 
@@ -41,19 +43,19 @@ def test_unicidade_vale_tambem_para_bulk_create():
     """A regra não depende do save(): o banco barra qualquer caminho."""
     v = fabricas.voto()
     with pytest.raises(IntegrityError), transaction.atomic():
-        Voto.objects.bulk_create([Voto(token=v.token, projeto=v.projeto)])
+        Voto.objects.bulk_create([Voto(token=v.token, projeto=v.projeto, **NOTAS)])
 
 
 def test_mesmo_token_vota_em_projetos_diferentes():
     v = fabricas.voto()
     outro = cadastro.projeto(turma_=v.projeto.turma, titulo="Horta Comunitária")
-    Voto.objects.create(token=v.token, projeto=outro)
+    Voto.objects.create(token=v.token, projeto=outro, **NOTAS)
     assert v.token.votos.count() == 2
 
 
 def test_tokens_diferentes_votam_no_mesmo_projeto():
     v = fabricas.voto()
-    Voto.objects.create(token=fabricas.token(v.token.estacao), projeto=v.projeto)
+    Voto.objects.create(token=fabricas.token(v.token.estacao), projeto=v.projeto, **NOTAS)
     assert v.projeto.votos.count() == 2
 
 
@@ -62,6 +64,43 @@ def test_constraint_de_unicidade_existe_no_banco():
         restricoes = connection.introspection.get_constraints(cursor, Voto._meta.db_table)
     unica = restricoes["voto_unico_por_token_projeto"]
     assert unica["unique"] and unica["columns"] == ["token_id", "projeto_id"]
+
+
+# --- Voto: três notas 0–5 no banco (ADR-012) ---------------------------------
+
+CRITERIOS = ["impacto_social", "inovacao", "impacto_ambiental"]
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+@pytest.mark.parametrize("nota", [6, 255])
+def test_nota_acima_de_5_e_recusada_pelo_banco(criterio, nota):
+    v = fabricas.voto()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Voto.objects.create(token=fabricas.token(v.token.estacao), projeto=v.projeto, **{**NOTAS, criterio: nota})
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+def test_nota_negativa_e_recusada_pelo_banco(criterio):
+    """O campo é positivo, mas a CHECK barra o -1 mesmo por `update()`, que pula as validações."""
+    v = fabricas.voto()
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Voto.objects.filter(pk=v.pk).update(**{criterio: -1})
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+@pytest.mark.parametrize("nota", [0, 5])
+def test_notas_0_e_5_sao_aceitas(criterio, nota):
+    v = fabricas.voto(**{criterio: nota})
+    v.refresh_from_db()
+    assert getattr(v, criterio) == nota
+
+
+@pytest.mark.parametrize("criterio", CRITERIOS)
+def test_voto_sem_uma_das_notas_falha(criterio):
+    v = fabricas.voto()
+    notas = {k: n for k, n in NOTAS.items() if k != criterio}
+    with pytest.raises(IntegrityError), transaction.atomic():
+        Voto.objects.create(token=fabricas.token(v.token.estacao), projeto=v.projeto, **notas)
 
 
 # --- PROTECT: nada do ensaio ou do evento some em cascata ---------------------

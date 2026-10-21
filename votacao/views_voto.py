@@ -1,6 +1,8 @@
 """Cédula `GET /votar` e registro `POST /votos` (spec 03, "Cédula" e "Voto").
 
-O voto confere tudo na mesma transação, com a linha da `Edicao` travada
+O voto é uma avaliação por três notas de 0 a 5 (ADR-012), validadas antes de
+qualquer consulta (G12). Sem edição: a segunda avaliação do mesmo token e
+projeto é rejeitada. O voto confere tudo na mesma transação, com a linha da `Edicao` travada
 (G4: antes ou depois do encerramento, nunca no meio); a unicidade de
 (token, projeto) é da constraint do banco. Toda rejeição é o mesmo 409,
 byte a byte (G5). Nenhum `logger` aqui (P2).
@@ -27,6 +29,8 @@ ROTA_COMO_VOTAR = reverse_lazy("vitrine:como_votar")
 
 MAX_PROJETO = 2147483647
 _PROJETO_ID = re.compile(r"[0-9]{1,10}")
+_NOTA = re.compile(r"[0-5]")
+CRITERIOS = ("impacto_social", "inovacao", "impacto_ambiental")
 
 
 def _json(dados):
@@ -86,11 +90,23 @@ def _projeto_id(request):
     return int(texto)
 
 
+def _notas(request):
+    """{critério: nota} com as três notas válidas (um dígito de 0 a 5), ou None. Não consulta o banco (G12)."""
+    notas = {}
+    for criterio in CRITERIOS:
+        valores = request.POST.getlist(criterio)
+        if len(valores) != 1 or not _NOTA.fullmatch(valores[0].strip(" ")):
+            return None
+        notas[criterio] = int(valores[0].strip(" "))
+    return notas
+
+
 @never_cache
 @require_POST
 def votos(request):
     projeto_id = _projeto_id(request)
-    if projeto_id is None:
+    notas = _notas(request)
+    if projeto_id is None or notas is None:
         return _resposta(INVALIDO, 400)
     with transaction.atomic():
         edicao = edicao_em_votacao(travar=True)
@@ -105,7 +121,7 @@ def votos(request):
         try:
             # Savepoint: o IntegrityError não estraga a transação de fora.
             with transaction.atomic():
-                Voto.objects.create(token=token, projeto_id=projeto_id)
+                Voto.objects.create(token=token, projeto_id=projeto_id, **notas)
         except IntegrityError:
             return _rejeitado()
     return _resposta(REGISTRADO, 201)

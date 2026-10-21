@@ -74,7 +74,7 @@ def _esperar_alguem_na_fila_da_trava():
 
 def _votar(cenario, projeto):
     def votar():
-        return cenario.votante(Client()).post(ROTA, {"projeto_id": str(projeto.pk)})
+        return cenario.votante(Client()).post(ROTA, {"projeto_id": str(projeto.pk), "impacto_social": "4", "inovacao": "2", "impacto_ambiental": "5"})
 
     return votar
 
