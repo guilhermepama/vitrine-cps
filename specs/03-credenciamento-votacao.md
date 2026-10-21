@@ -3,10 +3,10 @@
 > Spec de referência: usa o template completo para servir de padrão às demais.
 
 - **Responsável**: Renan (@ReCroffi)
-- **Status**: emenda ADR-012 em revisão (a spec já estava pronta para
-  implementar — revisões do coordenador nos PRs #18 e #20 aplicadas,
-  ADR-002 aceita: Python + Django; a emenda só muda o voto, que passa a
-  ser avaliação por notas)
+- **Status**: implementada e na `main`, com a emenda ADR-012 (spec da
+  emenda no PR #85, voto por três notas no PR #87). Antes disso: revisões
+  do coordenador nos PRs #18 e #20 aplicadas, ADR-002 aceita: Python +
+  Django; a emenda só muda o voto, que passa a ser avaliação por notas
 - **Depende de**: ADR-001, ADR-012 (avaliação por notas), ADR-013
   (PR #80: só muda o recorte em que a spec 04 calcula a média do
   público; nada do voto), ADR-003, ADR-006 (logs da hospedagem e
@@ -508,7 +508,7 @@ depois de remover espaços nas pontas.
 | `POST /visitantes`, `POST /votos` | token CSRF | padrão do Django | 403 do Django |
 | `GET /votar` | cookie do token | UUID canônico; outro valor = sem token | redirect para `/como-votar/` (`vitrine:como_votar`, spec 02) |
 | `POST /votos` | `projeto_id` | exatamente 1 ocorrência; só dígitos, 1–10 caracteres, valor 1–2147483647 | 400 JSON `invalido` |
-| `POST /votos` | `impacto_social`, `inovacao`, `impacto_ambiental` **(ADR-012)** | cada uma exatamente 1 ocorrência; exatamente 1 caractere, dígito de `0` a `5` (`^[0-5]$`; nada de `05`, `+1`, `1.0`, `-1`, espaço, vazio) | 400 JSON `invalido` |
+| `POST /votos` | `impacto_social`, `inovacao`, `impacto_ambiental` **(ADR-012)** | cada uma exatamente 1 ocorrência; depois de remover espaços ASCII nas pontas (como o `projeto_id`; `" 4 "` vale 4), exatamente 1 caractere, dígito de `0` a `5` (`^[0-5]$`; nada de `05`, `+1`, `1.0`, `-1`, `5` seguido de tab, só espaço, vazio) | 400 JSON `invalido` |
 | `POST /votos` | cookie do token | UUID canônico; outro valor = token inexistente | 409 rejeição genérica |
 | todas | cookie de cadastro | assinatura válida; `edicao_id` = edição em votação | sem cadastro (ver "Liberação da cédula") |
 
@@ -753,7 +753,7 @@ a spec 04 e o G6 citam:
 **Avaliação por notas (ADR-012)**
 - [ ] Avaliação com as três notas válidas → 201 e uma linha em `votos` com as três notas gravadas
 - [ ] Nota 0 nos três critérios → 201 e gravada (0 é nota)
-- [ ] Cada uma das três notas, isoladamente, fora do formato (`6`, `-1`, `05`, `+1`, `1.0`, `a`, espaço, vazio, ausente, repetida) → 400 `invalido`, com `assertNumQueries(0)` (nenhum SELECT de negócio, nem a trava da `Edicao`); o corpo é o mesmo do `projeto_id` malformado
+- [ ] Cada uma das três notas, isoladamente, fora do formato (`6`, `-1`, `05`, `+1`, `1.0`, `a`, `5` seguido de tab, só espaço, vazio, ausente, repetida) → 400 `invalido`, com `assertNumQueries(0)` (nenhum SELECT de negócio, nem a trava da `Edicao`); o corpo é o mesmo do `projeto_id` malformado. Com espaços ASCII nas pontas (`" 4 "`) → aceita
 - [ ] Nota malformada com token inexistente ou votação fechada → ainda 400 `invalido` (o 400 depende só do formato); nota válida nesses casos → 409 genérica
 - [ ] Segunda avaliação do mesmo token no mesmo projeto, com notas diferentes → 409 genérica byte a byte igual às demais; a primeira avaliação não muda
 - [ ] `Voto.objects.create(...)` com nota 6 (e com -1) em qualquer dos três campos, por fora da view e do formulário → `IntegrityError` (constraint do banco); nota 0 e 5 → aceitas
