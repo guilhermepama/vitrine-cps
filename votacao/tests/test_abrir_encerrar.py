@@ -178,7 +178,7 @@ def test_codigo_do_app_votacao_nao_usa_update_nem_bulk_update():
     achados = [
         f"{p.name}:{no.lineno}"
         for p in fontes
-        for no in ast.walk(ast.parse(p.read_text()))
+        for no in ast.walk(ast.parse(p.read_text(encoding="utf-8")))
         if isinstance(no, ast.Call) and isinstance(no.func, ast.Attribute)
         and no.func.attr in {"update", "bulk_update"}
     ]
