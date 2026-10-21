@@ -73,7 +73,7 @@ def _csrf(html):
 
 def _votar(celular, projeto, csrf=True):
     cabecalho = {"HTTP_X_CSRFTOKEN": celular.cookies["csrftoken"].value} if csrf else {}
-    return celular.post(reverse("votacao:votos"), {"projeto_id": str(projeto.pk)}, **cabecalho)
+    return celular.post(reverse("votacao:votos"), {"projeto_id": str(projeto.pk), "impacto_social": "4", "inovacao": "2", "impacto_ambiental": "5"}, **cabecalho)
 
 
 def _percorrer(celular, operador, estacao, projeto, de_fora):
@@ -105,7 +105,7 @@ def _percorrer(celular, operador, estacao, projeto, de_fora):
     assert _votar(celular, projeto, csrf=False).status_code == 403
     assert _votar(celular, de_fora).status_code == 409  # projeto da outra edição
     csrf = celular.cookies["csrftoken"].value
-    assert celular.post(reverse("votacao:votos"), {"projeto_id": "abc"}, HTTP_X_CSRFTOKEN=csrf).status_code == 400
+    assert celular.post(reverse("votacao:votos"), {"projeto_id": "abc", "impacto_social": "4", "inovacao": "2", "impacto_ambiental": "5"}, HTTP_X_CSRFTOKEN=csrf).status_code == 400
     assert _votar(celular, projeto).status_code == 201
     assert _votar(celular, projeto).status_code == 409  # duplicado
     assert f'data-projeto="{projeto.pk}"' not in celular.get(reverse("votacao:votar")).content.decode()

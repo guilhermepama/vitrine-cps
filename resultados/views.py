@@ -23,7 +23,7 @@ from functools import wraps
 from django.contrib.auth.views import redirect_to_login
 from django.core.handlers.exception import response_for_exception
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Max, Min
+from django.db.models import Count, F, Max, Min, Sum
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -33,7 +33,15 @@ from django.views.decorators.http import require_GET
 
 from banca.servicos import nota_banca_por_projeto
 from cadastro.models import Edicao, Projeto
-from resultados.calculo import PesosInvalidos, ProjetoEntrada, TurmaEntrada, calcular_ranking, chave_alfabetica
+from resultados.calculo import (
+    NotasDoProjeto,
+    PesosInvalidos,
+    ProjetoEntrada,
+    TurmaEntrada,
+    calcular_ranking,
+    chave_alfabetica,
+    publico_por_media_bayesiana,
+)
 from votacao.models import Estacao, Token, Visitante, Voto
 
 VER_RESULTADOS = "resultados.ver_resultados"
@@ -133,13 +141,17 @@ def _participacao(edicao, turmas, por_turma):
 
 def _ranking(edicao, turmas):
     """(ranking, erro). Só chamado com a votação encerrada. Duas consultas."""
-    votos = dict(
-        _votos_da_edicao(edicao).values("projeto_id").annotate(n=Count("id")).values_list("projeto_id", "n")
+    linhas = (
+        _votos_da_edicao(edicao)
+        .values("projeto_id")
+        .annotate(n=Count("id"), pontos=Sum(F("impacto_social") + F("inovacao") + F("impacto_ambiental")))
+        .values_list("projeto_id", "n", "pontos")
     )
+    notas = {projeto_id: NotasDoProjeto(n, pontos) for projeto_id, n, pontos in linhas}
     try:
         ranking = calcular_ranking(
             turmas,
-            votos,
+            publico_por_media_bayesiana(turmas, notas),
             nota_banca_por_projeto(edicao),
             edicao.peso_banca,
             edicao.peso_publico,

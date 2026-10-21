@@ -17,11 +17,17 @@ def token(estacao_=None):
     return Token.objects.create(estacao=estacao_ or estacao())
 
 
-def voto(token_=None, projeto_=None):
+def voto(token_=None, projeto_=None, impacto_social=3, inovacao=3, impacto_ambiental=3):
     """Sem argumentos, token e projeto ficam na mesma edição."""
     token_ = token_ or token()
     projeto_ = projeto_ or cadastro.projeto(cadastro.turma(token_.estacao.edicao))
-    return Voto.objects.create(token=token_, projeto=projeto_)
+    return Voto.objects.create(
+        token=token_,
+        projeto=projeto_,
+        impacto_social=impacto_social,
+        inovacao=inovacao,
+        impacto_ambiental=impacto_ambiental,
+    )
 
 
 def visitante(edicao_=None, **campos):

@@ -27,7 +27,8 @@ def edicao(turmas, nome="2026/2", estado="encerrada", conferida=True):
     """Edição com uma turma por chave de `turmas` ({sigla: [(titulo, votos, nota)]}).
 
     `nota` None = projeto sem avaliação da banca. Cada voto de um projeto
-    sai de um token diferente (um token vota uma vez por projeto).
+    sai de um token diferente (um token vota uma vez por projeto). Um quarto
+    item opcional é a nota 0–5 dos três critérios de cada voto (padrão 3).
     `estado`: "configurar" (votação nunca aberta), "aberta" ou "encerrada".
     Devolve (edicao, {titulo: projeto}).
     """
@@ -40,21 +41,21 @@ def edicao(turmas, nome="2026/2", estado="encerrada", conferida=True):
         curso, _ = Curso.objects.get_or_create(sigla=sigla, defaults={"nome": sigla, "unidade": "fatec"})
         turma = cadastro.turma(ed, curso)
         por_turma[turma] = []
-        for titulo, votos, nota in linhas:
+        for titulo, votos, nota, *nota_publico in linhas:
             projeto = cadastro.projeto(turma, titulo=titulo, status=PUBLICADO)
             projetos[titulo] = projeto
-            por_turma[turma].append((projeto, votos, nota))
+            por_turma[turma].append((projeto, votos, nota, *nota_publico))
     if estado == "configurar":
         return ed, projetos
     assert abrir_votacao(ed.pk) is None
     estacao = votacao.estacao(ed, nome=f"Entrada {nome}")
-    maximo = max((v for linhas in por_turma.values() for _, v, _ in linhas), default=0)
+    maximo = max((v for linhas in por_turma.values() for _, v, *_ in linhas), default=0)
     tokens = [votacao.token(estacao) for _ in range(maximo)]
     for turma, linhas in por_turma.items():
         jurado = banca.jurado(ed, turma, nome=f"Jurado {turma.pk}")
-        for projeto, votos, nota in linhas:
+        for projeto, votos, nota, *nota_publico in linhas:
             for token in tokens[:votos]:
-                votacao.voto(token, projeto)
+                votacao.voto(token, projeto, *(nota_publico * 3))
             if nota is not None:
                 banca.avaliar(jurado, projeto, [Decimal(str(nota))])
     if estado == "encerrada":
