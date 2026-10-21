@@ -11,7 +11,7 @@ from django.template import engines
 
 FILHO = (
     '{% extends "base.html" %}'
-    "{% block titulo %}Projeto X — Vitrine CPS{% endblock %}"
+    "{% block titulo %}Projeto X — Vitrine Fatec{% endblock %}"
     '{% block meta %}<meta property="og:title" content="Projeto X">{% endblock %}'
     "{% block conteudo %}<p>corpo</p>{% endblock %}"
 )
@@ -19,7 +19,7 @@ FILHO = (
 
 def test_blocos_titulo_meta_e_conteudo():
     html = engines["django"].from_string(FILHO).render()
-    assert "<title>Projeto X — Vitrine CPS</title>" in html
+    assert "<title>Projeto X — Vitrine Fatec</title>" in html
     assert '<meta property="og:title" content="Projeto X">' in html
     assert "<p>corpo</p>" in html
     assert '<html lang="pt-BR">' in html
@@ -28,7 +28,7 @@ def test_blocos_titulo_meta_e_conteudo():
 
 def test_titulo_padrao():
     html = engines["django"].from_string('{% extends "base.html" %}').render()
-    assert "<title>Vitrine CPS</title>" in html
+    assert "<title>Vitrine Fatec</title>" in html
 
 
 def _pagina(filho='{% extends "base.html" %}'):
@@ -138,5 +138,5 @@ def test_foco_de_teclado_segue_a_cor_da_superficie():
         if re.search(r"background(-color)?: var\(--cor-acento-texto\)", declaracoes):
             brancas.append(seletor)  # branco dentro do vermelho: o foco volta ao vermelho
             assert "--cor-foco: var(--cor-acento)" in declaracoes, seletor
-    assert {".marca", ".botao--vermelho", ".chip--ativo", ".chamada", ".faixa--vermelha"} <= set(vermelhas)
+    assert {".botao--vermelho", ".chip--ativo", ".chamada", ".faixa--vermelha"} <= set(vermelhas)
     assert ".chamada .botao--vazado:hover" in brancas

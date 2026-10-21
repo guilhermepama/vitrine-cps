@@ -322,7 +322,7 @@ responde 400 com mensagem genérica por campo e nada é gravado.
 - Meta tags: `og:title` (título), `og:description` (resumo), `og:image`
   (capa, URL absoluta), `og:url` (URL canônica absoluta),
   `og:type=website`, `og:locale=pt_BR`, `twitter:card=summary_large_image`.
-  `<title>`: "Título — Vitrine CPS".
+  `<title>`: "Título — Vitrine Fatec".
 - **Regra das URLs absolutas.** Com storage remoto (R2, domínio próprio),
   `capa.url` **já é absoluta** e vai como está; com disco local
   (desenvolvimento), é relativa e leva o prefixo `settings.URL_PUBLICA`.
@@ -336,7 +336,7 @@ responde 400 com mensagem genérica por campo e nada é gravado.
 - **Convite em edição passada.** O link é permanente, então depois do
   evento o convite não pode seguir pedindo presença. Quando
   `Edicao.data_evento` é anterior a hoje, o bloco vira registro — "Este
-  projeto participou da Mostra de Projetos realizada em [data]." — sem
+  projeto participou da Conexão Fatec, realizada em [data]." — sem
   horário, endereço nem botão "Quero votar". No próprio dia do evento o
   convite ainda aparece. "Hoje" é `timezone.localdate()`, no fuso
   `America/Sao_Paulo` do `settings.py`, **não** a data em UTC: às 21h do dia
@@ -469,7 +469,7 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 - [ ] O partial `vitrine/_corpo_projeto.html` não contém link nem formulário de voto (o teste de G8 também o cobre)
 - [ ] A capa aparece recortada na página, e o `og:image` aponta para o arquivo original; a tela de upload mostra a proporção ideal (~1,91:1)
 - [ ] O convite mostra a data da `Edicao`, "19h" e o endereço do campus da Fatec Olímpia
-- [ ] Com `data_evento` anterior a hoje, o convite vira "participou da Mostra de Projetos realizada em [data]", sem horário, endereço nem botão "Quero votar"; no próprio dia do evento o convite ainda aparece, inclusive às 21h (ainda é o dia seguinte em UTC), e vira registro só depois da meia-noite em `America/Sao_Paulo` (`timezone.localdate()`)
+- [ ] Com `data_evento` anterior a hoje, o convite vira "participou da Conexão Fatec, realizada em [data]", sem horário, endereço nem botão "Quero votar"; no próprio dia do evento o convite ainda aparece, inclusive às 21h (ainda é o dia seguinte em UTC), e vira registro só depois da meia-noite em `America/Sao_Paulo` (`timezone.localdate()`)
 - [ ] Descrição com `<script>` aparece escapada, sem executar
 - [ ] O HTML da vitrine e de `/como-votar/` não contém nenhum link ou formulário para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (teste automático, G8)
 - [ ] O HTML não contém `representante_nome`, RA nem token

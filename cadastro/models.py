@@ -1,4 +1,4 @@
-"""Modelo base do Vitrine CPS (specs/01-cadastro.md)."""
+"""Modelo base do Vitrine Fatec (specs/01-cadastro.md)."""
 
 from decimal import Decimal
 

@@ -6,12 +6,12 @@ Links só para âncoras desta página, /projeto/…, /projetos/, /semana-da-tecn
 nenhum caminho de voto (G8).
 {% endcomment %}
 
-{% block titulo %}Vitrine CPS — Mostra de Projetos Fatec Olímpia{% endblock %}
+{% block titulo %}Vitrine Fatec — Projetos e eventos da Fatec Olímpia{% endblock %}
 
 {% block meta %}
-  <meta name="description" content="Semana da Tecnologia da Fatec Olímpia: oficinas, palestras, workshops e a Mostra de Projetos dos alunos. Conheça os projetos e venha ao evento.">
-  <meta property="og:title" content="Vitrine CPS — Mostra de Projetos">
-  <meta property="og:description" content="Conheça os projetos dos alunos da Fatec Olímpia e venha ao evento.">
+  <meta name="description" content="Vitrine Fatec: projetos, eventos e talentos da Fatec Olímpia. Conheça os projetos dos alunos e venha à Conexão Fatec.">
+  <meta property="og:title" content="Vitrine Fatec — Projetos e eventos da Fatec Olímpia">
+  <meta property="og:description" content="Conheça os projetos dos alunos da Fatec Olímpia e venha à Conexão Fatec.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="pt_BR">
   {# menu.js entra no bloco meta, sem defer: marca <html class="js"> antes da primeira pintura, para o menu não piscar. #}
@@ -29,19 +29,19 @@ nenhum caminho de voto (G8).
   <div class="container hero__grade">
     <div class="hero__esq">
       <div class="hero__edicao mono">
-        <span>Mostra de Projetos{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</span>
+        <span>Conexão Fatec{% if edicao %} · Edição {{ edicao.nome }}{% endif %}</span>
         <span>Semana da Tecnologia · Fatec Olímpia</span>
       </div>
       <h1 class="display">Venha ver a <span class="destaque">inovação crescendo em Olímpia</span> com seus próprios olhos<span class="ponto">.</span></h1>
-      <p class="hero__texto">Turismo e tecnologia movem Olímpia, e são exatamente os cursos que a Fatec trouxe para a cidade. Na <strong>Semana da Tecnologia</strong>, a Fatec abre as portas com oficinas, apresentações, palestras e workshops. Na <strong>Mostra de Projetos</strong>, um dos dias da Semana, os alunos da <strong>Fatec Olímpia</strong> apresentam o que criaram neste semestre: software, soluções para problemas reais da cidade, roteiros e eventos para quem vive aqui e para quem nos visita. Uma noite para a comunidade ver de perto o que está nascendo em Olímpia, conversar com quem fez e escolher seus favoritos.</p>
+      <p class="hero__texto">Turismo e tecnologia movem Olímpia, e são exatamente os cursos que a Fatec trouxe para a cidade. Na <strong>Semana da Tecnologia</strong>, a Fatec abre as portas com oficinas, apresentações, palestras e workshops. Na <strong>Conexão Fatec</strong>,{% if edicao %} no dia <strong>{{ edicao.data_evento|date:"d.m" }}</strong>,{% else %} um dos dias da Semana,{% endif %} os alunos da <strong>Fatec Olímpia</strong> apresentam o que criaram neste semestre: software, soluções para problemas reais da cidade, roteiros e eventos para quem vive aqui e para quem nos visita. Uma noite para a comunidade ver de perto o que está nascendo em Olímpia, conversar com quem fez e escolher seus favoritos.</p>
       <div class="hero__acoes">
         <a class="botao botao--vermelho" href="#projetos">Ver os projetos</a>
-        <a class="botao botao--vazado" href="#mostra">Sobre a Mostra</a>
+        <a class="botao botao--vazado" href="#mostra">Sobre a Conexão Fatec</a>
       </div>
     </div>
     <figure class="hero__foto">
       {% include "vitrine/_hero_fachada.html" %}
-      <figcaption class="mono"><span>Fatec Olímpia — onde a Mostra acontece</span><span>Av. Gov. Adhemar Pereira de Barros, km 3</span></figcaption>
+      <figcaption class="mono"><span>Fatec Olímpia — onde a Conexão Fatec acontece</span><span>Av. Gov. Adhemar Pereira de Barros, km 3</span></figcaption>
     </figure>
   </div>
 </section>
@@ -72,8 +72,8 @@ nenhum caminho de voto (G8).
 <section class="mostra" id="mostra">
   <div class="container">
     <div class="mostra__cabeca">
-      <div><p class="mono">01 — A Mostra</p><h2 class="display">Uma noite para ver, conversar e avaliar<span class="ponto">.</span></h2></div>
-      <p>Na Mostra de Projetos da Fatec, o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
+      <div><p class="mono">01 — Conexão Fatec</p><h2 class="display">Uma noite para ver, conversar e avaliar<span class="ponto">.</span></h2></div>
+      <p>Na Conexão Fatec, o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
     </div>
     <ol class="passos">
       <li class="passo"><span class="passo__num" aria-hidden="true">01</span><h3 class="display">Conheça os projetos</h3><p>Software, aplicativos, roteiros turísticos, eventos e soluções para problemas reais da cidade, apresentados por quem os fez. Pergunte, teste, opine.</p></li>
@@ -90,9 +90,9 @@ nenhum caminho de voto (G8).
 <section class="quem" id="quem-faz">
   <div class="container">
     <div class="quem__cabeca">
-      <div><p class="mono">02 — Quem faz</p><h2 class="display">Na Fatec Olímpia, em casa de ferreiro o espeto é de ferro<span class="ponto">.</span> <span class="destaque">O Vitrine CPS é feito pelos alunos.</span></h2></div>
+      <div><p class="mono">02 — Quem faz</p><h2 class="display">Na Fatec Olímpia, em casa de ferreiro o espeto é de ferro<span class="ponto">.</span> <span class="destaque">O Vitrine Fatec é feito pelos alunos.</span></h2></div>
       <div class="quem__texto">
-        <p>O <strong>Vitrine CPS</strong> mostra o que os alunos da Fatec Olímpia estão estudando e desenvolvendo. É por aqui que a cidade acompanha a <a href="{% url 'vitrine:semana' %}">Semana da Tecnologia</a> (oficinas, apresentações, palestras, workshops e a Mostra de Projetos), e cada projeto ganha uma página pública, com o que foi feito, por quem e por quê.</p>
+        <p>O <strong>Vitrine Fatec</strong> é o espaço onde a Fatec Olímpia mostra seus projetos, seus eventos e o talento dos seus alunos: a vitrine da qualidade da Fatec para Olímpia e para o mundo. É por aqui que a cidade acompanha a <a href="{% url 'vitrine:semana' %}">Semana da Tecnologia</a> (oficinas, apresentações, palestras, workshops e a Conexão Fatec), e cada projeto ganha uma página pública, com o que foi feito, por quem e por quê.</p>
         <p>E o próprio Vitrine é um desses projetos. Os alunos de <strong>Desenvolvimento de Software Multiplataforma</strong> criaram a tecnologia que ajuda os alunos de <strong>Gestão de Turismo</strong> a divulgar e organizar o evento: votação segura por QR code e o cálculo das notas da banca para a coordenação. Um evento real, com problemas reais, público, prazo e responsabilidade, tratado como trabalho de mercado.</p>
       </div>
     </div>

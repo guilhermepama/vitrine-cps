@@ -1,8 +1,8 @@
-# Vitrine CPS
+# Vitrine Fatec
 
-Plataforma da mostra semestral de projetos da FATEC Olímpia e Etec (Centro
-Paula Souza): cadastro de projetos por turma, página pública de divulgação
-e votação presencial do público no dia do evento.
+Plataforma da Fatec Olímpia para divulgar projetos, eventos e o talento dos
+alunos. Hoje: cadastro de projetos por turma, página pública de divulgação e
+votação presencial do público na Conexão Fatec, a mostra semestral de projetos.
 
 **Status**: esqueleto Django pronto; frentes em andamento. Stack: Python + Django + PostgreSQL (ADR-002). Evento: 29/10/2026.
 

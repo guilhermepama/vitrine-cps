@@ -1,6 +1,6 @@
 ---
 name: nova-spec
-description: Criar ou completar a spec de um módulo do Vitrine CPS a partir do template, no padrão da spec 03. Usar quando o responsável for especificar sua tarefa antes de gerar código.
+description: Criar ou completar a spec de um módulo do Vitrine Fatec a partir do template, no padrão da spec 03. Usar quando o responsável for especificar sua tarefa antes de gerar código.
 ---
 
 # Criar/completar uma spec

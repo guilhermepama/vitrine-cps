@@ -1,4 +1,4 @@
-# Vitrine CPS — Instruções para agentes de IA
+# Vitrine Fatec — Instruções para agentes de IA
 
 > Este arquivo é a **fonte única** de instruções para qualquer agente de IA
 > (Claude, Cursor, Codex, Gemini etc.). `CLAUDE.md`, `GEMINI.md` e
@@ -78,7 +78,7 @@ SKILL.md correspondente e siga os passos como checklist — é markdown comum.
 
 ## Resumo do sistema (detalhe em docs/00-contexto.md)
 
-Plataforma da mostra semestral de projetos FATEC Olímpia + Etec:
+Plataforma da Fatec Olímpia (Vitrine Fatec) para a mostra semestral de projetos Conexão Fatec (+ Etec):
 cadastro de projetos por edição/turma → página pública de vitrine (divulga,
 **não vota**) → votação presencial no evento via token único obtido por QR
 dinâmico nas estações de credenciamento → relatório por categoria.

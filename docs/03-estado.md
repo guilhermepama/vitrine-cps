@@ -1,4 +1,4 @@
-# Vitrine CPS — Estado do projeto
+# Vitrine Fatec — Estado do projeto
 
 > **Propósito**: snapshot de onde o projeto está. Leia este arquivo ANTES de
 > retomar qualquer trabalho — humano ou IA. Mantido **só** pelo
@@ -184,3 +184,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-03 Guilherme: PRs do coordenador passam a ter a aprovação do Renan (ADR-010, #28).
 - 2026-10-05 Guilherme: Renan ausente; coordenador fechou votação (ajustes #40–#43) e resultados (#52, #54, #57) e a banca (#51–#58).
 - 2026-10-06 Guilherme: Renan de volta; specs 03, 04 e 06 na `main` com CI verde; pendente a revisão posterior da ADR-010 e o cadastro 3/3.
+- 2026-10-20 Guilherme: a direção renomeou o produto para **Vitrine Fatec** (portal de projetos, eventos e artigos; vitrine da qualidade da Fatec) e a mostra para **Conexão Fatec**. Textos, logo e runbook ajustados; domínio `vitrinefatec.com.br` a registrar. Identificadores internos `vitrine-cps` mantidos.

@@ -1,7 +1,7 @@
-# Vitrine CPS — Contexto do projeto
+# Vitrine Fatec — Contexto do projeto
 
 ## O que é
-Plataforma web para a mostra semestral de projetos da FATEC Olímpia e da Etec (cursos de DSM, GTUR e outros do Centro Paula Souza). Os alunos cadastram seus projetos, cada projeto ganha uma página pública de divulgação, e no dia do evento o público presente vota nos seus favoritos. O sistema é recorrente: será usado em todas as edições semestrais daqui em diante.
+O **Vitrine Fatec** é o espaço da Fatec Olímpia para divulgar projetos, eventos e o talento dos alunos (e, no futuro, artigos escritos por eles): a vitrine da qualidade da Fatec. Nesta fase, é a plataforma web da **Conexão Fatec**, a mostra semestral de projetos da Fatec Olímpia e da Etec (cursos de DSM, GTUR e outros do Centro Paula Souza). Os alunos cadastram seus projetos, cada projeto ganha uma página pública de divulgação, e no dia do evento o público presente vota nos seus favoritos. O sistema é recorrente: será usado em todas as edições semestrais daqui em diante.
 
 ## Objetivos
 1. Dar visibilidade aos projetos dos alunos por meio de páginas públicas compartilháveis.
@@ -64,5 +64,5 @@ Ver `docs/02-decisoes.md` (registro de decisões). Resumo:
 ## Pontos em aberto
 - Stack de implementação (backend, banco, hospedagem) — registrar como ADR-002 quando decidido.
 - Quem administra: alunos de DSM, professores, ou ambos?
-- Identidade visual da marca Vitrine CPS.
+- Identidade visual da marca Vitrine Fatec.
 - Texto final do consentimento LGPD (validar com a coordenação).

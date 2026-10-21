@@ -34,8 +34,8 @@ def test_rota():
 @pytest.mark.django_db
 def test_titulo_e_atividades(client):
     html = _html(client)
-    assert "<title>Semana da Tecnologia — Vitrine CPS</title>" in html
-    for atividade in ("Oficinas e workshops", "Palestras e apresentações", "Mostra de Projetos"):
+    assert "<title>Semana da Tecnologia — Vitrine Fatec</title>" in html
+    for atividade in ("Oficinas e workshops", "Palestras e apresentações", "Conexão Fatec"):
         assert atividade in html
     assert 'href="/projetos/">Ver os projetos' in html  # no item da Mostra
 
@@ -79,7 +79,7 @@ def test_mostra_sorteia_quatro_projetos_e_chama_para_todos(client):
     mostra = mostra[:mostra.index("</section>")]
     assert mostra.count('class="cartao-projeto"') == 4
     assert mostra.index('class="cartao-projeto"') < mostra.index('href="/projetos/">Ver todos os 6 projetos')
-    assert "A Mostra de Projetos é um dos dias da <strong>Semana da Tecnologia</strong>" in mostra
+    assert "A Conexão Fatec é um dos dias da <strong>Semana da Tecnologia</strong>" in mostra
 
 
 @pytest.mark.django_db
@@ -139,7 +139,7 @@ def test_menu_marca_a_semana(client):
 def test_a_mostra_tem_ancora_na_semana(client):
     html = _html(client)
     secao = html[html.index('id="mostra"'):]
-    assert secao.index("02 — A Mostra de Projetos") < secao.index("</section>")
+    assert secao.index("02 — Conexão Fatec") < secao.index("</section>")
 
 
 @pytest.mark.django_db
@@ -157,5 +157,5 @@ def test_home_fala_do_vitrine_e_leva_a_semana(client):
     html = _html(client, "/")
     assert html.count(f'href="{ROTA}"') == 3  # menu + texto de "Quem faz" + rodapé (fora o #mostra)
     quem = html[html.index('id="quem-faz"'):html.index('id="projetos"')]
-    assert "O <strong>Vitrine CPS</strong> mostra" in quem
+    assert "O <strong>Vitrine Fatec</strong> é o espaço onde a Fatec Olímpia mostra" in quem
     assert "tecnica__cel" not in quem  # os quatro blocos saíram

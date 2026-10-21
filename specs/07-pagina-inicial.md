@@ -9,14 +9,14 @@
   (repositório `guilhermepama/vitrine-cps-prototipo`, `index.html`)
 
 ## Objetivo
-Dar ao endereço raiz (`vitrinecps.com.br/`) uma página inicial que convide a
+Dar ao endereço raiz (`vitrinefatec.com.br/`) uma página inicial que convide a
 comunidade para a Mostra e liste os projetos publicados da edição ativa, e
 levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 `base.html` que todas as telas herdam.
 
 ## Escopo
 - **Identidade visual** no `static/css/base.css`: tokens do protótipo
-  (papel `#ECE7DA`, célula `#F5F2EA`, tinta `#121316`, vermelho CPS
+  (papel `#ECE7DA`, célula `#F5F2EA`, tinta `#121316`, vermelho da marca
   `#B20000`, verde `#1E7F3E` só para confirmação), sem cantos arredondados
   nem sombras. Os tokens antigos (`--cor-fundo`, `--cor-acento`…) continuam
   existindo com os valores novos, para as telas já prontas não quebrarem.
@@ -29,7 +29,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   Blocos novos: `scripts` no fim do `body` e `rodape_edicao` na última
   linha do rodapé (vazio por padrão; a home preenche com "Edição {nome} ·
   dd.mm" quando há edição ativa). Favicon (`static/img/favicon.svg`,
-  vermelho CPS) no bloco novo `icone`, que a ficha da banca zera (papel sem links).
+  vermelho da marca) no bloco novo `icone`, que a ficha da banca zera (papel sem links).
 - **Rota `/`** (`vitrine:inicio`) com as seções do protótipo: hero com a
   fachada, ficha do evento, faixa dos cursos (DSM, GTUR), 01 A Mostra, 02 Quem faz,
   03 Projetos e a chamada da Fatec com o convite ao vestibular (links para
@@ -59,7 +59,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   descrições e rodapé. O `<title>` da home continua o mesmo.
 - **Página `/semana-da-tecnologia/`** (`vitrine:semana`, decisão do coordenador, 16/10): a
   Semana da Tecnologia da Fatec Olímpia. Abertura, 01 O que acontece (oficinas e workshops,
-  palestras e apresentações, Mostra de Projetos com link para `/projetos/`), 02 A Mostra de Projetos
+  palestras e apresentações, Conexão Fatec com link para `/projetos/`), 02 Conexão Fatec
   (`#mostra`: texto da Mostra, os quatro blocos — entrega, prática em campo, equipe, experiência
   enquanto cursa —, os 4 projetos sorteados como na home e o botão "Ver todos os N projetos") e a chamada do vestibular
   (partial `_chamada_vestibular.html`, o mesmo da home). Texto fixo; nome e data da Mostra
@@ -69,7 +69,7 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
   Área do grupo; a página atual fica marcada. Abaixo de 1000 px, "A Mostra" e "Semana da
   Tecnologia" (`.so-desktop`) só entram no menu com JS (menu sanfona de `menu.js`); sem JS, nessa
   largura, a Semana continua alcançável pelo link do rodapé e pelo texto de "Quem faz".
-- **"02 Quem faz" na home** fala só do Vitrine CPS (o que mostra e o que DSM construiu para GTUR
+- **"02 Quem faz" na home** fala só do Vitrine Fatec (o que mostra e o que DSM construiu para GTUR
   e a coordenação), com link para a página da Semana; sem os quatro blocos de
   itens. "Quem faz" (02) vem antes de "Projetos" (03).
 - Citar a Etec nos textos da home e do rodapé (decisão do coordenador, 16/10). Turmas da Etec
@@ -143,14 +143,14 @@ Rota em `vitrine/urls.py`; o include raiz em `""` já existe.
 RA, token ou representante na página), 13 (só ORM), 17.
 
 ## Critérios de aceite
-- [ ] `GET /` responde 200 com `<title>` "Vitrine CPS — Mostra de Projetos Fatec Olímpia"
+- [ ] `GET /` responde 200 com `<title>` "Vitrine Fatec — Projetos e eventos da Fatec Olímpia"
 - [ ] Lista só projetos `publicado` da edição ativa; `pre_cadastrado`, `em_revisao`, `ajustes` e projetos de outra edição não aparecem
 - [ ] Turmas na ordem da spec em `/projetos/`; contagem por extenso no título da seção 03 e de `/projetos/`
 - [ ] Home com no máximo 4 cartões sorteados; botão para `/projetos/` só com mais de 4 publicados; sem filtro na home
-- [ ] `GET /projetos/` responde 200 com `<title>` "Projetos — Vitrine CPS", lista todos os publicados da edição ativa e tem o filtro por curso
+- [ ] `GET /projetos/` responde 200 com `<title>` "Projetos — Vitrine Fatec", lista todos os publicados da edição ativa e tem o filtro por curso
 - [ ] Sem edição ativa e sem projeto publicado → 200 com o aviso, sem filtro
 - [ ] Data, dia da semana, nome da edição e pesos vêm da `Edicao`; depois do evento, "Realizada em"
-- [ ] `GET /semana-da-tecnologia/` responde 200 com `<title>` "Semana da Tecnologia — Vitrine CPS", lista as atividades, data da Mostra vinda da `Edicao`, termina com o convite ao vestibular, 4 projetos sorteados e consultas constantes
+- [ ] `GET /semana-da-tecnologia/` responde 200 com `<title>` "Semana da Tecnologia — Vitrine Fatec", lista as atividades, data da Mostra vinda da `Edicao`, termina com o convite ao vestibular, 4 projetos sorteados e consultas constantes
 - [ ] Nenhum `href`, `action` ou `src` da home, de `/projetos/` nem de `/semana-da-tecnologia/` aponta para `/entrar`, `/estacao`, `/votar`, `/votos` ou `/visitantes` (G8)
 - [ ] `representante_nome` e nomes de integrantes não aparecem na home nem em `/projetos/`
 - [ ] Número de queries constante na home e em `/projetos/` (não cresce com o número de projetos)
@@ -164,4 +164,4 @@ RA, token ou representante na página), 13 (só ORM), 17.
 Nenhuma bloqueante. Pendências herdadas do protótipo, a decidir fora deste PR:
 - Fonte e direito de uso da foto da fachada antes de produção.
 - Sigla e cursos da Etec (a home usa o que estiver cadastrado).
-- Nome: o logo diz "Vitrine CPS Olímpia"; textos usam "Vitrine CPS".
+- Nome: o logo diz "Vitrine Fatec Olímpia"; textos usam "Vitrine Fatec".

@@ -81,7 +81,7 @@ def test_cedula_tem_tres_fieldsets_e_dezoito_radios_sem_marcacao_por_projeto(cli
     assert "checked" not in html
     pk = cenario.publicado.pk
     assert f'<button type="button" id="e-{pk}" aria-labelledby="e-{pk} p-{pk}-titulo" data-projeto="{pk}">Enviar avaliação</button>' in bloco
-    assert "<title>Avaliação — Vitrine CPS</title>" in html and "Avalie os projetos" in html
+    assert "<title>Avaliação — Vitrine Fatec</title>" in html and "Avalie os projetos" in html
 
 
 def test_projeto_avaliado_nao_tem_controle_que_envie(client, cenario):

@@ -1,6 +1,6 @@
 ---
 name: revisar-pr
-description: Revisar um pull request do Vitrine CPS contra a spec do módulo e os guardrails. Usar quando um PR estiver aberto aguardando revisão — a IA prepara a análise, o humano decide.
+description: Revisar um pull request do Vitrine Fatec contra a spec do módulo e os guardrails. Usar quando um PR estiver aberto aguardando revisão — a IA prepara a análise, o humano decide.
 ---
 
 # Revisar um PR

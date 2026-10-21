@@ -131,7 +131,7 @@ def test_titulo_e_resumo_com_aspas_e_tags_saem_escapados_nas_meta_e_no_title(cli
     html = client.get(f"/projeto/{p.slug}/").content.decode()
     assert '<meta property="og:title" content="A &quot;B&quot; &lt;i&gt;&amp;">' in html
     assert '<meta property="og:description" content="x&quot; onload=&quot;alert(1)">' in html
-    assert "<title>A &quot;B&quot; &lt;i&gt;&amp; — Vitrine CPS</title>" in html
+    assert "<title>A &quot;B&quot; &lt;i&gt;&amp; — Vitrine Fatec</title>" in html
     assert 'onload="alert(1)"' not in html and "<i>" not in html
 
 
@@ -202,7 +202,7 @@ def test_capa_aparece_como_banner_recortado(client):
 @pytest.mark.django_db
 def test_pagina_404_tem_o_botao_conhecer_a_mostra(client):
     html = client.get("/projeto/nao-existe/").content.decode()
-    assert "Conhecer a Mostra" in html and '<a href="/">Conhecer a Mostra</a>' in html
+    assert "Conhecer a Conexão Fatec" in html and '<a href="/">Conhecer a Conexão Fatec</a>' in html
 
 
 @pytest.mark.django_db
@@ -218,7 +218,7 @@ def test_depois_do_evento_o_convite_vira_registro_sem_botao_de_voto(client):
     edicao = aux.nova_edicao(data_evento=timezone.localdate() - timedelta(days=1))
     p = publicado(edicao=edicao)
     html = client.get(f"/projeto/{p.slug}/").content.decode()
-    assert "participou da Mostra de Projetos realizada em" in html
+    assert "participou da Conexão Fatec, realizada em" in html
     assert "Venha conhecer ao vivo" not in html and "19h" not in html
     assert "Quero votar" not in html and "/como-votar/" not in html
 
