@@ -118,14 +118,33 @@ def _403_com_estado_atual(request, token):
     return _tela_de_edicao(request, projeto, token, status=403)
 
 
-def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, erro_imagem=None, status=200):
+def _erro_de_imagem(request, projeto, token, mensagem):
+    """Mostra o erro do upload no topo da página, junto das outras mensagens.
+
+    O envio recarrega a página sem o arquivo: um erro só na seção "Imagens",
+    lá embaixo, passa despercebido e o aluno acha que nada aconteceu.
+    """
+    messages.error(request, mensagem)
+    return _tela_de_edicao(request, projeto, token, status=400)
+
+
+def _erro_de_imagem(request, projeto, token, mensagem):
+    """Mostra o erro do upload no topo da página, junto das outras mensagens.
+
+    O envio recarrega a página sem o arquivo: um erro só na seção "Imagens",
+    lá embaixo, passa despercebido e o aluno acha que nada aconteceu.
+    """
+    messages.error(request, mensagem)
+    return _tela_de_edicao(request, projeto, token, status=400)
+
+
+def _tela_de_edicao(request, projeto, token, form=None, formset=None, pendencias=None, status=200):
     motivo = servicos.motivo_somente_leitura(projeto)
     contexto = {
         "projeto": projeto,
         "token": token,
         "motivo_somente_leitura": motivo,
         "pendencias": projeto.pendencias_para_publicar() if pendencias is None else pendencias,
-        "erro_imagem": erro_imagem,
         "etec": projeto.turma.curso.atende_menores,  # Etec e Ensino Médio: regras de menores (ADR-013)
         "imagens": projeto.imagens.all(),
         "maximo_imagens": ImagemProjeto.MAXIMO_POR_PROJETO,
@@ -199,11 +218,11 @@ def imagem(request, token):
         return _tela_de_edicao(request, projeto, token, status=403)
     # Nenhuma requisição leva mais de uma imagem.
     if sum(len(arquivos) for _, arquivos in request.FILES.lists()) != 1:
-        return _tela_de_edicao(request, projeto, token, erro_imagem="Envie uma imagem por vez.", status=400)
+        return _erro_de_imagem(request, projeto, token, "Envie uma imagem por vez.")
     form = ImagemUploadForm(request.POST, request.FILES)
     if not form.is_valid():
         mensagem = " ".join(m for erros in form.errors.values() for m in erros)
-        return _tela_de_edicao(request, projeto, token, erro_imagem=mensagem, status=400)
+        return _erro_de_imagem(request, projeto, token, mensagem)
     dados = form.cleaned_data
     try:
         servicos.enviar_imagem(projeto.pk, token, dados["tipo"], dados["arquivo"], dados["legenda"])
@@ -211,15 +230,11 @@ def imagem(request, token):
         return _403_com_estado_atual(request, token)
     except ValidationError as erro:
         if erro.code in ("formato", "pixels"):  # a imagem foi recusada ao ser regravada
-            return _tela_de_edicao(request, projeto, token, erro_imagem=" ".join(erro.messages), status=400)
+            return _erro_de_imagem(request, projeto, token, " ".join(erro.messages))
         return _403_com_estado_atual(request, token)
     except servicos.LimiteDeImagens:
-        return _tela_de_edicao(
-            request,
-            projeto,
-            token,
-            erro_imagem=f"O projeto já tem o máximo de {ImagemProjeto.MAXIMO_POR_PROJETO} imagens na galeria.",
-            status=400,
+        return _erro_de_imagem(
+            request, projeto, token, f"O projeto já tem o máximo de {ImagemProjeto.MAXIMO_POR_PROJETO} imagens na galeria."
         )
     messages.success(request, "Imagem enviada.")
     return redirect("vitrine:editar", token=token)
@@ -252,7 +267,9 @@ def imagem_legenda(request, token, imagem_id):
     if not form.is_valid():
         mensagem = " ".join(m for erros in form.errors.values() for m in erros)
         status = 400 if servicos.pode_editar(projeto) else 403
-        return _tela_de_edicao(request, projeto, token, erro_imagem=mensagem if status == 400 else None, status=status)
+        if status == 400:
+            return _erro_de_imagem(request, projeto, token, mensagem)
+        return _tela_de_edicao(request, projeto, token, status=status)
     try:
         servicos.atualizar_legenda(projeto.pk, token, imagem_id, form.cleaned_data["legenda"])
     except servicos.EdicaoEncerrada:

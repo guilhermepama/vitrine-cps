@@ -338,3 +338,50 @@ def test_foto_com_gps_sai_do_upload_do_grupo_sem_gps(client, settings, tipo):
         exif = imagem.getexif()
         assert not exif.get_ifd(GPS)
         assert 0x0110 not in exif  # nem o modelo do aparelho
+
+
+# --- Erro de upload visível no topo (pedido do coordenador no #72) ----------------------
+
+
+def _erro_no_topo(html, mensagem):
+    """A mensagem aparece como alerta, antes da seção "Imagens", e uma vez só."""
+    assert html.count(mensagem) == 1
+    alerta = f'<p class="alerta" role="alert">{mensagem}</p>'
+    assert alerta in html
+    assert html.index(alerta) < html.index('id="titulo-imagens"')
+
+
+@pytest.mark.django_db
+def test_erro_de_arquivo_nao_e_imagem_aparece_no_topo(client):
+    p, token = aux.projeto_com_link()
+    lixo = SimpleUploadedFile("nao-e-imagem.png", b"nada de imagem aqui", content_type="image/png")
+    r = enviar(client, token, "capa", lixo)
+    assert r.status_code == 400
+    _erro_no_topo(r.content.decode(), "Envie uma imagem JPG, PNG ou WebP.")
+
+
+@pytest.mark.django_db
+def test_erro_de_mais_de_um_arquivo_aparece_no_topo(client):
+    p, token = aux.projeto_com_link()
+    r = client.post(
+        f"/grupo/editar/{token}/imagem/",
+        {"tipo": "extra", "arquivo": [fabricas.imagem(), fabricas.imagem(nome="outra.png")]},
+    )
+    assert r.status_code == 400
+    _erro_no_topo(r.content.decode(), "Envie uma imagem por vez.")
+
+
+@pytest.mark.django_db
+def test_erro_de_limite_da_galeria_aparece_no_topo(client):
+    p, token = aux.projeto_com_link()
+    _extras(p, ImagemProjeto.MAXIMO_POR_PROJETO)
+    r = enviar(client, token, "extra", fabricas.imagem())
+    assert r.status_code == 400
+    _erro_no_topo(r.content.decode(), f"O projeto já tem o máximo de {ImagemProjeto.MAXIMO_POR_PROJETO} imagens na galeria.")
+
+
+@pytest.mark.django_db
+def test_mensagem_de_erro_nao_fica_para_a_proxima_pagina(client):
+    p, token = aux.projeto_com_link()
+    enviar(client, token, "capa", SimpleUploadedFile("x.png", b"lixo", content_type="image/png"))
+    assert "Envie uma imagem JPG" not in client.get(f"/grupo/editar/{token}/").content.decode()
