@@ -52,16 +52,16 @@ Links só para /, /projetos/, /grupo/ e os sites oficiais: nenhum caminho de vot
 <section class="sobre__secao" id="mostra">
   <div class="container">
     <div class="mostra__cabeca">
-      <div><p class="mono">02 — Conexão Fatec</p><h2 class="display">Do jeito que se trabalha numa empresa<span class="ponto">.</span></h2></div>
+      <div><p class="mono">02 — Conexão Fatec</p><h2 class="display">Uma noite para ver o que se constrói aqui<span class="ponto">.</span></h2></div>
       <div>
-        <p>A Conexão Fatec é um dos dias da <strong>Semana da Tecnologia</strong>, que reúne oficinas, apresentações, palestras e workshops. Na noite da Conexão Fatec{% if edicao %}, {{ edicao.data_evento|date:"j \d\e F"|lower }},{% endif %} o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu, e a comunidade circula livremente e participa, avaliando o impacto e a relevância de cada projeto para a sociedade.</p>
+        <p>A Conexão Fatec é a noite de encerramento da <strong>Semana da Tecnologia</strong>. Em <strong>{% if edicao %}{{ edicao.data_evento|date:"j \d\e F"|lower }}{% else %}29 de outubro{% endif %}, a partir das 19h</strong>, o campus vira uma feira de projetos. Cada turma monta seu espaço e apresenta o que construiu no semestre: sistemas, aplicativos, roteiros e soluções pensadas para problemas reais da região. A comunidade circula livremente, conversa com quem fez e vota nos projetos de maior impacto e relevância para a sociedade.</p>
       </div>
     </div>
     <div class="tecnica">
-      <div class="tecnica__cel"><span class="mono">Entrega</span><h3 class="display">Cliente e prazo reais</h3><p>A coordenação é o cliente e a comunidade é o público. O evento tem data marcada, e cada frente tem responsável e prazo de entrega.</p></div>
-      <div class="tecnica__cel"><span class="mono">Prática</span><h3 class="display">Trabalho em campo</h3><p>Nada de exercício de sala: um evento de verdade, com público, imprevistos e decisões que precisam ser tomadas na hora.</p></div>
-      <div class="tecnica__cel"><span class="mono">Equipe</span><h3 class="display">Dois cursos juntos</h3><p>Turismo e Software trabalhando lado a lado, cada um na sua área. Divisão de tarefas, combinados e cobrança, como numa equipe profissional.</p></div>
-      <div class="tecnica__cel"><span class="mono">Experiência</span><h3 class="display">Enquanto cursa</h3><p>Ninguém espera o diploma para começar. Quem participa sai do semestre com experiência real para contar numa entrevista e colocar no currículo.</p></div>
+      <div class="tecnica__cel"><span class="mono">Quando</span><h3 class="display">{% if edicao %}{{ edicao.data_evento|date:"j \d\e F"|lower }}{% else %}29 de outubro{% endif %}, a partir das 19h</h3><p>A noite que fecha a Semana da Tecnologia, que tem oficinas, palestras e workshops nos dias anteriores. O campus fica aberto à comunidade.</p></div>
+      <div class="tecnica__cel"><span class="mono">O que</span><h3 class="display">Uma feira de projetos</h3><p>Cada turma tem seu espaço e mostra o trabalho funcionando. Você pode testar, perguntar e entender como foi feito.</p></div>
+      <div class="tecnica__cel"><span class="mono">Quem</span><h3 class="display">Dois cursos, uma noite</h3><p>Alunos de Desenvolvimento de Software Multiplataforma e de Gestão de Turismo apresentando juntos, no mesmo campus.</p></div>
+      <div class="tecnica__cel"><span class="mono">Você</span><h3 class="display">Seu voto conta</h3><p>Visitou um projeto? Avalie pelo celular. O voto do público ajuda a mostrar quais ideias fazem mais diferença para a cidade.</p></div>
     </div>
     {% if destaques %}
     <div class="cartoes semana__cartoes">
