@@ -3,7 +3,7 @@
 - **Responsável**: Cleiton (@gustimmolp)
 - **Status**: implementada e na `main` (PRs #44 a #47, com os ajustes dos
   pareceres, e depois #66 e #70). Conferências manuais em produção feitas em
-  14/10. Pende só o export do wireframe em `docs/wireframes/`.
+  14/10.
 - **Depende de**: ADR-002 (stack), ADR-006 (R2, servidor), ADR-009 (cadastro
   pelo grupo), spec 01 (models e `cadastro/seguranca.py`, incluindo
   `ip_do_cliente` e `chave_ip` do PR #25), spec 00 (esqueleto) e o PR #38
@@ -486,9 +486,7 @@ RA, RA recusado, link único de edição e edição do projeto. As telas da
 estação, do visitante, da cédula e do admin são das specs 01, 03, 04 e 06.
 
 Onde o wireframe e esta spec divergem, vale a spec. Os wireframes devem ser
-atualizados para refletir o abaixo. O artefato é externo ao repositório; o
-export versionado em `docs/wireframes/` fica a cargo do coordenador (ver
-"Dependências do coordenador"), e esta spec cita o artefato até lá.
+atualizados para refletir o abaixo. Substituído pelo protótipo v1 (spec 07); seção mantida como histórico.
 
 | Wireframe | Decisão desta spec | Situação |
 |---|---|---|
@@ -551,7 +549,6 @@ inválido (404).
 - **Spec 01, tabela de status (linha de "grupo salva pelo link")**: hoje diz
   que o grupo ao salvar vai para `em_revisao`. Com "Salvar" mantendo o
   status e "Enviar para revisão" mudando, a linha precisa de atualização.
-- **Export do wireframe** em `docs/wireframes/` (o artefato é externo).
 
 ## Perguntas em aberto
 Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
