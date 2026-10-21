@@ -447,14 +447,14 @@ def _codigo_do_app():
 
 def test_app_nao_le_ip_direto_nem_faz_hmac_de_ip():
     for arquivo in _codigo_do_app():
-        texto = arquivo.read_text()
+        texto = arquivo.read_text(encoding="utf-8")
         for proibido in ("REMOTE_ADDR", "X-Forwarded-For", "X_FORWARDED_FOR", "IP_HMAC_SECRET"):
             assert proibido not in texto, f"{proibido} em {arquivo.name}"
 
 
 def test_entrar_sem_logger():
     for nome in ("views_entrar.py", "limite.py"):
-        arvore = ast.parse((Path(__file__).resolve().parents[1] / nome).read_text())
+        arvore = ast.parse((Path(__file__).resolve().parents[1] / nome).read_text(encoding="utf-8"))
         nomes = {n.id for n in ast.walk(arvore) if isinstance(n, ast.Name)}
         nomes |= {a.name for n in ast.walk(arvore) if isinstance(n, ast.Import | ast.ImportFrom) for a in n.names}
         assert not nomes & {"logging", "logger", "getLogger"}, nome

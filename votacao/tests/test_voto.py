@@ -306,7 +306,7 @@ def test_fluxo_cadastro_cedula_voto_nao_grava_sessao_nem_cache(client, cenario):
 
 
 def test_voto_sem_logger():
-    arvore = ast.parse((Path(__file__).resolve().parents[1] / "views_voto.py").read_text())
+    arvore = ast.parse((Path(__file__).resolve().parents[1] / "views_voto.py").read_text(encoding="utf-8"))
     nomes = {n.id for n in ast.walk(arvore) if isinstance(n, ast.Name)}
     nomes |= {a.name for n in ast.walk(arvore) if isinstance(n, ast.Import | ast.ImportFrom) for a in n.names}
     assert not nomes & {"logging", "logger", "getLogger"}

@@ -452,7 +452,7 @@ PROIBIDOS = ("token", "estacao", "localstorage")
 
 
 def _identificadores(caminho):
-    arvore = ast.parse(caminho.read_text())
+    arvore = ast.parse(caminho.read_text(encoding="utf-8"))
     docstrings = {id(n.body[0].value) for n in ast.walk(arvore)
                   if isinstance(n, (ast.Module, ast.FunctionDef, ast.ClassDef)) and ast.get_docstring(n)}
     for no in ast.walk(arvore):
@@ -474,5 +474,5 @@ def test_cadastro_nao_le_token_nem_estacao():
         if modulo != "liberacao.py":
             assert "COOKIES" not in nomes, modulo
     # O template também não lê token: "token" só pode aparecer em "csrf_token".
-    texto = (pasta / TEMPLATE).read_text().lower()
+    texto = (pasta / TEMPLATE).read_text(encoding="utf-8").lower()
     assert "token" not in texto.replace("csrf_token", ""), TEMPLATE
