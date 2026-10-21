@@ -22,7 +22,7 @@ from django.shortcuts import get_object_or_404, render
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
-from banca.models import Criterio, Jurado
+from banca.models import Criterio, Jurado, Tipo
 from cadastro.models import Edicao, Projeto, Turma
 
 IMPRIMIR_FICHA = "banca.imprimir_ficha"
@@ -52,9 +52,10 @@ def exige_permissao(permissao):
 exige_imprimir_ficha = exige_permissao(IMPRIMIR_FICHA)
 
 
-def _fichas(edicao, jurados):
-    """Uma ficha por jurado: suas turmas (na ordem da turma), cada uma com os
-    projetos publicados por título. Turma sem publicado fica de fora."""
+def _fichas(edicao, jurados, criterios_por_tipo):
+    """Uma ficha por jurado: os critérios do tipo dele (ADR-013) e suas turmas
+    (na ordem da turma), cada uma com os projetos publicados por título. Turma
+    sem publicado fica de fora."""
     turmas = Prefetch("turmas", queryset=Turma.objects.select_related("curso").order_by(*ORDEM_TURMA))
     prefetch_related_objects(jurados, turmas)
     ids_turmas = {turma.pk for jurado in jurados for turma in jurado.turmas.all()}
@@ -66,24 +67,30 @@ def _fichas(edicao, jurados):
     )
     for projeto in publicados:
         projetos[projeto.turma_id].append(projeto)
-    return [
-        {
-            "jurado": jurado,
-            "turmas": [(turma, projetos[turma.pk]) for turma in jurado.turmas.all() if projetos[turma.pk]],
-        }
-        for jurado in jurados
-    ]
+    fichas = []
+    for jurado in jurados:
+        criterios = criterios_por_tipo[jurado.tipo]
+        fichas.append(
+            {
+                "jurado": jurado,
+                "convidado": jurado.tipo == Tipo.CONVIDADO,
+                "criterios": criterios,
+                "colunas": len(criterios) + 2,  # Nº, Projeto e uma por critério
+                "turmas": [(turma, projetos[turma.pk]) for turma in jurado.turmas.all() if projetos[turma.pk]],
+            }
+        )
+    return fichas
 
 
 def _render(request, edicao, jurados, titulo):
-    criterios = list(Criterio.objects.filter(edicao=edicao).order_by("ordem"))
+    criterios_por_tipo = defaultdict(list)
+    for criterio in Criterio.objects.filter(edicao=edicao).order_by("tipo", "ordem"):
+        criterios_por_tipo[criterio.tipo].append(criterio)
     contexto = {
         "titulo": titulo,
         "edicao": edicao,
         "provisoria": not edicao.votacao_foi_aberta(),
-        "criterios": criterios,
-        "colunas": len(criterios) + 2,  # Nº, Projeto e uma por critério
-        "fichas": _fichas(edicao, jurados),
+        "fichas": _fichas(edicao, jurados, criterios_por_tipo),
         "gerada_em": timezone.now(),
     }
     return render(request, "banca/ficha.html", contexto)
@@ -93,12 +100,20 @@ def _render(request, edicao, jurados, titulo):
 @exige_imprimir_ficha
 def ficha_do_jurado(request, id):
     jurado = get_object_or_404(Jurado.objects.select_related("edicao"), pk=id)
-    return _render(request, jurado.edicao, [jurado], f"Ficha da banca — {jurado.nome}")
+    nome_da_ficha = "Ficha do avaliador convidado" if jurado.tipo == Tipo.CONVIDADO else "Ficha da banca"
+    return _render(request, jurado.edicao, [jurado], f"{nome_da_ficha} — {jurado.nome}")
 
 
 @require_GET
 @exige_imprimir_ficha
 def fichas_da_edicao(request, id):
     edicao = get_object_or_404(Edicao, pk=id)
-    jurados = list(Jurado.objects.filter(edicao=edicao).order_by("nome"))
-    return _render(request, edicao, jurados, "Fichas da banca")
+    jurados = list(Jurado.objects.filter(edicao=edicao).order_by("tipo", "nome"))  # banca antes dos convidados
+    tipos = {j.tipo for j in jurados}
+    if tipos == {Tipo.CONVIDADO}:
+        titulo = "Fichas dos avaliadores convidados"
+    elif Tipo.CONVIDADO in tipos:
+        titulo = "Fichas da banca e dos avaliadores convidados"
+    else:
+        titulo = "Fichas da banca"
+    return _render(request, edicao, jurados, titulo)

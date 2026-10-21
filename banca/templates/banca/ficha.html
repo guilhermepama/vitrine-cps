@@ -34,30 +34,32 @@ integrantes ou link de edição.
 {% for ficha in fichas %}
 <section class="ficha">
   {% if provisoria %}<p class="aviso">Lista provisória: projetos podem mudar até a abertura da votação</p>{% endif %}
-  <h1>Ficha da banca — {{ edicao.nome }}</h1>
-  <p><strong>Jurado:</strong> {{ ficha.jurado.nome }}<br>
+  {% if ficha.convidado %}<h1>Ficha do avaliador convidado — {{ edicao.nome }}</h1>
+  <p><strong>Avaliador convidado:</strong> {{ ficha.jurado.nome }}<br>
+  {% else %}<h1>Ficha da banca — {{ edicao.nome }}</h1>
+  <p><strong>Jurado:</strong> {{ ficha.jurado.nome }}<br>{% endif %}
     <strong>Escala:</strong> 0 a 10, uma casa decimal (ex.: 7,5)</p>
 
   <h2>Critérios</h2>
   <ol class="criterios">
-  {% for criterio in criterios %}
+  {% for criterio in ficha.criterios %}
     <li><strong>{{ criterio.nome }}</strong>{% if criterio.apoio %} — {{ criterio.apoio }}{% endif %}</li>
   {% empty %}
-    <li>Nenhum critério cadastrado nesta edição.</li>
+    <li>Nenhum critério{% if ficha.convidado %} de avaliador convidado{% endif %} cadastrado nesta edição.</li>
   {% endfor %}
   </ol>
 
   {% for turma, projetos in ficha.turmas %}
   {# A thead se repete em cada página impressa: folha solta continua identificável. #}
   <table>
-    <colgroup><col class="numero"><col class="projeto">{% for criterio in criterios %}<col>{% endfor %}</colgroup>
+    <colgroup><col class="numero"><col class="projeto">{% for criterio in ficha.criterios %}<col>{% endfor %}</colgroup>
     <thead>
-      <tr class="ident"><th colspan="{{ colunas }}">{{ edicao.nome }} · {{ ficha.jurado.nome }} · {{ turma.rotulo }}</th></tr>
-      <tr><th>Nº</th><th>Projeto</th>{% for criterio in criterios %}<th class="criterio">{{ forloop.counter }}. {{ criterio.nome }}</th>{% endfor %}</tr>
+      <tr class="ident"><th colspan="{{ ficha.colunas }}">{{ edicao.nome }} · {{ ficha.jurado.nome }} · {{ turma.rotulo }}</th></tr>
+      <tr><th>Nº</th><th>Projeto</th>{% for criterio in ficha.criterios %}<th class="criterio">{{ forloop.counter }}. {{ criterio.nome }}</th>{% endfor %}</tr>
     </thead>
     <tbody>
     {% for projeto in projetos %}
-      <tr><td class="numero">#{{ projeto.pk }}</td><td class="titulo">{{ projeto.titulo }}</td>{% for criterio in criterios %}<td class="nota"></td>{% endfor %}</tr>
+      <tr><td class="numero">#{{ projeto.pk }}</td><td class="titulo">{{ projeto.titulo }}</td>{% for criterio in ficha.criterios %}<td class="nota"></td>{% endfor %}</tr>
     {% endfor %}
     </tbody>
   </table>
