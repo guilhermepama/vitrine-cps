@@ -606,7 +606,7 @@ a { color: inherit; }
 .cedula__cabeca .mono { margin-bottom: 12px; }
 .cedula__cabeca h1 { font-size: var(--texto-h2); }
 .cedula__cabeca p:not(.mono) { margin-top: var(--esp-4); max-width: 36em; color: var(--cor-texto-suave); }
-.cedula .aviso { margin-top: var(--esp-6); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: #6E0E0E; font-size: var(--texto-14); }
+.cedula .aviso { margin-top: var(--esp-6); border: 1px solid var(--cor-erro); border-left-width: 6px; background: var(--cor-erro-fundo); color: var(--cor-erro-texto); font-size: var(--texto-14); }
 .cedula .aviso[hidden] { display: none; }
 .cedula__turma { margin-top: var(--esp-8); }
 .cedula h2 { padding-bottom: 10px; border-bottom: 1px solid var(--cor-linha); font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: var(--texto-22); text-transform: uppercase; line-height: 1; }
@@ -637,7 +637,7 @@ a { color: inherit; }
 /* marcada: fundo invertido, borda grossa e sublinhado (não depende só de cor) */
 .cedula__nota input:checked + label { background: var(--cor-texto); --cor-foco: var(--cor-fundo); color: var(--cor-fundo); border: 3px solid var(--cor-texto); font-weight: 800; text-decoration: underline; }
 .cedula__nota input:disabled + label { cursor: default; opacity: .55; }
-.cedula__dica { margin: 0; font-size: var(--texto-14); color: #6E0E0E; }
+.cedula__dica { margin: 0; font-size: var(--texto-14); color: var(--cor-erro-texto); }
 .cedula__dica[hidden] { display: none; }
 .cedula__vazio { margin-top: var(--esp-8); color: var(--cor-texto-suave); }
 
