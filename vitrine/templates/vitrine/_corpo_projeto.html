@@ -24,15 +24,23 @@
       </div>
       {% endif %}
     </div>
+    {% if projeto.capa %}
+    {# Com capa: a imagem ocupa a coluna inteira, de ponta a ponta. #}
+    <figure class="capa capa--cheia">
+      <img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">
+    </figure>
+    {% else %}
+    {# Sem capa: prancha com grade e quadrado vermelho, e o título do projeto no lugar da imagem. #}
     <figure class="capa">
       <div class="capa__quadro">
         <div class="capa__prancha">
           <span class="capa__canto capa__canto--a" aria-hidden="true"></span>
-          {% if projeto.capa %}<img class="banner" src="{{ projeto.capa.url }}" alt="Capa do projeto {{ projeto.titulo }}">{% else %}<span class="banner capa__vazia" aria-hidden="true">{{ projeto.turma.curso.sigla }}</span>{% endif %}
+          <span class="banner capa__vazia" aria-hidden="true"><span>{{ projeto.titulo }}</span></span>
           <span class="capa__canto capa__canto--b" aria-hidden="true"></span>
         </div>
       </div>
     </figure>
+    {% endif %}
   </div>
 </section>
 
@@ -52,12 +60,12 @@
     <div class="sobre-proj">
       <div class="prosa">{{ projeto.descricao|linebreaks }}</div>
       {% if projeto.link_repositorio or projeto.link_demo or projeto.link_video %}
-      <aside>
+      <nav class="links-proj" aria-label="Links do projeto">
         <p class="lado__titulo">Links do projeto</p>
         {% if projeto.link_repositorio %}<a class="link-linha" href="{{ projeto.link_repositorio }}" target="_blank" rel="noopener noreferrer nofollow">Repositório <span class="mono">{{ projeto.link_repositorio|dominio }}</span></a>{% endif %}
         {% if projeto.link_demo %}<a class="link-linha" href="{{ projeto.link_demo }}" target="_blank" rel="noopener noreferrer nofollow">Demonstração <span class="mono">{{ projeto.link_demo|dominio }}</span></a>{% endif %}
         {% if projeto.link_video %}<a class="link-linha" href="{{ projeto.link_video }}" target="_blank" rel="noopener noreferrer nofollow">Vídeo <span class="mono">{{ projeto.link_video|dominio }}</span></a>{% endif %}
-      </aside>
+      </nav>
       {% endif %}
     </div>
   </div>
@@ -71,7 +79,8 @@
     <div class="galeria">
       {% for imagem in projeto.imagens.all %}
       <figure>
-        <img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}" loading="lazy" decoding="async">
+        {# Clique amplia (static/js/galeria.js); sem JavaScript o link abre a imagem original em outra aba. #}
+        <a class="galeria__ampliar" href="{{ imagem.arquivo.url }}" target="_blank" rel="noopener"><img src="{{ imagem.arquivo.url }}" alt="{{ imagem.legenda|default:'Imagem do projeto' }}" loading="lazy" decoding="async"></a>
         {% if imagem.legenda %}<figcaption>{{ imagem.legenda }}</figcaption>{% endif %}
       </figure>
       {% endfor %}

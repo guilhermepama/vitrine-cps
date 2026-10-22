@@ -538,7 +538,15 @@ a { color: inherit; }
 .capa__prancha::before { content: ""; position: absolute; right: -24px; top: -24px; z-index: 0; width: 62%; aspect-ratio: 1; background: var(--cor-acento); }
 @media (min-width: 900px) { .capa__prancha::before { right: -48px; top: -48px; } }
 .capa__prancha .banner { position: relative; z-index: 1; border: 1px solid var(--cor-linha); background: var(--cor-texto); }
-.capa__vazia { display: grid; place-items: center; color: var(--cor-sobre-tinta); font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-size: 4rem; }
+/* sem capa: o box tem o mesmo tamanho da imagem (1,91:1) e mostra o título do projeto */
+.capa__vazia { display: grid; place-items: center; padding: clamp(16px, 4vw, 40px); color: var(--cor-sobre-tinta); font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-size: clamp(1.75rem, 1rem + 3vw, 3.25rem); line-height: .95; text-transform: uppercase; text-align: center; overflow-wrap: anywhere; }
+.capa__vazia > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
+
+/* com capa: a imagem toma a coluna inteira (sem prancha, grade ou quadrado vermelho);
+   no desktop sangra até a borda direita da janela, como o quadro fazia */
+.capa--cheia { display: block; position: relative; min-height: 0; }
+.capa--cheia .banner { width: 100%; height: auto; aspect-ratio: 1.91 / 1; object-fit: cover; background: var(--cor-texto); }
+@media (min-width: 900px) { .capa--cheia .banner { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; } }
 .capa__canto { position: absolute; z-index: 2; width: 14px; height: 14px; border: 0 solid var(--cor-texto); }
 .capa__canto--a { left: -8px; top: -8px; border-left-width: 1.5px; border-top-width: 1.5px; }
 .capa__canto--b { right: -8px; bottom: -8px; border-right-width: 1.5px; border-bottom-width: 1.5px; }
@@ -558,12 +566,18 @@ a { color: inherit; }
 
 /* sobre + links */
 .sobre-proj { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-8); padding-block: var(--esp-10) var(--esp-12); border-bottom: 1px solid var(--cor-linha); }
-@media (min-width: 900px) { .sobre-proj { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: 80px; } }
 .prosa { max-width: 38em; }
 .prosa p + p { margin-top: 14px; }
 .lado__titulo { margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--cor-linha); font-family: var(--fonte-mono); font-size: var(--texto-12); letter-spacing: .04em; text-transform: uppercase; color: var(--cor-texto-suave); }
 .link-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding-block: 10px; border-bottom: 1px solid var(--cor-borda); text-decoration: none; font-weight: 500; }
 .link-linha:hover { color: var(--cor-acento); }
+/* links do projeto: uma linha de chips logo abaixo da prosa (não uma coluna lateral) */
+.links-proj { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; max-width: 38em; padding-top: var(--esp-6); border-top: 1px solid var(--cor-linha); }
+.links-proj .lado__titulo { width: 100%; margin: 0 0 4px; padding: 0; border: 0; }
+.links-proj .link-linha { min-height: 44px; margin: 0 -1px -1px 0; padding: 8px 16px; border: 1px solid var(--cor-linha); justify-content: flex-start; gap: 10px; }
+.links-proj .link-linha .mono { color: var(--cor-texto-suave); }
+.links-proj .link-linha:hover { background: var(--cor-texto); color: var(--cor-sobre-tinta); --cor-foco: var(--cor-acento); }
+.links-proj .link-linha:hover .mono { color: var(--cor-sobre-tinta-suave); }
 
 /* galeria e equipe: grades de células */
 .galeria { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--cor-linha); }
@@ -572,6 +586,24 @@ a { color: inherit; }
 .galeria figure { margin: 0 0 -1px; background: var(--cor-superficie); border-right: 1px solid var(--cor-borda); border-bottom: 1px solid var(--cor-borda); }
 .galeria img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; border-bottom: 1px solid var(--cor-borda); }
 .galeria figcaption { padding: 10px var(--gutter) 14px; font-size: var(--texto-14); color: var(--cor-texto-suave); }
+.galeria__ampliar { display: block; cursor: zoom-in; }
+.galeria__ampliar:hover img { filter: brightness(.92); }
+
+/* visor da galeria (static/js/galeria.js): imagem ampliada num <dialog> sobre fundo tinta */
+.visor { width: 100vw; max-width: 100vw; height: 100vh; height: 100dvh; max-height: 100vh; max-height: 100dvh; margin: 0; padding: 0; border: 0; background: transparent; color: var(--cor-sobre-tinta); }
+.visor::backdrop { background: rgba(18, 19, 22, .94); }
+html:has(.visor[open]) { overflow: hidden; }
+.visor__figura { display: grid; grid-template-rows: minmax(0, 1fr) auto; height: 100%; margin: 0; padding: 72px var(--gutter) 24px; }
+@media (min-width: 720px) { .visor__figura { padding-inline: 96px; } }
+.visor__img { width: 100%; height: 100%; object-fit: contain; }
+.visor__legenda { padding-top: 12px; text-align: center; font-size: var(--texto-14); color: var(--cor-sobre-tinta-suave); }
+.visor__botao { position: absolute; display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid rgba(243, 242, 236, .35); background: var(--cor-texto); color: var(--cor-sobre-tinta); font: inherit; font-size: 22px; line-height: 1; cursor: pointer; --cor-foco: var(--cor-sobre-tinta); }
+.visor__botao:hover { background: var(--cor-acento); border-color: var(--cor-acento); --cor-foco: var(--cor-acento-texto); }
+.visor__fechar { top: 12px; right: var(--gutter); }
+.visor__ant, .visor__prox { top: 50%; transform: translateY(-50%); }
+.visor__ant { left: var(--gutter); }
+.visor__prox { right: var(--gutter); }
+.visor__contador { position: absolute; top: 24px; left: var(--gutter); color: var(--cor-sobre-tinta-suave); }
 .equipe { display: grid; grid-template-columns: minmax(0, 1fr); border-bottom: 1px solid var(--cor-linha); }
 @media (min-width: 720px) { .equipe { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1100px) { .equipe { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
