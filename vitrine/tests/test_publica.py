@@ -187,6 +187,50 @@ def test_convite_com_data_horario_e_endereco_sem_botao_de_voto(client):
 
 
 @pytest.mark.django_db
+def test_com_capa_a_imagem_ocupa_a_coluna_sem_prancha(client):
+    p = publicado()
+    html = client.get(f"/projeto/{p.slug}/").content.decode()
+    assert '<figure class="capa capa--cheia">' in html
+    assert f'src="{p.capa.url}" alt="Capa do projeto {p.titulo}"' in html
+    assert "capa__prancha" not in html
+
+
+@pytest.mark.django_db
+def test_sem_capa_a_prancha_mostra_o_titulo_e_nao_a_sigla(client):
+    edicao = aux.nova_edicao(data_evento=timezone.localdate() + timedelta(days=5))
+    p, _ = aux.projeto_com_link(status=Projeto.Status.PUBLICADO, titulo="Agenda Escolar", edicao=edicao)
+    html = client.get(f"/projeto/{p.slug}/").content.decode()
+    assert '<span class="banner capa__vazia" aria-hidden="true"><span>Agenda Escolar</span></span>' in html
+    assert f'capa__vazia" aria-hidden="true">{p.turma.curso.sigla}<' not in html
+    assert "capa--cheia" not in html
+
+
+@pytest.mark.django_db
+def test_links_do_projeto_numa_linha_de_navegacao(client):
+    p = publicado()
+    html = client.get(f"/projeto/{p.slug}/").content.decode()
+    assert '<nav class="links-proj" aria-label="Links do projeto">' in html
+    assert "<aside" not in html
+
+
+@pytest.mark.django_db
+def test_galeria_amplia_no_visor_e_sem_js_abre_o_original(client):
+    p = publicado()
+    html = client.get(f"/projeto/{p.slug}/").content.decode()
+    for imagem in p.imagens.all():
+        assert f'<a class="galeria__ampliar" href="{imagem.arquivo.url}" target="_blank" rel="noopener">' in html
+    assert "js/galeria.js" in html
+
+
+@pytest.mark.django_db
+def test_sem_imagens_na_galeria_nao_carrega_o_script(client):
+    p = publicado()
+    p.imagens.all().delete()
+    html = client.get(f"/projeto/{p.slug}/").content.decode()
+    assert "js/galeria.js" not in html
+
+
+@pytest.mark.django_db
 def test_monograma_com_a_sigla_do_curso(client):
     p = publicado()
     html = client.get(f"/projeto/{p.slug}/").content.decode()

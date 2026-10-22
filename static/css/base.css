@@ -542,11 +542,11 @@ a { color: inherit; }
 .capa__vazia { display: grid; place-items: center; padding: clamp(16px, 4vw, 40px); color: var(--cor-sobre-tinta); font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-size: clamp(1.75rem, 1rem + 3vw, 3.25rem); line-height: .95; text-transform: uppercase; text-align: center; overflow-wrap: anywhere; }
 .capa__vazia > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; overflow: hidden; }
 
-/* com capa: a imagem toma a coluna inteira (sem prancha, grade ou quadrado vermelho);
-   no desktop sangra até a borda direita da janela, como o quadro fazia */
-.capa--cheia { display: block; position: relative; min-height: 0; }
-.capa--cheia .banner { width: 100%; height: auto; aspect-ratio: 1.91 / 1; object-fit: cover; background: var(--cor-texto); }
-@media (min-width: 900px) { .capa--cheia .banner { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: auto; } }
+/* com capa: a imagem toma a largura da coluna (sem prancha, grade ou quadrado vermelho),
+   sempre inteira em 1,91:1 — nada de corte, a capa costuma ter texto. No desktop sangra
+   até a borda direita da janela, fica no topo e o resto da coluna é tinta. */
+.capa--cheia { display: block; min-height: 0; background: var(--cor-texto); }
+.capa--cheia .banner { display: block; width: 100%; height: auto; aspect-ratio: 1.91 / 1; object-fit: cover; background: var(--cor-texto); }
 .capa__canto { position: absolute; z-index: 2; width: 14px; height: 14px; border: 0 solid var(--cor-texto); }
 .capa__canto--a { left: -8px; top: -8px; border-left-width: 1.5px; border-top-width: 1.5px; }
 .capa__canto--b { right: -8px; bottom: -8px; border-right-width: 1.5px; border-bottom-width: 1.5px; }
@@ -568,11 +568,13 @@ a { color: inherit; }
 .sobre-proj { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-8); padding-block: var(--esp-10) var(--esp-12); border-bottom: 1px solid var(--cor-linha); }
 .prosa { max-width: 38em; }
 .prosa p + p { margin-top: 14px; }
+/* página do projeto: texto e links na largura toda da seção */
+.sobre-proj .prosa { max-width: none; }
 .lado__titulo { margin-bottom: 4px; padding-bottom: 10px; border-bottom: 1px solid var(--cor-linha); font-family: var(--fonte-mono); font-size: var(--texto-12); letter-spacing: .04em; text-transform: uppercase; color: var(--cor-texto-suave); }
 .link-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding-block: 10px; border-bottom: 1px solid var(--cor-borda); text-decoration: none; font-weight: 500; }
 .link-linha:hover { color: var(--cor-acento); }
 /* links do projeto: uma linha de chips logo abaixo da prosa (não uma coluna lateral) */
-.links-proj { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; max-width: 38em; padding-top: var(--esp-6); border-top: 1px solid var(--cor-linha); }
+.links-proj { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 0; padding-top: var(--esp-6); border-top: 1px solid var(--cor-linha); }
 .links-proj .lado__titulo { width: 100%; margin: 0 0 4px; padding: 0; border: 0; }
 .links-proj .link-linha { min-height: 44px; margin: 0 -1px -1px 0; padding: 8px 16px; border: 1px solid var(--cor-linha); justify-content: flex-start; gap: 10px; }
 .links-proj .link-linha .mono { color: var(--cor-texto-suave); }
