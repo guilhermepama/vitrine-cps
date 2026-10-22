@@ -55,4 +55,6 @@
 {% endif %}
 {% endblock %}
 
+{% block scripts %}{% if projeto.imagens.all %}<script src="{% static 'js/galeria.js' %}" defer></script>{% endif %}{% endblock %}
+
 {% block rodape_edicao %}<span>Edição {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m" }}</span>{% endblock %}
