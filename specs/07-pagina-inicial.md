@@ -60,8 +60,8 @@ levar a identidade visual aprovada no protótipo v1 para o `base.css` e o
 - **Página `/semana-da-tecnologia/`** (`vitrine:semana`, decisão do coordenador, 16/10): a
   Semana da Tecnologia da Fatec Olímpia. Abertura, 01 O que acontece (oficinas e workshops,
   palestras e apresentações, Conexão Fatec com link para `/projetos/`), 02 Conexão Fatec
-  (`#mostra`: texto da Mostra, os quatro blocos — entrega, prática em campo, equipe, experiência
-  enquanto cursa —, os 4 projetos sorteados como na home e o botão "Ver todos os N projetos") e a chamada do vestibular
+  (`#mostra`: texto que explica o evento ao visitante, com data e horário — a partir das 19h —, os
+  quatro blocos — quando, o que, quem e você (o voto do público, sem link de voto, G8) —, os 4 projetos sorteados como na home e o botão "Ver todos os N projetos") e a chamada do vestibular
   (partial `_chamada_vestibular.html`, o mesmo da home). Texto fixo; nome e data da Mostra
   vêm da `Edicao` ativa; consultas constantes. No rodapé, "Semana da Tecnologia".
 - **Menu** (home, `/projetos/` e Semana, partial `_nav_principal.html`): 01 A Mostra (seção da

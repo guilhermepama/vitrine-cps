@@ -79,7 +79,31 @@ def test_mostra_sorteia_quatro_projetos_e_chama_para_todos(client):
     mostra = mostra[:mostra.index("</section>")]
     assert mostra.count('class="cartao-projeto"') == 4
     assert mostra.index('class="cartao-projeto"') < mostra.index('href="/projetos/">Ver todos os 6 projetos')
-    assert "A Conexão Fatec é um dos dias da <strong>Semana da Tecnologia</strong>" in mostra
+    assert "A Conexão Fatec é a noite de encerramento da <strong>Semana da Tecnologia</strong>" in mostra
+
+
+def _secao_mostra(html):
+    mostra = html[html.index('id="mostra"'):]
+    return mostra[:mostra.index("</section>")]
+
+
+@pytest.mark.django_db
+def test_mostra_explica_o_evento_com_data_e_horario(client):
+    fabricas.edicao(ativa=True, nome="2026/2", data_evento=date(2099, 10, 29))
+    mostra = _secao_mostra(_html(client))
+    assert "Em <strong>29 de outubro, a partir das 19h</strong>" in mostra
+    rotulos = re.findall(r'<div class="tecnica__cel"><span class="mono">([^<]*)</span>', mostra)
+    assert rotulos == ["Quando", "O que", "Quem", "Você"]
+    assert ">29 de outubro, a partir das 19h</h3>" in mostra
+    assert "Etec" not in mostra
+
+
+@pytest.mark.django_db
+def test_mostra_sem_edicao_nao_inventa_data(client):
+    mostra = _secao_mostra(_html(client))
+    assert "outubro" not in mostra and "19h" not in mostra
+    assert "Nessa noite, o campus vira uma feira de projetos" in mostra
+    assert ">A última noite da Semana</h3>" in mostra
 
 
 @pytest.mark.django_db
