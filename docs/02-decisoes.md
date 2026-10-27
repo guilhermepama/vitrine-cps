@@ -575,3 +575,75 @@ Formato:
     fica para depois (coordenação, 16/10).
   - Fica fora desta edição: pesos diferentes por critério, convidados pelo
     celular, nota do boletim em outra escala.
+
+## ADR-014 — Critérios da banca e dos convidados por curso (baremas)
+- Status: proposta
+- Data: 2026-10-27
+- Contexto: a coordenação de GTUR enviou os critérios dos projetos de
+  extensão (valem para GTUR e para o 3º ano do Ensino Médio); DSM terá
+  critérios **diferentes**. Hoje o `Criterio` é da edição e do tipo
+  (ADR-013): todos os cursos recebem a mesma ficha. Pelo documento de GTUR:
+  - **Público:** impacto ambiental, impacto social, inovação — os três do
+    ADR-012; nada muda.
+  - **Convidados:** impacto ambiental, impacto social, inovação,
+    sustentabilidade econômica — os quatro do ADR-013, mas com textos de
+    apoio voltados ao turismo.
+  - **Banca (professores):** os quatro dos convidados + aplicabilidade
+    prática; sustentabilidade financeira e custo-benefício; clareza na
+    apresentação; integração com a agenda dos ODS; metodologia; objetivo
+    (10 no total).
+  - Escala: **0 a 5 por critério**, para todos. Banca e convidados
+    avaliam das 19h30 às 20h30.
+- Decisão (proposta):
+  - **Barema** = conjunto de critérios de um tipo de avaliador, numa
+    edição, aplicado a um ou mais cursos. `Barema(edicao, tipo, nome)`;
+    `Criterio.barema` obrigatório, com `edicao`/`tipo` do critério
+    copiados do barema no `save()` (ordem e nome únicos dentro do
+    barema). Ex.: "Turismo — banca" vale para GTUR e
+    3º ano do Ensino Médio; "DSM — banca" vale para DSM.
+  - **Cada curso cai em no máximo um barema por edição e tipo**, garantido
+    no banco (tabela de ligação `BaremaCurso` com `edicao`, `tipo` e
+    `curso`, única nesses três — guardrail 4).
+  - **Um jurado, uma ficha:** todas as turmas de um jurado têm de cair no
+    mesmo barema do tipo dele (validado ao salvar o jurado e ao digitar a
+    ficha). Jurado que avalia dois cursos com baremas diferentes vira dois
+    cadastros — mais simples que uma ficha com dois blocos de critérios.
+  - A ficha e a digitação usam os critérios do barema do curso do
+    projeto; o resto do fluxo (ADR-008, ADR-013) não muda. Nota de cada
+    tipo no projeto continua sendo média dos critérios, média entre
+    avaliadores.
+  - Trava de edição com votação aberta (ADR-007) vale para barema,
+    critérios e cursos do barema.
+  - **Pendência de cobertura:** curso com projeto publicado e sem barema
+    do tipo que tem peso fica pendente, como o projeto sem avaliação no
+    ADR-013. A conferência mostra quais cursos não têm barema.
+  - Migration: os critérios atuais de cada edição e tipo viram um barema
+    com todos os cursos que têm turma na edição.
+- Pendências antes de aceitar:
+  1. ~~Escala~~ — **resolvida (27/10):** o documento de GTUR diz 0 a 5
+     para todos, mas a coordenação de GTUR concordou em manter a escala
+     do sistema: público 0 a 5 inteiros (ADR-012), banca e convidados
+     0 a 10 com uma casa (ADR-013). A escala é única na edição, então vale
+     também para o barema de DSM.
+  2. **Cursos da Etec:** qual barema usam (o de GTUR, o de DSM ou um
+     próprio).
+  3. **Cédula do público:** os textos de GTUR citam "setor de turismo",
+     mas o público avalia todos os projetos com uma cédula só — o texto
+     da cédula precisa ser genérico.
+  4. **Critério repetido na banca de GTUR:** "Sustentabilidade econômica"
+     e "Sustentabilidade financeira e custo-benefício" medem quase o
+     mesmo; com média simples, viabilidade financeira pesa o dobro.
+     Confirmar com a coordenação se é intencional.
+  5. **Tempo:** 10 critérios por projeto em uma hora limita quantos
+     projetos cada professor avalia; a distribuição precisa cobrir todos
+     (senão o ranking fica pendente — ADR-013).
+- Consequências:
+  - Substitui a parte do ADR-013 que dava um único conjunto de critérios
+    por tipo na edição; pesos, normalização, recortes e boletim seguem.
+  - **O geral fica menos comparável:** além de bancas diferentes (limite
+    já aceito no ADR-013), a nota de banca passa a medir critérios
+    diferentes por curso. O recorte por curso continua sendo o comparável.
+  - Specs afetadas: 06 (modelo, ficha, digitação, conferência) e 04 (só a
+    pendência por curso sem barema). Spec 03 só se mudar o texto da cédula.
+  - Mais cadastro no admin antes do evento (um barema por grupo de cursos
+    e tipo).
