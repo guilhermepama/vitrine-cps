@@ -1,7 +1,7 @@
 # Spec — Avaliação da banca
 
 - **Responsável**: Guilherme (@guilhermepama)
-- **Status**: pronta para implementar
+- **Status**: pronta para implementar (emenda ADR-014: proposta, 27/10)
 - **Depende de**: ADR-002 (stack), ADR-007 (nota composta, critérios),
   ADR-008 (banca em ficha impressa), spec 01 (`Edicao`, `Turma`,
   `Projeto`, `banca_conferida_em`), spec 04 (consome
@@ -11,6 +11,12 @@
 > da banca, com `tipo` no jurado e no critério — ver a seção "Avaliadores
 > convidados (ADR-013)". Onde esta spec diz "banca", vale para os dois
 > tipos, salvo quando a seção diz o contrário.
+>
+> **Emenda ADR-014 (27/10, proposta):** os critérios passam a ser de um
+> **barema** (conjunto de critérios de um tipo, aplicado a um ou mais
+> cursos) — DSM e GTUR têm critérios diferentes. Ver a seção "Baremas por
+> curso (ADR-014)". Onde esta spec diz "critérios da edição" ou "do tipo",
+> leia "do barema do jurado".
 
 ## Objetivo
 Registrar as notas 0–10, por critério, que cada jurado deu aos projetos
@@ -270,6 +276,94 @@ nota de banca de cada projeto.
   avisa quando um jurado cobre só parte das turmas de um curso ("Jurado X
   avalia DSM 1º e 2º, mas não DSM 3º").
 
+### Baremas por curso (ADR-014)
+> **Emenda de 27/10, dia do congelamento.** Entra como exceção: sem ela,
+> DSM e GTUR não têm como ser avaliados com critérios diferentes. Prazos
+> em "Plano de fatias".
+
+- **Barema** = conjunto de critérios de **um tipo** (banca ou convidado),
+  numa edição, aplicado a **um ou mais cursos**. Ex.: "Turismo" (banca)
+  para GTUR e 3º ano do Ensino Médio; "DSM" (banca) para DSM.
+- **Model `Barema`**: edição, tipo, nome (até 60). Nome único por
+  (edição, tipo).
+- **Model `BaremaCurso`** (ligação barema ↔ curso): `barema`, `curso`, e
+  `edicao` e `tipo` copiados do barema no `save()`. **Única por (edição,
+  tipo, curso)** no banco: um curso cai em no máximo um barema de cada
+  tipo na edição (G4 por analogia — a regra mora no banco).
+- **`Criterio.barema`** (FK `PROTECT`, obrigatória). `Criterio.edicao` e
+  `Criterio.tipo` **ficam** e passam a ser copiados do barema no `save()`
+  (fora do formulário do admin): as consultas por edição e tipo continuam
+  valendo e o diff fica pequeno. Unicidade de nome e de ordem passa de
+  (edição, tipo) para **(barema)**.
+- **Travas**: as do critério (ADR-007) valem para `Barema` e
+  `BaremaCurso`: criar, alterar ou apagar com a votação aberta →
+  `ValidationError`, conferido com a `Edicao` travada; o admin não oferece
+  a exclusão. Barema com critério → `PROTECT`.
+- **Admin** (superusuário): `Barema` com inline de cursos e inline de
+  critérios (nome, apoio, ordem). O admin de `Criterio` continua, com o
+  barema no lugar de edição e tipo.
+- **Barema do jurado**: o barema do tipo do jurado que contém os cursos das
+  turmas dele. Função única `barema_do_jurado(jurado)` em
+  `banca/servicos.py`, usada pela ficha, pela digitação e pela conferência.
+- **Jurado**: no formulário do admin, as turmas precisam cair **todas no
+  mesmo barema** do tipo dele. Recusas, com erro no formulário:
+  - turma de curso sem barema do tipo → "O curso <sigla> não tem barema
+    <de banca | de avaliador convidado> nesta edição.";
+  - turmas em baremas diferentes → "As turmas deste jurado estão em
+    baremas diferentes (<A>, <B>). Cadastre um jurado para cada barema."
+  - Quem avalia dois cursos com baremas diferentes vira **dois
+    cadastros** (ex.: "Maria (DSM)" e "Maria (GTUR)"): uma ficha por
+    barema. Mais simples que uma ficha com dois blocos de critérios.
+- **Ficha**: critérios do barema do jurado, na ordem. Cabeçalho com o
+  nome do barema e a escala **em destaque**: "NOTAS DE 0 A 10 — uma casa
+  decimal (ex.: 7,5)" em caixa, acima da legenda — o documento de critérios
+  de GTUR circulou com "0 a 5" e a escala do sistema ficou 0 a 10
+  (coordenação de GTUR, 27/10). Com **mais de 6 critérios**, o cabeçalho
+  da coluna mostra só o número ("1" … "10"); o nome fica na legenda. Até
+  6, como hoje.
+- **Digitação**: o inline tem uma nota por critério **do barema do
+  jurado**; o `clean()` do formset exige o conjunto igual a esse. Jurado
+  sem barema único (cadastro inconsistente, ou barema alterado antes de
+  abrir a votação) → erro "Este jurado não tem um barema único; corrija o
+  cadastro." e nada gravado. Nota de critério de outro barema → erro.
+- **Conferência**: aviso novo antes da cobertura — cursos com projeto
+  publicado **sem barema** de um tipo com peso (mesma regra de exibição
+  da seção de convidados) e jurados sem barema único. A amostra mostra as
+  notas na ordem do barema da avaliação.
+- **Nota do projeto** (`nota_banca_por_projeto`): regra e consulta não
+  mudam. A premissa da consulta única passa a ser "toda avaliação tem as
+  N notas **do seu barema**"; como todas as avaliações de um projeto num
+  tipo usam o mesmo barema (o curso cai em um só), `Avg("valor")` por
+  projeto continua igual à média das médias.
+- **Resultados (spec 04)**: nada muda. Curso sem barema não tem jurado,
+  logo não tem avaliação, e o projeto já fica pendente pela regra atual.
+- **Migration de dados**: para cada (edição, tipo) com critérios, um
+  barema "Geral" com todos os cursos que têm turma na edição; os critérios
+  existentes passam para ele. Reversível. Edições sem critério ficam sem
+  barema.
+- **Escala**: não muda — banca e convidados 0 a 10 com uma casa; público
+  0 a 5 (ADR-012).
+
+**Fora de escopo desta emenda**: escala por barema; peso por critério;
+jurado com mais de um barema numa ficha; copiar barema entre edições;
+mudar a cédula do público.
+
+**Critérios de aceite (emenda)**
+- [ ] Dois `BaremaCurso` com o mesmo (edição, tipo, curso) → erro de integridade no banco
+- [ ] Mesmo curso em barema de banca e em barema de convidado → aceito
+- [ ] Critério com nome ou ordem repetidos no mesmo barema → erro de integridade; em baremas diferentes → aceito
+- [ ] `Criterio.edicao`/`tipo` e `BaremaCurso.edicao`/`tipo` sempre iguais aos do barema depois do `save()`
+- [ ] Criar, alterar ou apagar barema, curso do barema ou critério com a votação aberta → `ValidationError`, banco sem mudança
+- [ ] Jurado com turma de curso sem barema do tipo, ou com turmas em baremas diferentes → erro no formulário com a mensagem da spec
+- [ ] `barema_do_jurado`: devolve o barema quando único; `None` sem barema ou com mais de um
+- [ ] Ficha de jurado de DSM traz só critérios do barema DSM; de GTUR, só os do barema Turismo
+- [ ] Ficha mostra o nome do barema e a caixa "NOTAS DE 0 A 10"; com 10 critérios o cabeçalho da coluna é só o número; com 6, número e nome
+- [ ] Digitação: inline com os N critérios do barema do jurado; POST com critério de outro barema → erro, nada gravado; jurado sem barema único → erro, nada gravado
+- [ ] Conferência lista curso com projeto publicado e sem barema de banca, e jurado sem barema único
+- [ ] Projeto de DSM (barema de 4 critérios) e de GTUR (barema de 10): `nota_banca_por_projeto` igual à média das médias calculada à mão; número de consultas inalterado
+- [ ] Migration: edição com critérios de banca e convidado vira dois baremas "Geral" com todos os cursos das turmas; notas e avaliações intactas; volta da migration restaura o estado anterior
+- [ ] Testes existentes da spec 06 passam (ajustados só onde criam critério sem barema)
+
 ### Nota de banca do projeto (`nota_banca_por_projeto`)
 - **ADR-013:** `nota_banca_por_projeto(edicao, tipo="banca")` — o mesmo
   cálculo filtrado pelo tipo do jurado; a spec 04 chama uma vez para cada
@@ -439,6 +533,25 @@ Tabelas novas (migrations do app `banca`):
 5. `banca: conferência` (cobertura, amostra, conclusão) e
    `banca_conferida_em` somente leitura no admin de `Edicao`.
 
+**Emenda ADR-014 (27/10)** — prazos contados de trás para frente a
+partir da abertura da votação, que trava critérios e baremas:
+6. `banca: baremas por curso` — models, migration de dados, admin de
+   barema e validação do jurado. **Em produção até 28/10, 18h**: os
+   baremas de DSM e GTUR precisam ser cadastrados antes de abrir a
+   votação em 29/10.
+7. `banca: ficha e digitação pelo barema do jurado` — inclui a caixa
+   "NOTAS DE 0 A 10". **Em produção até 28/10, 22h** (impressão das
+   fichas oficiais).
+8. `banca: conferência com baremas` — avisos de curso sem barema e jurado
+   sem barema único. **Até 30/10 de manhã** (digitação e conferência).
+
+**Contingência**: se a fatia 7 não estiver em produção a tempo, as fichas
+de 29/10 saem de um modelo feito à mão por barema, com o número `#id` de
+cada projeto copiado da ficha atual; a digitação de 30/10 precisa da fatia
+7 de qualquer jeito. Se a fatia 6 não entrar antes de abrir a votação, não
+há plano B no sistema: os baremas ficam travados — decidir com a
+coordenação um conjunto único de critérios para todos os cursos.
+
 A fatia 1 entra antes de 15/10; as demais até 20/10 (entrega da banca). O
 ensaio de 22/10 testa a digitação de fichas de teste na edição "Ensaio
 2026/2".
@@ -478,6 +591,13 @@ ensaio de 22/10 testa a digitação de fichas de teste na edição "Ensaio
 - 6 critérios é o teto prático para ficha A4 preenchida em pé no estande.
 
 ## Perguntas em aberto (não bloqueiam o código)
+0. **(ADR-014) Para a coordenação, antes de cadastrar os baremas:**
+   critérios de DSM; qual barema os cursos da Etec usam; se
+   "Sustentabilidade econômica" e "Sustentabilidade financeira e
+   custo-benefício" ficam os dois no barema Turismo (viabilidade pesaria
+   o dobro); errata do documento de GTUR para 0 a 10. A ficha comporta 10
+   critérios só com cabeçalho numérico — o teto prático de 6 desta spec
+   continua sendo a recomendação.
 1. **Critérios × ADR-007.** A ADR-007 diz que os critérios "medem
    impacto, não execução técnica — escolha da coordenação" e lista
    impacto social, ambiental e, a confirmar, comercial. A proposta acima
