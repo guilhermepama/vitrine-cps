@@ -575,3 +575,40 @@ Formato:
     fica para depois (coordenação, 16/10).
   - Fica fora desta edição: pesos diferentes por critério, convidados pelo
     celular, nota do boletim em outra escala.
+
+## ADR-015 — Mapa do evento: planta fixa em código, conteúdo no banco
+- Status: proposta
+- Data: 2026-10-28
+- Contexto: o evento (29/10) precisa de um mapa como o de feiras e
+  convenções, impresso ao lado de cada estação de QR e aberto no celular:
+  estandes dos alunos no corredor, atrações nas salas (nem todas abertas),
+  "você está aqui". A montagem do espaço é em 28/10, com o GTUR, e a
+  numeração das salas só se confirma nesse dia. Entra depois do
+  congelamento (27/10), então precisa ser isolado do que já está testado.
+- Decisão (proposta):
+  - **App novo `mapa/`**, do coordenador, sem FK saindo dele para
+    `votacao`, `banca` ou `resultados`; depende só de `cadastro`
+    (`Edicao`, `Projeto`). Nada em `votacao/` muda: o mapa fica impresso
+    ao lado da TV da estação, não dentro da página dela.
+  - **A planta do prédio é código** (`mapa/planta.py`): posições e
+    tamanhos dos pontos, derivados da planta do Figma. O prédio não muda
+    entre edições; o que muda é o conteúdo.
+  - **O conteúdo é banco** (`mapa.Local`, um por ponto e por edição):
+    rótulo, atração, porta aberta/fechada, projeto no estande. É o que
+    o staff edita no admin durante a montagem.
+  - **Nomenclatura**: fileiras de estandes por **letra fixa** (A, o lado
+    da secretaria e da biblioteca; B, o lado oposto), numeradas **a
+    partir da entrada**. Letras de "direita/esquerda" (D/E) ficaram como
+    opção do comando de semeadura, não como padrão: direita e esquerda
+    invertem quando a pessoa dá meia-volta no corredor, e "E" se confunde
+    com "Etec" e "Entrada". Salas usam o **número da porta**; até a
+    confirmação, rótulo posicional (A1…A7, B1…B10).
+  - **Duas orientações do mesmo SVG**: paisagem (tela larga e impressão,
+    entrada à direita) e retrato (celular, entrada embaixo, o visitante
+    "sobe" o corredor; a fileira A fica à direita nas duas, como para quem
+    entra). Sem rolagem lateral, pela regra dos 360 px.
+- Consequências:
+  - Mover um estande ou uma sala é um PR em `planta.py`, não um clique.
+    Aceitável: a planta é do prédio.
+  - A tela da estação continua idêntica (script do QR e teste intactos).
+  - Programação por horário das atrações continua fora (ADR-011).

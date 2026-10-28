@@ -1,0 +1,32 @@
+{% comment %}
+Planta em SVG (spec 08). Recebe `vista` (paisagem ou retrato) com os elementos já
+posicionados pela view: nada de cálculo aqui. Estilo só por classe, no base.css.
+{% endcomment %}
+<svg class="mapa__svg mapa__svg--{{ vista.orientacao }}" viewBox="{{ vista.viewbox }}" role="img" aria-labelledby="titulo-{{ vista.orientacao }}">
+  <title id="titulo-{{ vista.orientacao }}">Mapa do evento{% if aqui %} — você está aqui: {{ aqui.nome }}{% endif %}</title>
+  <rect class="mp-predio" x="0" y="0" width="{{ vista.predio.w }}" height="{{ vista.predio.h }}"/>
+  <rect class="mp-corredor" x="{{ vista.corredor.x }}" y="{{ vista.corredor.y }}" width="{{ vista.corredor.w }}" height="{{ vista.corredor.h }}"/>
+  {% for e in vista.itens %}{% with g=e.g %}
+  {% if e.tipo == "sala" or e.tipo == "servico" %}
+  <g class="mp-sala mp-sala--{{ e.tipo }}{% if not e.aberta %} mp-sala--fechada{% endif %}{% if e.atracao %} mp-sala--atracao{% endif %}">
+    <rect x="{{ g.x }}" y="{{ g.y }}" width="{{ g.w }}" height="{{ g.h }}"/>
+    {% if e.rotulo %}<text class="mp-rotulo" x="{{ g.cx }}" y="{{ g.rotulo_y }}" text-anchor="middle" dominant-baseline="middle">{{ e.rotulo }}</text>{% endif %}
+    {% if g.mostra_nome %}<text class="mp-nome" x="{{ g.cx }}" y="{{ g.nome_y }}" text-anchor="middle" dominant-baseline="middle">{% for linha in e.linhas %}<tspan x="{{ g.cx }}" dy="{% if forloop.first %}0{% else %}11{% endif %}">{{ linha }}</tspan>{% endfor %}</text>{% endif %}
+  </g>
+  {% elif e.tipo == "estande" %}
+  <g class="mp-estande{% if e.ocupado %} mp-estande--ocupado{% endif %}">
+    <rect x="{{ g.x }}" y="{{ g.y }}" width="{{ g.w }}" height="{{ g.h }}"/>
+    <text class="mp-estande__texto" x="{{ g.cx }}" y="{{ g.cy }}" text-anchor="middle" dominant-baseline="central">{{ e.rotulo }}</text>
+  </g>
+  {% elif e.tipo == "estacao" %}
+  {% if e.aqui %}<g class="mp-aqui"><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__anel" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_anel }}"/></g>{% endif %}
+  <g class="mp-estacao">
+    <circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/>
+    <text class="mp-estacao__texto" x="{{ g.cx }}" y="{{ g.cy }}" text-anchor="middle" dominant-baseline="central">QR</text>
+  </g>
+  {% elif e.tipo == "entrada" %}
+  <rect class="mp-entrada" x="{{ g.x }}" y="{{ g.y }}" width="{{ g.w }}" height="{{ g.h }}"/>
+  <text class="mp-entrada__texto" x="{{ vista.entrada.x }}" y="{{ vista.entrada.y }}" text-anchor="middle" dominant-baseline="middle"{% if vista.entrada.rotacao %} transform="rotate({{ vista.entrada.rotacao }} {{ vista.entrada.x }} {{ vista.entrada.y }})"{% endif %}>▲ ENTRADA</text>
+  {% endif %}
+  {% endwith %}{% endfor %}
+</svg>

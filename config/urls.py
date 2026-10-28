@@ -18,6 +18,7 @@ urlpatterns = [
     path("", include("vitrine.urls")),
     path("", include("votacao.urls")),
     path("resultados/", include("resultados.urls")),
+    path("mapa/", include("mapa.urls")),
 ]
 
 # Só no seu computador (DEBUG=1 e sem R2): serve as imagens enviadas de media/.

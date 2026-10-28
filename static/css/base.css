@@ -929,3 +929,72 @@ html:has(.visor[open]) { overflow: hidden; }
   body { background: #ffffff; }
   .quebra-pagina { break-before: page; } /* uma turma por página no resultado */
 }
+
+/* ---------- MAPA DO EVENTO (spec 08) ---------- */
+/* Página: cabeça, planta, legenda e listas. Estilo do SVG só por classe (mp-*). */
+.mapa { padding-bottom: var(--esp-12); }
+.mapa__cabeca { padding-block: var(--esp-8) var(--esp-6); border-bottom: 1px solid var(--cor-linha); }
+.mapa__cabeca .mono { margin-bottom: 12px; }
+.mapa__cabeca h1 { font-size: var(--texto-h2); margin: 0; }
+.mapa__aqui { display: flex; align-items: center; gap: var(--esp-3); margin: var(--esp-5) 0 0; font-size: var(--texto-20); }
+.mapa__pino { --cor-foco: var(--cor-acento-texto); flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--cor-acento); box-shadow: 0 0 0 3px var(--cor-fundo), 0 0 0 5px var(--cor-acento); }
+.mapa__aviso { margin: var(--esp-4) 0 0; color: var(--cor-texto-suave); }
+.mapa__planta { padding-block: var(--esp-6); }
+.mapa__svg { display: block; width: 100%; height: auto; border: 1px solid var(--cor-linha); background: var(--cor-superficie); }
+/* Celular: retrato (entrada embaixo, o visitante sobe o corredor). Tela larga: paisagem. */
+.mapa__svg--paisagem { display: none; }
+@media (min-width: 720px) {
+  .mapa__svg--paisagem { display: block; }
+  .mapa__svg--retrato { display: none; }
+}
+.mapa__legenda { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-6); margin: var(--esp-4) 0 0; padding: 0; list-style: none; font-size: var(--texto-13); }
+.mapa__legenda li { display: flex; align-items: center; gap: var(--esp-2); }
+.mapa__amostra { display: inline-block; width: 16px; height: 12px; border: 1px solid var(--cor-linha); }
+.mapa__amostra--estande { background: var(--cor-texto); }
+.mapa__amostra--atracao { background: var(--cor-superficie); border: 2px solid var(--cor-acento); }
+.mapa__amostra--fechada { background: var(--cor-borda); border-color: var(--cor-borda); }
+.mapa__amostra--qr { --cor-foco: var(--cor-acento-texto); width: 14px; height: 14px; border-radius: 50%; background: var(--cor-acento); border-color: var(--cor-acento); }
+.mapa__amostra--aqui { --cor-foco: var(--cor-acento-texto); width: 14px; height: 14px; border-radius: 50%; background: var(--cor-acento); box-shadow: 0 0 0 2px var(--cor-superficie), 0 0 0 4px var(--cor-acento); border: 0; }
+.mapa__listas { border-top: 1px solid var(--cor-linha); padding-top: var(--esp-8); }
+.mapa__grade { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-8); }
+@media (min-width: 720px) { .mapa__grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--esp-12); } }
+.mapa__grade h2 { font-size: var(--texto-26); margin: 0 0 var(--esp-4); }
+.mapa__grade h3 { margin: var(--esp-5) 0 var(--esp-2); color: var(--cor-texto-suave); }
+.mapa__lista { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--cor-linha); }
+.mapa__lista li { display: flex; align-items: baseline; gap: var(--esp-3); padding-block: var(--esp-2); border-bottom: 1px solid var(--cor-borda); overflow-wrap: break-word; }
+.mapa__num { flex: none; min-width: 3.2em; font-family: var(--fonte-display); font-variation-settings: "wdth" 62, "wght" 800; font-weight: 800; font-size: var(--texto-20); line-height: 1; color: var(--cor-acento); }
+.mapa__turma { margin-left: auto; color: var(--cor-texto-suave); font-size: var(--texto-12); }
+.mapa__descricao { color: var(--cor-texto-suave); }
+.mapa__vazio { color: var(--cor-texto-suave); }
+
+/* Elementos do SVG. Unidades do viewBox (prédio 960 × 227). */
+.mp-predio { fill: var(--cor-fundo); stroke: var(--cor-linha); stroke-width: 2; }
+.mp-corredor { fill: var(--cor-superficie); }
+.mp-sala rect { fill: var(--cor-superficie); stroke: var(--cor-linha); stroke-width: 1; }
+.mp-sala--servico rect { fill: var(--cor-fundo); }
+.mp-sala--atracao rect { fill: #ffffff; stroke: var(--cor-acento); stroke-width: 2.5; }
+.mp-sala--fechada rect { fill: var(--cor-borda); stroke: var(--cor-borda); }
+.mp-sala--fechada text { fill: var(--cor-texto-suave); }
+.mp-rotulo { font-family: var(--fonte-display); font-variation-settings: "wdth" 75, "wght" 800; font-weight: 800; font-size: 13px; fill: var(--cor-texto); }
+.mp-sala--servico .mp-rotulo { font-size: 10px; font-variation-settings: "wdth" 62, "wght" 700; fill: var(--cor-texto-suave); }
+.mp-nome { font-family: var(--fonte); font-size: 8.5px; fill: var(--cor-texto); }
+.mp-sala--atracao .mp-nome { font-weight: 600; }
+.mp-estande rect { fill: var(--cor-superficie); stroke: var(--cor-texto); stroke-width: 1; stroke-dasharray: 2 1.5; }
+.mp-estande--ocupado rect { fill: var(--cor-texto); stroke-dasharray: none; }
+.mp-estande__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 8px; fill: var(--cor-texto-suave); }
+.mp-estande--ocupado .mp-estande__texto { fill: var(--cor-sobre-tinta); }
+.mp-estacao circle { fill: var(--cor-acento); }
+.mp-estacao__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 5.5px; fill: var(--cor-acento-texto); }
+.mp-aqui circle { fill: var(--cor-acento); }
+.mp-aqui__anel { fill: var(--cor-superficie); }
+.mp-entrada { fill: var(--cor-acento); }
+.mp-entrada__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 9px; letter-spacing: .08em; fill: var(--cor-acento); }
+
+@media print {
+  /* Folha em paisagem, ao lado da estação de QR: só a planta e as listas. */
+  .mapa .mapa__svg--paisagem { display: block; max-height: 60vh; }
+  .mapa .mapa__svg--retrato { display: none; }
+  .mapa__cabeca { padding-top: 0; }
+  .mapa__grade { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--esp-8); }
+  .mapa__lista a { color: inherit; text-decoration: none; }
+}
