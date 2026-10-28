@@ -7,7 +7,7 @@ posicionados pela view: nada de cálculo aqui. Estilo só por classe, no base.cs
   <rect class="mp-predio" x="0" y="0" width="{{ vista.predio.w }}" height="{{ vista.predio.h }}"/>
   <rect class="mp-corredor" x="{{ vista.corredor.x }}" y="{{ vista.corredor.y }}" width="{{ vista.corredor.w }}" height="{{ vista.corredor.h }}"/>
   {% for e in vista.itens %}{% with g=e.g %}
-  {% if e.tipo == "sala" or e.tipo == "servico" %}
+  {% if e.tipo == "sala" or e.tipo == "servico" or e.tipo == "passagem" %}
   <g class="mp-sala mp-sala--{{ e.tipo }}{% if not e.aberta %} mp-sala--fechada{% endif %}{% if e.atracao %} mp-sala--atracao{% endif %}">
     <rect x="{{ g.x }}" y="{{ g.y }}" width="{{ g.w }}" height="{{ g.h }}"/>
     {% if e.rotulo %}<text class="mp-rotulo" x="{{ g.cx }}" y="{{ g.rotulo_y }}" text-anchor="middle" dominant-baseline="middle">{{ e.rotulo }}</text>{% endif %}

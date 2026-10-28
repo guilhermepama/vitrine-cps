@@ -76,7 +76,7 @@ Tabela `mapa_locais` (`mapa.Local`), migration `mapa/0001`:
 |---|---|---|
 | `edicao` | FK `Edicao` PROTECT | |
 | `codigo` | slug 20 | único com `edicao`; chave para `planta.py` |
-| `tipo` | choices `estande`, `sala`, `servico`, `estacao` | copiado da planta |
+| `tipo` | choices `estande`, `sala`, `servico`, `passagem`, `estacao`, `entrada` | copiado da planta |
 | `fileira` | char 1, vazio | `A`/`B` (ou `D`/`E`) nos estandes |
 | `ordem` | smallint | ordem a partir da entrada |
 | `rotulo` | char 20 | o que o visitante lê: "A3", "Sala 12" |
@@ -100,8 +100,8 @@ Não lê nem escreve nada de `votacao`, `banca` ou `resultados`.
 repositório), 17 (testes).
 
 ## Critérios de aceite
-- [ ] `semear_mapa` cria 26 estandes, 18 salas (17 + VIP), 8 serviços, 4 estações
-      e a entrada (57 pontos)
+- [ ] `semear_mapa` cria 26 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
+      da entrada lateral, 4 estações e a entrada (58 pontos)
       para a edição ativa; rodar de novo não duplica nem apaga edições
 - [ ] `--fileiras D,E` gera `D1…D12` e `E1…E14`
 - [ ] `GET /mapa/` 200 com e sem edição ativa; com o aviso quando vazio

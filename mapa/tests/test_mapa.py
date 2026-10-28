@@ -38,7 +38,7 @@ def test_planta_tem_os_pontos_da_spec():
     por_tipo = {}
     for p in pontos:
         por_tipo[p.tipo] = por_tipo.get(p.tipo, 0) + 1
-    assert por_tipo == {"estande": 26, "sala": 18, "servico": 8, "estacao": 4, "entrada": 1}
+    assert por_tipo == {"estande": 26, "sala": 18, "servico": 8, "passagem": 1, "estacao": 4, "entrada": 1}
     assert len({p.codigo for p in pontos}) == len(pontos)
 
 
@@ -62,10 +62,10 @@ def test_letras_das_fileiras_mudam_so_o_rotulo():
 
 def test_semear_cria_os_pontos_da_edicao_ativa_e_nao_duplica():
     edicao = _edicao_semeada()
-    assert Local.objects.filter(edicao=edicao).count() == 57
+    assert Local.objects.filter(edicao=edicao).count() == 58
     Local.objects.filter(edicao=edicao, codigo="sala-a-01").update(rotulo="Sala 12", nome="Robótica")
     call_command("semear_mapa")
-    assert Local.objects.filter(edicao=edicao).count() == 57
+    assert Local.objects.filter(edicao=edicao).count() == 58
     assert Local.objects.get(edicao=edicao, codigo="sala-a-01").nome == "Robótica"
 
 

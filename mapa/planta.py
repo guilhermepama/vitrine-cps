@@ -57,11 +57,11 @@ class Ponto:
         return replace(self, x=round(ALTURA - (self.y + self.h), 1), y=self.x, w=self.h, h=self.w)
 
 
-TIPOS = ("estande", "sala", "servico", "estacao", "entrada")
+TIPOS = ("estande", "sala", "servico", "passagem", "estacao", "entrada")
 
 # --- Salas e serviços -------------------------------------------------------------
 # Paredes divisórias lidas do Figma (x em px), da esquerda para a direita.
-_PAREDES_A = (807, 1091, 1625, 1851, 2387, 2923, 3452, 3980, 4735, 5006, 5266, 5777, 6297, 6899)
+_PAREDES_A = (807, 1091, 1625, 1851, 2387, 2923, 3452, 3980, 4508, 4735, 5006, 5266, 5777, 6297, 6899)
 _PAREDES_B = (807, 1091, 1307, 1856, 2389, 2922, 3452, 3980, 4501, 5027, 5550, 6078, 6480, 6899)
 
 # (codigo, tipo, rotulo, nome), do lado esquerdo (fundo) para a entrada.
@@ -74,6 +74,8 @@ _SALAS_A = (
     ("sala-a-05", "sala", "A5", ""),
     ("sala-a-04", "sala", "A4", ""),
     ("sala-a-03", "sala", "A3", ""),
+    # Vão entre a A3 e a secretaria: corredor da entrada lateral, não é sala.
+    ("entrada-lateral", "passagem", "Entrada", "Entrada lateral"),
     ("secretaria", "servico", "Secretaria", ""),
     ("ti", "servico", "TI", ""),
     ("biblioteca", "servico", "Biblioteca", ""),

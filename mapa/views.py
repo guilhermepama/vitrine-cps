@@ -45,7 +45,7 @@ def _elemento(ponto, local, aqui):
         "tipo": ponto.tipo,
         "rotulo": (local.rotulo if local else ponto.rotulo),
         "nome": nome,
-        "linhas": _quebrar(nome) if ponto.tipo in ("sala", "servico") else [],
+        "linhas": _quebrar(nome) if ponto.tipo in ("sala", "servico") else [],  # passagem: só o rótulo
         "aberta": aberta,
         "ocupado": projeto is not None,
         "publicado": publicado,

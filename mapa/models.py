@@ -10,6 +10,7 @@ class Local(models.Model):
         ESTANDE = "estande", "estande"
         SALA = "sala", "sala"
         SERVICO = "servico", "serviço"
+        PASSAGEM = "passagem", "passagem"
         ESTACAO = "estacao", "estação de QR"
         ENTRADA = "entrada", "entrada"
 

@@ -952,7 +952,7 @@ html:has(.visor[open]) { overflow: hidden; }
 .mapa__amostra { display: inline-block; width: 16px; height: 12px; border: 1px solid var(--cor-linha); }
 .mapa__amostra--estande { background: var(--cor-texto); }
 .mapa__amostra--atracao { background: var(--cor-superficie); border: 2px solid var(--cor-acento); }
-.mapa__amostra--fechada { background: var(--cor-borda); border-color: var(--cor-borda); }
+.mapa__amostra--fechada { background: var(--cor-borda); }
 .mapa__amostra--qr { --cor-foco: var(--cor-acento-texto); width: 14px; height: 14px; border-radius: 50%; background: var(--cor-acento); border-color: var(--cor-acento); }
 .mapa__amostra--aqui { --cor-foco: var(--cor-acento-texto); width: 14px; height: 14px; border-radius: 50%; background: var(--cor-acento); box-shadow: 0 0 0 2px var(--cor-superficie), 0 0 0 4px var(--cor-acento); border: 0; }
 .mapa__listas { border-top: 1px solid var(--cor-linha); padding-top: var(--esp-8); }
@@ -972,8 +972,10 @@ html:has(.visor[open]) { overflow: hidden; }
 .mp-corredor { fill: var(--cor-superficie); }
 .mp-sala rect { fill: var(--cor-superficie); stroke: var(--cor-linha); stroke-width: 1; }
 .mp-sala--servico rect { fill: var(--cor-fundo); }
+.mp-sala--passagem rect { fill: var(--cor-superficie); stroke-dasharray: 3 2; } /* corredor da entrada lateral */
+.mp-sala--passagem .mp-rotulo { font-family: var(--fonte-mono); font-weight: 500; font-size: 7px; letter-spacing: .06em; fill: var(--cor-acento); }
 .mp-sala--atracao rect { fill: #ffffff; stroke: var(--cor-acento); stroke-width: 2.5; }
-.mp-sala--fechada rect { fill: var(--cor-borda); stroke: var(--cor-borda); }
+.mp-sala--fechada rect { fill: var(--cor-borda); stroke: var(--cor-linha); } /* divisória visível entre salas fechadas vizinhas */
 .mp-sala--fechada text { fill: var(--cor-texto-suave); }
 .mp-rotulo { font-family: var(--fonte-display); font-variation-settings: "wdth" 75, "wght" 800; font-weight: 800; font-size: 13px; fill: var(--cor-texto); }
 .mp-sala--servico .mp-rotulo { font-size: 10px; font-variation-settings: "wdth" 62, "wght" 700; fill: var(--cor-texto-suave); }
