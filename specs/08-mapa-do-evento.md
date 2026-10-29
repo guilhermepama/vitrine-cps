@@ -39,10 +39,17 @@ aberto no celular.
   aqui" (código inválido é ignorado, sem erro).
 - **Impressão**: `@media print` em paisagem, só o mapa e as listas
   (topo e rodapé já ficam fora pela classe `nao-imprime`).
+- **Na tela da estação** (`/estacao/<id>`, spec 03; decisão do coordenador
+  em 29/10): o título "Escaneie e avalie" e o QR à esquerda, a planta em
+  paisagem com legenda e "Você está aqui" à direita, e embaixo as listas de
+  estandes (por fileira) e salas em três colunas, sem links — a tela da
+  recepção não sai dali. Os passos e a nota do QR saíram. `Estacao.ponto`
+  (choices = estações de QR de `planta.py`) diz qual círculo é a estação;
+  vazio mostra o mapa sem marcação. A view reaproveita
+  `mapa.views.contexto_da_planta`. Cabe em 1080p sem rolar; em tablet em
+  pé empilha e rola. Substitui o mapa impresso ao lado da TV.
 
 ## Fora de escopo
-- Alterar a tela da estação (`/estacao/<id>`), congelada e do Renan: o
-  mapa fica impresso ao lado da TV, não dentro dela.
 - Editor gráfico da planta; mover pontos é editar `mapa/planta.py`.
 - Programação por horário das atrações (ADR-011, próxima edição).
 - Link no menu principal (precisa caber em 360 px sem JS; fica para

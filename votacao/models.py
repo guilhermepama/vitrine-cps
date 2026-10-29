@@ -7,6 +7,7 @@ from django.db import models, transaction
 from django.db.models import F, Func, Q, Value
 
 from cadastro.models import Edicao, Projeto
+from mapa import planta
 
 
 def truncar_para_hora(momento):
@@ -22,6 +23,11 @@ class Estacao(models.Model):
     nome = models.CharField(max_length=60)
     ativa = models.BooleanField(default=True)
     edicao = models.ForeignKey(Edicao, on_delete=models.PROTECT, related_name="estacoes")
+    # Qual círculo "QR" da planta (mapa/planta.py) é esta estação: a tela da
+    # recepção desenha o mapa com "Você está aqui" nele. Vazio = mapa sem marcação.
+    ponto = models.CharField(
+        "ponto no mapa", max_length=20, blank=True, choices=planta.estacoes(), help_text="Estação de QR correspondente na planta do evento."
+    )
 
     class Meta:
         db_table = "estacoes"

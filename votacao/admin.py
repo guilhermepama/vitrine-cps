@@ -88,8 +88,8 @@ class EdicaoVotacaoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
 class EstacaoAdmin(SoSuperusuarioMixin, admin.ModelAdmin):
     # Estação com token não muda de edição (ValidationError do model, vira erro
     # no formulário) nem é apagada (PROTECT: o admin lista o que impede).
-    list_display = ["nome", "edicao", "ativa"]
-    list_editable = ["ativa"]
+    list_display = ["nome", "edicao", "ponto", "ativa"]
+    list_editable = ["ponto", "ativa"]
     list_filter = ["edicao", "ativa"]
     search_fields = ["nome"]
-    fields = ["nome", "edicao", "ativa"]
+    fields = ["nome", "edicao", "ponto", "ativa"]

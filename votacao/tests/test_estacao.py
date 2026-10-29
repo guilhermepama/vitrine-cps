@@ -209,6 +209,26 @@ def test_operador_ve_o_qr_da_janela_assinada(operador, estacao):
     assert estacao.nome in resposta.text
 
 
+def test_pagina_traz_o_mapa_com_a_estacao_marcada(operador, estacao):
+    """Mapa do evento (spec 08) embaixo do QR, com "Você está aqui" no ponto da estação."""
+    estacao.ponto = "qr-02"
+    estacao.save()
+    resposta = operador.get(_pagina(estacao.pk))
+    assert 'class="mapa__svg mapa__svg--paisagem"' in resposta.text
+    assert 'class="mapa__svg mapa__svg--retrato"' not in resposta.text  # só a paisagem: a TV é larga
+    assert "Você está aqui:</strong> Secretaria" in resposta.text
+    assert 'class="mp-aqui"' in resposta.text
+    assert "Estandes · fileira A" in resposta.text and "Salas e atrações" in resposta.text
+    assert "/projeto" not in resposta.text  # listas sem link: a tela da recepção não sai daqui
+
+
+def test_estacao_sem_ponto_mostra_o_mapa_sem_marcacao(operador, estacao):
+    resposta = operador.get(_pagina(estacao.pk))
+    assert 'class="mapa__svg mapa__svg--paisagem"' in resposta.text
+    assert "Você está aqui" not in resposta.text
+    assert 'class="mp-aqui"' not in resposta.text
+
+
 @pytest.mark.parametrize("rota", [_pagina, _renovacao])
 def test_qr_sai_com_https_atras_do_proxy(operador, estacao, rota, settings):
     """O QR usa a URL_PUBLICA seja qual for o Host e o X-Forwarded-Proto."""

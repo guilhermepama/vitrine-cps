@@ -27,12 +27,42 @@
         {# Sem espaço dentro do #qr: o :empty mostra o aviso quando o script apaga um QR vencido. #}
         <div id="qr" class="estacao__qr" data-renovar="{% url 'votacao:estacao_qr' estacao.pk %}" data-intervalo="{{ rotacao }}">{{ qr_svg }}</div>
       </div>
-      <ol class="estacao__passos">
-        <li><span class="estacao__num" aria-hidden="true">01</span><p><strong>Aponte a câmera</strong> do celular para o código.</p></li>
-        <li><span class="estacao__num" aria-hidden="true">02</span><p><strong>Informe nome e e-mail</strong>, uma vez só. Seus dados ficam separados das avaliações.</p></li>
-        <li><span class="estacao__num" aria-hidden="true">03</span><p><strong>Avalie pelo celular</strong>, uma vez por projeto, enquanto a votação estiver aberta.</p></li>
-      </ol>
-      <p class="estacao__nota mono">O código muda a cada {{ rotacao }} s e vale só nesta recepção.</p>
+      {# Planta do evento (spec 08) na metade de baixo, com a estação marcada; só paisagem, sem listas: a TV é lida de longe. #}
+      <section class="estacao__mapa" aria-label="Mapa do evento">
+        <div class="estacao__mapa-cabeca">
+          <p class="mono">Mapa do evento{% if mapa.em_montagem %} · em montagem{% endif %}</p>
+          {% if mapa.aqui %}<p class="mapa__aqui"><span class="mapa__pino" aria-hidden="true"></span><strong>Você está aqui:</strong> {{ mapa.aqui.nome }}</p>{% endif %}
+        </div>
+        {% include "mapa/_planta.svg" with vista=mapa.vistas.paisagem aqui=mapa.aqui %}
+        <ul class="mapa__legenda mono">
+          <li><span class="mapa__amostra mapa__amostra--estande" aria-hidden="true"></span>Estande com projeto</li>
+          <li><span class="mapa__amostra mapa__amostra--atracao" aria-hidden="true"></span>Sala com atração</li>
+          <li><span class="mapa__amostra mapa__amostra--fechada" aria-hidden="true"></span>Sala fechada</li>
+          <li><span class="mapa__amostra mapa__amostra--qr" aria-hidden="true"></span>Estação de QR para votar</li>
+          {% if mapa.aqui %}<li><span class="mapa__amostra mapa__amostra--aqui" aria-hidden="true"></span>Você está aqui</li>{% endif %}
+        </ul>
+      </section>
+      {# Listas do mapa (spec 08), sem links: a tela da recepção não sai daqui. #}
+      <section class="estacao__listas" aria-label="Estandes, salas e atrações">
+        {% for fileira in mapa.fileiras %}
+        <div>
+          <h2 class="mono">Estandes · fileira {{ fileira }}</h2>
+          <ol class="mapa__lista">
+            {% for e in mapa.estandes %}{% if e.paisagem.fileira == fileira %}
+            <li><span class="mapa__num">{{ e.rotulo }}</span><span>{{ e.local.projeto.titulo }}</span><span class="mapa__turma mono">{{ e.local.projeto.turma.curso.sigla }}</span></li>
+            {% endif %}{% endfor %}
+          </ol>
+        </div>
+        {% endfor %}
+        <div>
+          <h2 class="mono">Salas e atrações</h2>
+          <ol class="mapa__lista">
+            {% for e in mapa.salas %}
+            <li><span class="mapa__num">{{ e.rotulo }}</span><span>{{ e.nome }}</span></li>
+            {% endfor %}
+          </ol>
+        </div>
+      </section>
     </div>
   </main>
   <script>
