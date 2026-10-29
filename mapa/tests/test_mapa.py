@@ -39,7 +39,7 @@ def test_planta_tem_os_pontos_da_spec():
     por_tipo = {}
     for p in pontos:
         por_tipo[p.tipo] = por_tipo.get(p.tipo, 0) + 1
-    assert por_tipo == {"estande": 29, "sala": 18, "servico": 8, "passagem": 1, "estacao": 4, "entrada": 1}
+    assert por_tipo == {"estande": 31, "sala": 18, "servico": 8, "passagem": 1, "estacao": 4, "entrada": 1}
     assert len({p.codigo for p in pontos}) == len(pontos)
 
 
@@ -55,7 +55,7 @@ def test_retrato_e_a_paisagem_girada_com_o_lado_a_a_direita():
 def test_letras_das_fileiras_mudam_so_o_rotulo():
     padrao, de = planta.por_codigo(), planta.por_codigo(("D", "E"))
     assert padrao["a01"].rotulo == "A1" and de["a01"].rotulo == "D1"
-    assert padrao["b14"].rotulo == "B14" and de["b14"].rotulo == "E14"
+    assert padrao["b16"].rotulo == "B16" and de["b16"].rotulo == "E16"
 
 
 # --- Semeadura ----------------------------------------------------------------------
@@ -63,17 +63,17 @@ def test_letras_das_fileiras_mudam_so_o_rotulo():
 
 def test_semear_cria_os_pontos_da_edicao_ativa_e_nao_duplica():
     edicao = _edicao_semeada()
-    assert Local.objects.filter(edicao=edicao).count() == 61
+    assert Local.objects.filter(edicao=edicao).count() == 63
     Local.objects.filter(edicao=edicao, codigo="sala-a-01").update(rotulo="Sala 12", nome="Robótica")
     call_command("semear_mapa")
-    assert Local.objects.filter(edicao=edicao).count() == 61
+    assert Local.objects.filter(edicao=edicao).count() == 63
     assert Local.objects.get(edicao=edicao, codigo="sala-a-01").nome == "Robótica"
 
 
 def test_semear_com_fileiras_d_e():
     edicao = _edicao_semeada(fileiras="D,E")
     rotulos = set(Local.objects.filter(edicao=edicao, tipo="estande").values_list("rotulo", flat=True))
-    assert {"D1", "D12", "E1", "E14"} <= rotulos and "A1" not in rotulos
+    assert {"D1", "D12", "E1", "E16"} <= rotulos and "A1" not in rotulos
 
 
 def test_projeto_em_um_estande_so():
@@ -136,6 +136,23 @@ def test_sala_fechada_nao_mostra_a_atracao_e_a_aberta_mostra(client):
     assert "Laboratório secreto" not in html and "mp-sala--fechada" in html
     assert "Exposição de TCCs" in html
     assert "Banheiro feminino" not in html.split("Salas e atrações")[1]  # serviço sem atração fica fora da lista
+
+
+def test_estande_sem_projeto_com_expositor_entra_nas_atracoes(client):
+    edicao = _edicao_semeada()
+    Local.objects.filter(edicao=edicao, codigo="a13").update(nome="Secretaria de Turismo")
+    html = client.get("/mapa/").content.decode()
+    assert "Secretaria de Turismo" in html.split("Salas e atrações")[1]
+    assert "mp-estande--ocupado" in html
+
+
+def test_estande_com_projeto_ignora_o_nome_livre(client):
+    edicao = _edicao_semeada()
+    projeto = _publicado(edicao, titulo="Rota das Águas")
+    Local.objects.filter(edicao=edicao, codigo="a13").update(nome="Nome esquecido", projeto=projeto)
+    html = client.get("/mapa/").content.decode()
+    assert "Rota das Águas" in html
+    assert "Nome esquecido" not in html
 
 
 def test_aqui_marca_a_estacao_e_valor_invalido_e_ignorado(client):

@@ -18,8 +18,8 @@ aberto no celular.
 - **Planta fixa em código** (`mapa/planta.py`): o prédio da Fatec Olímpia
   desenhado a partir da planta do Figma (`PLANTA_FATEC_OLIMPIA.fig`):
   corredor central, 7 salas + sala VIP, secretaria, TI, biblioteca, apoio e WC
-  no lado **A**; 10 salas, cozinha, refeitório e WC no lado **B**; entrada do público pela passagem lateral; 29
-  estandes no corredor (15 na fileira A, 14 na fileira B); 4 pontos de
+  no lado **A**; 10 salas, cozinha, refeitório e WC no lado **B**; entrada do público pela passagem lateral; 31
+  estandes no corredor (15 na fileira A, 16 na fileira B); 4 pontos de
   estação de QR. Cada ponto tem um `codigo` estável (`a01`, `sala-a-03`,
   `qr-entrada`…), posição e tamanho.
 - **Conteúdo no banco** (`mapa.Local`, um por ponto e por edição):
@@ -58,6 +58,9 @@ aberto no celular.
   `publicado` entram na lista; estande com projeto em outro status
   aparece no mapa como ocupado, sem link.
 - Estande sem projeto: desenhado vazio (contorno), sem entrada na lista.
+- Estande sem projeto com nome preenchido (expositor, ex.: Secretaria de
+  Turismo) aparece em "Salas e atrações" e é desenhado como ocupado; com
+  projeto, o nome livre é ignorado.
 - Sala aberta: destacada, com o nome da atração no mapa (abreviado) e na
   lista. Sala fechada: cinza, só o rótulo, fora da lista.
 - Serviços (secretaria, biblioteca, WC, cozinha): sempre desenhados, não
@@ -103,10 +106,10 @@ Não lê nem escreve nada de `votacao`, `banca` ou `resultados`.
 repositório), 17 (testes).
 
 ## Critérios de aceite
-- [x] `semear_mapa` cria 29 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
-      da entrada lateral, 4 estações e a entrada (61 pontos)
+- [x] `semear_mapa` cria 31 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
+      da entrada lateral, 4 estações e a entrada (63 pontos)
       para a edição ativa; rodar de novo não duplica nem apaga edições
-- [x] `--fileiras D,E` gera `D1…D12` e `E1…E14`
+- [x] `--fileiras D,E` gera `D1…D12` e `E1…E16`
 - [x] `GET /mapa/` 200 com e sem edição ativa; com o aviso quando vazio
 - [x] Estande com projeto publicado lista o título com link; sala fechada
       não mostra o nome da atração; sala aberta mostra
