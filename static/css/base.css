@@ -989,6 +989,15 @@ html:has(.visor[open]) { overflow: hidden; }
 .mp-estacao__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 5.5px; fill: var(--cor-acento-texto); }
 .mp-aqui circle { fill: var(--cor-acento); }
 .mp-aqui .mp-aqui__anel { fill: var(--cor-superficie); } /* mais específico que `.mp-aqui circle` */
+/* Radar: dois anéis que se expandem e somem a partir do alvo. Só movimento, sem sombra nem gradiente. */
+.mp-aqui .mp-aqui__pulso { fill: none; stroke: var(--cor-acento); stroke-width: 2; opacity: 0; transform-box: fill-box; transform-origin: center; animation: mapa-radar 2.4s ease-out infinite; }
+.mp-aqui .mp-aqui__pulso--2 { animation-delay: 1.2s; }
+@keyframes mapa-radar {
+  0% { transform: scale(1); opacity: .9; }
+  100% { transform: scale(3.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .mp-aqui .mp-aqui__pulso { animation: none; } }
+@media print { .mp-aqui .mp-aqui__pulso { display: none; } }
 .mp-entrada { fill: var(--cor-acento); }
 .mp-entrada__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 9px; letter-spacing: .08em; fill: var(--cor-acento); }
 

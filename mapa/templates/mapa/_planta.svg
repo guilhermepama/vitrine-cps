@@ -21,7 +21,7 @@ posicionados pela view: nada de cálculo aqui. Estilo só por classe, no base.cs
   {% elif e.tipo == "estacao" %}
   {% if e.aqui %}
   {# A estação marcada vira o ícone "Você está aqui" da legenda (alvo), sem o "QR" por cima. #}
-  <g class="mp-aqui"><title>Você está aqui</title><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__anel" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_anel }}"/><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/></g>
+  <g class="mp-aqui"><title>Você está aqui</title><circle class="mp-aqui__pulso" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__pulso mp-aqui__pulso--2" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__anel" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_anel }}"/><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/></g>
   {% else %}
   <g class="mp-estacao">
     <circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/>
