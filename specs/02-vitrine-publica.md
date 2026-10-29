@@ -105,6 +105,17 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 ### Reivindicar o projeto (`/grupo/`)
 - Quando o representante abre `/grupo/`, o sistema exibe o formulário (campo
   RA e a explicação de que o link aparece **uma vez** e deve ser guardado).
+- **Edição encerrada (alterado em 28/10).** Se existe edição ativa e ela não
+  aceita mais edição (`edicao_aberta()` falso ou `votacao_foi_aberta()`
+  verdadeiro), `/grupo/` mostra, no `GET` e no `POST`, o aviso "O prazo de
+  edição dos projetos acabou" com orientação para procurar a coordenação, e
+  **sem o formulário**. O `POST` responde 403, depois da checagem do rate
+  limit e **antes de ler o RA**: não chama `hash_ra`, não consulta `Projeto`
+  e não conta como falha. O aviso é o mesmo para qualquer RA (ou nenhum),
+  porque o prazo vale para a edição inteira — não revela se um RA existe.
+  Motivo: com a resposta genérica, alunos com RA correto achavam que tinham
+  digitado errado e a coordenação não via que o problema era o prazo. Sem
+  edição ativa, o fluxo segue como antes (resposta genérica).
 - Quando envia o RA, o sistema: (1) **checa o rate limit** e responde 429 se
   estourou, antes de qualquer outra coisa; (2) calcula `hash_ra(ra)` **uma
   única vez** — `cadastro.seguranca.hash_ra` recusa (`ValueError`) o que não
@@ -134,8 +145,7 @@ aprovado, que divulga o evento e **não** tem caminho de voto.
 - Quando dois requests tentam reivindicar o mesmo projeto ao mesmo tempo,
   só um recebe o link; o outro recebe a resposta genérica.
 - Quando o RA é malformado, não existe, já foi reivindicado, é de outra
-  edição, o projeto não está `pre_cadastrado` **ou o prazo de edição já
-  acabou (ou a votação já abriu)**, o sistema responde **a mesma página,
+  edição ou o projeto não está `pre_cadastrado`, o sistema responde **a mesma página,
   com o mesmo status (400) e o mesmo texto**: "Não foi possível acessar com
   esse RA. Confira os números e tente de novo. Se o RA estiver certo, o link
   de edição do grupo pode já ter sido retirado — use o link que foi
@@ -412,7 +422,8 @@ na vitrine), 12 (validar toda entrada, erro genérico), 13 (só ORM) e 14
 
 **Reivindicação**
 - [ ] RA válido de projeto `pre_cadastrado` da edição ativa → mostra o link e grava `reivindicado_em`, hash do token e `token_edicao_gerado_em`; o token em claro não está no banco
-- [ ] RA malformado, RA inexistente, RA já reivindicado, RA de outra edição e RA depois do prazo de edição (ou com a votação aberta) → respostas **idênticas** (status 400 e corpo); o campo do RA volta vazio, sem repetir o digitado
+- [ ] RA malformado, RA inexistente, RA já reivindicado, RA de outra edição e projeto fora de `pre_cadastrado` → respostas **idênticas** (status 400 e corpo); o campo do RA volta vazio, sem repetir o digitado
+- [ ] Edição ativa com prazo vencido ou votação aberta → `GET` e `POST` mostram o aviso de prazo encerrado, sem formulário; `POST` 403 com corpo idêntico para qualquer RA (válido, inexistente, malformado ou vazio), sem chamar `hash_ra`, sem gravar nada e sem contar falha; rate limit estourado continua respondendo 429 antes
 - [ ] Recarregar o POST após o sucesso → resposta genérica, não um segundo link
 - [ ] 2 POSTs simultâneos com o mesmo RA → um link emitido, um genérico
 - [ ] 50 falhas do mesmo IP em 10 min passam; a 51ª → 429; sucesso não conta
@@ -605,6 +616,8 @@ Nenhuma. As três perguntas anteriores foram respondidas pelo coordenador em
 - **Chave do IP**: usar `ip_do_cliente(request)` e `chave_ip(ip)` de
   `cadastro/seguranca.py`; o cabeçalho é `DJANGO_IP_HEADER`.
 - **Reivindicação depois do prazo**: recusar com a resposta genérica.
+  *Revisto em 28/10*: aviso próprio de prazo encerrado, que não depende do
+  RA (ver "Edição encerrada" em Comportamento esperado).
 - **Nome da rota**: `/como-votar/` com `name="como_votar"`
   (`vitrine:como_votar`), porque a spec 03 redireciona por esse nome.
 - **Arquivo antigo no bucket**: apagar com `transaction.on_commit` ao

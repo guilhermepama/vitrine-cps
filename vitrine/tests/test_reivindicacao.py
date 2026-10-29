@@ -115,7 +115,8 @@ def _cenario(nome):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "cenario",
-    ["inexistente", "malformado", "vazio", "ja_reivindicado", "outra_edicao", "prazo_vencido", "votacao_aberta", "fora_de_pre_cadastrado"],
+    # Prazo vencido e votação aberta valem para a edição inteira: têm aviso próprio (testes abaixo).
+    ["inexistente", "malformado", "vazio", "ja_reivindicado", "outra_edicao", "fora_de_pre_cadastrado"],
 )
 def test_respostas_de_falha_sao_identicas(client, cenario):
     ra = _cenario(cenario)
@@ -293,3 +294,71 @@ def test_ra_malformado_nao_consulta_projeto(client):
         r = client.post(URL, {"ra": "abc"})
     assert r.status_code == 400
     assert not any("cadastro_projeto" in c["sql"] for c in consultas.captured_queries)
+
+
+# --- Edição que não aceita mais edição: aviso próprio, igual para qualquer RA ---
+
+AVISO_ENCERRADA = "O prazo de edição dos projetos acabou"
+
+
+def _encerrar(cenario):
+    p = aux.projeto_reivindicavel()
+    (aux.prazo_vencido if cenario == "prazo_vencido" else aux.votacao_aberta)(p)
+    return p
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("cenario", ["prazo_vencido", "votacao_aberta"])
+def test_edicao_encerrada_avisa_o_prazo_sem_reivindicar(client, cenario):
+    p = _encerrar(cenario)
+    r = client.post(URL, {"ra": aux.RA})
+    assert r.status_code == 403
+    html = r.content.decode()
+    assert AVISO_ENCERRADA in html
+    assert "Não foi possível acessar com esse RA" not in html
+    assert 'name="ra"' not in html
+    p.refresh_from_db()
+    assert p.reivindicado_em is None and p.token_edicao_hash in ("", None)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("cenario", ["prazo_vencido", "votacao_aberta"])
+def test_edicao_encerrada_responde_igual_para_qualquer_ra(client, cenario):
+    _encerrar(cenario)
+    respostas = [_recusado(client, ra) for ra in (aux.RA, "9999999", "abc", "")]
+    assert {r.status_code for r in respostas} == {403}
+    assert len({aux.sem_csrf(r.content.decode()) for r in respostas}) == 1
+
+
+@pytest.mark.django_db
+def test_edicao_encerrada_nao_conta_como_falha_nem_le_o_ra(client, monkeypatch):
+    _encerrar("prazo_vencido")
+    def proibido(*args, **kwargs):
+        raise AssertionError("o RA não deve ser processado com a edição encerrada")
+    monkeypatch.setattr(servicos, "hash_ra", proibido)
+    _recusado(client, aux.RA)
+    assert _contadores(client) == (0, 0)
+
+
+@pytest.mark.django_db
+def test_get_com_edicao_encerrada_ja_mostra_o_aviso(client):
+    _encerrar("prazo_vencido")
+    html = client.get(URL).content.decode()
+    assert AVISO_ENCERRADA in html
+    assert 'name="ra"' not in html
+
+
+@pytest.mark.django_db
+def test_get_com_edicao_aberta_mostra_o_formulario(client):
+    aux.projeto_reivindicavel()
+    html = client.get(URL).content.decode()
+    assert 'name="ra"' in html
+    assert AVISO_ENCERRADA not in html
+
+
+@pytest.mark.django_db
+def test_limite_estourado_vem_antes_do_aviso_de_prazo(client):
+    _encerrar("prazo_vencido")
+    request = client.get(URL).wsgi_request
+    cache.set(servicos.chave_falhas_ip(request), servicos.LIMITE_FALHAS_POR_IP, 600)
+    assert _recusado(client, aux.RA).status_code == 429

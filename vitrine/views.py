@@ -91,9 +91,12 @@ def como_votar(request):
 @require_http_methods(["GET", "POST"])
 def grupo(request):
     if request.method == "GET":
-        return render(request, "vitrine/grupo_reivindicar.html")
+        return render(request, "vitrine/grupo_reivindicar.html", {"encerrada": servicos.reivindicacao_encerrada()})
     if servicos.limite_estourado(request):
         return render(request, "vitrine/grupo_limite.html", status=429)
+    # Prazo da edição inteira: não depende do RA, não lê o RA e não conta como falha.
+    if servicos.reivindicacao_encerrada():
+        return render(request, "vitrine/grupo_reivindicar.html", {"encerrada": True}, status=403)
     # O RA só passa daqui para hash_ra: nunca é gravado, logado nem devolvido.
     token = servicos.reivindicar(request.POST.get("ra", "")[:60])
     if token is None:

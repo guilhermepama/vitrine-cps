@@ -20,6 +20,13 @@
     </div>
 
     <div class="acesso__cartao">
+      {% if encerrada %}
+      {# Estado da edição inteira, igual para qualquer RA: não revela se algum RA existe. #}
+      <div class="alerta" role="alert">
+        <strong>O prazo de edição dos projetos acabou</strong>
+        <p>Não é mais possível retirar o link de edição nesta edição da mostra. Se o seu grupo ainda precisa cadastrar o projeto, procure a coordenação do curso.</p>
+      </div>
+      {% else %}
       {% if recusado %}
       <div class="alerta" role="alert">
         <strong>Não foi possível acessar com esse RA</strong>
@@ -33,6 +40,7 @@
         <p class="ajuda" id="ra-ajuda">De 5 a 20 dígitos. Pode digitar com ou sem pontos e traços.</p>
         <button class="botao botao--vermelho botao--bloco" type="submit">Acessar meu projeto</button>
       </form>
+      {% endif %}
     </div>
   </div>
 </section>

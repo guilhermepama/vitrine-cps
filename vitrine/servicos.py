@@ -95,6 +95,17 @@ def _edicao_aceita_edicao(projeto):
     return edicao.edicao_aberta() and not edicao.votacao_foi_aberta()
 
 
+def reivindicacao_encerrada():
+    """True se há edição ativa e ela não aceita mais edição (prazo vencido ou votação aberta).
+
+    Vale para a edição inteira e não depende do RA: dizer isso ao aluno não
+    revela se um RA existe. Sem edição ativa, devolve False e o fluxo segue
+    para a resposta genérica, como antes.
+    """
+    edicao = Edicao.objects.ativa()
+    return edicao is not None and not (edicao.edicao_aberta() and not edicao.votacao_foi_aberta())
+
+
 def reivindicar(ra):
     """Devolve o token de edição em claro (mostrar uma vez) ou None.
 
