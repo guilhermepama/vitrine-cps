@@ -2,9 +2,9 @@
 
 - **Responsável**: Guilherme (@guilhermepama), coordenador — app novo
   `mapa/`, uma linha em `config/settings.py` e em `config/urls.py`,
-  bloco novo no `base.css`
-- **Status**: em implementação
-- **Depende de**: ADR-002 (stack), ADR-015 (proposta: planta fixa em
+  bloco novo no `base.css`, `pytest.ini` (testpaths)
+- **Status**: entregue (PR #95)
+- **Depende de**: ADR-002 (stack), ADR-015 (aceita: planta fixa em
   código, conteúdo no banco), spec 01 (`Edicao`, `Projeto`), spec 07
   (identidade visual)
 
@@ -65,6 +65,9 @@ aberto no celular.
   qualquer sala.
 - `?aqui=qr-02`: o ponto ganha o marcador vermelho "Você está aqui" nas
   duas orientações e no título da impressão.
+- `?aqui=` só marca estação de QR; outro ponto válido é tratado como
+  ausente.
+- Projeto só em estande e só da mesma edição (validação do model).
 - Nenhum `href`, `action` ou `src` da página aponta para `/entrar`,
   `/estacao`, `/votar`, `/votos` ou `/visitantes` (G8).
 - Número de queries constante (dois `select` + `select_related`).
@@ -100,18 +103,18 @@ Não lê nem escreve nada de `votacao`, `banca` ou `resultados`.
 repositório), 17 (testes).
 
 ## Critérios de aceite
-- [ ] `semear_mapa` cria 26 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
+- [x] `semear_mapa` cria 26 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
       da entrada lateral, 4 estações e a entrada (58 pontos)
       para a edição ativa; rodar de novo não duplica nem apaga edições
-- [ ] `--fileiras D,E` gera `D1…D12` e `E1…E14`
-- [ ] `GET /mapa/` 200 com e sem edição ativa; com o aviso quando vazio
-- [ ] Estande com projeto publicado lista o título com link; sala fechada
+- [x] `--fileiras D,E` gera `D1…D12` e `E1…E14`
+- [x] `GET /mapa/` 200 com e sem edição ativa; com o aviso quando vazio
+- [x] Estande com projeto publicado lista o título com link; sala fechada
       não mostra o nome da atração; sala aberta mostra
-- [ ] `?aqui=` válido marca "Você está aqui"; inválido não quebra
-- [ ] HTML sem `style=`; `base.css` continua sem largura fixa > 360 px
-- [ ] Nenhum link de voto (G8)
-- [ ] Um projeto não pode estar em dois estandes da mesma edição
-- [ ] Testes do caminho crítico passando
+- [x] `?aqui=` válido marca "Você está aqui"; inválido não quebra
+- [x] HTML sem `style=`; `base.css` continua sem largura fixa > 360 px
+- [x] Nenhum link de voto (G8)
+- [x] Um projeto não pode estar em dois estandes da mesma edição
+- [x] Testes do caminho crítico passando
 
 ## Perguntas em aberto
 - Numeração real das salas (porta): confirmada na montagem, 28/10, e

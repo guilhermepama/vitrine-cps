@@ -82,7 +82,7 @@ _SALAS_A = (
     ("sala-a-02", "sala", "A2", ""),
     ("sala-a-01", "sala", "A1", ""),
 )
-# 13 vãos: os dois depois da cozinha não têm nome na planta do Figma; o admin ajusta.
+# 13 vãos: WC, cozinha e refeitório no fundo, depois as salas B10 a B1 até a entrada.
 _SALAS_B = (
     ("wc-b", "servico", "WC", "Banheiro masculino"),
     ("cozinha", "servico", "Cozinha", ""),

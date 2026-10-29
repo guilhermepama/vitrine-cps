@@ -577,7 +577,7 @@ Formato:
     celular, nota do boletim em outra escala.
 
 ## ADR-015 — Mapa do evento: planta fixa em código, conteúdo no banco
-- Status: proposta
+- Status: aceita (coordenação, 29/10: exceção ao congelamento de 27/10; app isolado, nada em votacao/ muda)
 - Data: 2026-10-28
 - Contexto: o evento (29/10) precisa de um mapa como o de feiras e
   convenções, impresso ao lado de cada estação de QR e aberto no celular:
@@ -585,7 +585,7 @@ Formato:
   "você está aqui". A montagem do espaço é em 28/10, com o GTUR, e a
   numeração das salas só se confirma nesse dia. Entra depois do
   congelamento (27/10), então precisa ser isolado do que já está testado.
-- Decisão (proposta):
+- Decisão:
   - **App novo `mapa/`**, do coordenador, sem FK saindo dele para
     `votacao`, `banca` ou `resultados`; depende só de `cadastro`
     (`Edicao`, `Projeto`). Nada em `votacao/` muda: o mapa fica impresso

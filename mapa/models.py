@@ -1,5 +1,6 @@
 """Conteúdo do mapa do evento (spec 08, ADR-015). A geometria está em `planta.py`."""
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from cadastro.models import Edicao, Projeto
@@ -40,6 +41,14 @@ class Local(models.Model):
 
     def __str__(self):
         return self.rotulo or self.codigo
+
+    def clean(self):
+        if self.projeto_id is None:
+            return
+        if self.tipo != self.Tipo.ESTANDE:
+            raise ValidationError({"projeto": "Só estande recebe projeto."})
+        if self.projeto.turma.edicao_id != self.edicao_id:
+            raise ValidationError({"projeto": "O projeto é de outra edição."})
 
     @property
     def nome_publico(self):

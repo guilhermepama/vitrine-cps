@@ -71,6 +71,9 @@ def mapa(request):
 
     elementos = [_elemento(p, locais.get(p.codigo), aqui) for p in planta.pontos()]
     por_codigo = {e["codigo"]: e for e in elementos}
+    alvo = por_codigo.get(aqui)
+    if alvo is None or alvo["tipo"] != "estacao":
+        alvo = None  # "você está aqui" só em estação de QR; outro ponto vira ausente
     estandes = sorted(
         (e for e in elementos if e["tipo"] == "estande" and e["publicado"]),
         key=lambda e: (e["paisagem"].fileira, e["paisagem"].ordem),
@@ -87,7 +90,7 @@ def mapa(request):
             "salas": salas,
             "fileiras": fileiras,
             "em_montagem": not locais,
-            "aqui": por_codigo.get(aqui),
+            "aqui": alvo,
             "vistas": {"paisagem": _vista(elementos, "paisagem"), "retrato": _vista(elementos, "retrato")},
         },
     )

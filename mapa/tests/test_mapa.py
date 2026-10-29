@@ -3,6 +3,7 @@
 import re
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.core.management import call_command
 from django.db import IntegrityError
 from django.test.utils import CaptureQueriesContext
@@ -83,6 +84,24 @@ def test_projeto_em_um_estande_so():
         Local.objects.filter(edicao=edicao, codigo="a02").update(projeto=projeto)
 
 
+def test_projeto_so_em_estande_e_da_mesma_edicao():
+    edicao = _edicao_semeada()
+    projeto = _publicado(edicao)
+    estande = Local.objects.get(edicao=edicao, codigo="a01")
+    estande.projeto = projeto
+    estande.full_clean()  # estande + mesma edição: passa
+
+    sala = Local.objects.get(edicao=edicao, codigo="sala-a-01")
+    sala.projeto = projeto
+    with pytest.raises(ValidationError, match="Só estande recebe projeto."):
+        sala.full_clean()
+
+    outra = fabricas.edicao(nome="2026/1", ativa=False)
+    estande.projeto = _publicado(outra, "De Outra Edição")
+    with pytest.raises(ValidationError, match="O projeto é de outra edição."):
+        estande.full_clean()
+
+
 # --- Página -----------------------------------------------------------------------
 
 
@@ -127,6 +146,15 @@ def test_aqui_marca_a_estacao_e_valor_invalido_e_ignorado(client):
         resposta = client.get("/mapa/", {"aqui": ruim})
         assert resposta.status_code == 200
         assert "mp-aqui" not in resposta.content.decode()
+
+
+def test_aqui_em_ponto_que_nao_e_estacao_e_ignorado(client):
+    _edicao_semeada()
+    for ponto in ("a01", "sala-a-01", "entrada"):
+        resposta = client.get("/mapa/", {"aqui": ponto})
+        html = resposta.content.decode()
+        assert resposta.status_code == 200
+        assert "mp-aqui" not in html and "Você está aqui" not in html
 
 
 def test_sem_estilo_inline_nem_caminho_de_voto(client):
