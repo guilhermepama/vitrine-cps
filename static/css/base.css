@@ -988,7 +988,7 @@ html:has(.visor[open]) { overflow: hidden; }
 .mp-estacao circle { fill: var(--cor-acento); }
 .mp-estacao__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 5.5px; fill: var(--cor-acento-texto); }
 .mp-aqui circle { fill: var(--cor-acento); }
-.mp-aqui__anel { fill: var(--cor-superficie); }
+.mp-aqui .mp-aqui__anel { fill: var(--cor-superficie); } /* mais específico que `.mp-aqui circle` */
 .mp-entrada { fill: var(--cor-acento); }
 .mp-entrada__texto { font-family: var(--fonte-mono); font-weight: 500; font-size: 9px; letter-spacing: .08em; fill: var(--cor-acento); }
 

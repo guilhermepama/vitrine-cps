@@ -19,11 +19,15 @@ posicionados pela view: nada de cálculo aqui. Estilo só por classe, no base.cs
     <text class="mp-estande__texto" x="{{ g.cx }}" y="{{ g.cy }}" text-anchor="middle" dominant-baseline="central">{{ e.rotulo }}</text>
   </g>
   {% elif e.tipo == "estacao" %}
-  {% if e.aqui %}<g class="mp-aqui"><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__anel" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_anel }}"/></g>{% endif %}
+  {% if e.aqui %}
+  {# A estação marcada vira o ícone "Você está aqui" da legenda (alvo), sem o "QR" por cima. #}
+  <g class="mp-aqui"><title>Você está aqui</title><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_aqui }}"/><circle class="mp-aqui__anel" cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_anel }}"/><circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/></g>
+  {% else %}
   <g class="mp-estacao">
     <circle cx="{{ g.cx }}" cy="{{ g.cy }}" r="{{ vista.raio_estacao }}"/>
     <text class="mp-estacao__texto" x="{{ g.cx }}" y="{{ g.cy }}" text-anchor="middle" dominant-baseline="central">QR</text>
   </g>
+  {% endif %}
   {% elif e.tipo == "entrada" %}
   <rect class="mp-entrada" x="{{ g.x }}" y="{{ g.y }}" width="{{ g.w }}" height="{{ g.h }}"/>
   <text class="mp-entrada__texto" x="{{ vista.entrada.x }}" y="{{ vista.entrada.y }}" text-anchor="middle" dominant-baseline="middle"{% if vista.entrada.rotacao %} transform="rotate({{ vista.entrada.rotacao }} {{ vista.entrada.x }} {{ vista.entrada.y }})"{% endif %}>{{ vista.entrada.seta }} ENTRADA</text>
