@@ -103,7 +103,7 @@ _SALAS_B = (
 # (x, y) do canto superior esquerdo. Levantadas no dia, não derivadas do Figma.
 ESTANDE_W, ESTANDE_H = 24, 17
 _ESTANDES_A = (921, 887, 850, 814, 766, 726, 694, 664, 638, 544, 494, 459, 421, 381, 346)
-_ESTANDES_B = (930, 895, 861, 818, 778, 741, 697, 662, 624, 559, 522, 481, 440, 388)
+_ESTANDES_B = (930, 895, 861, 818, 778, 741, 697, 662, 624, 559, 522, 481, 440, 388, 350, 312)
 _Y_ESTANDES_A, _Y_ESTANDES_B = 90, 120
 
 ESTACAO_R = 6

@@ -36,9 +36,11 @@ def _elemento(ponto, local, aqui):
     aberta = local.aberta if local else True
     nome = (local.nome if local else ponto.nome) if aberta else ""
     if ponto.tipo == "estande":
-        nome = ""
+        # Estande sem projeto pode ter expositor com nome (ex.: Secretaria de Turismo);
+        # com projeto, quem aparece é o projeto, na lista de estandes.
+        nome = local.nome if local is not None and projeto is None else ""
     # Serviço só vira atração quando o admin trocou o nome padrão (WC continua WC).
-    atracao = bool(nome) and (ponto.tipo == "sala" or (local is not None and local.nome != ponto.nome))
+    atracao = bool(nome) and (ponto.tipo in ("sala", "estande") or (local is not None and local.nome != ponto.nome))
     return {
         "atracao": atracao,
         "codigo": ponto.codigo,
@@ -47,7 +49,7 @@ def _elemento(ponto, local, aqui):
         "nome": nome,
         "linhas": _quebrar(nome) if ponto.tipo in ("sala", "servico") else [],  # passagem: só o rótulo
         "aberta": aberta,
-        "ocupado": projeto is not None,
+        "ocupado": projeto is not None or (ponto.tipo == "estande" and bool(nome)),
         "publicado": publicado,
         "aqui": ponto.codigo == aqui,
         "paisagem": ponto,
