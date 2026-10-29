@@ -145,5 +145,10 @@ def pontos(fileiras=("A", "B")):
     return lista
 
 
+def estacoes():
+    """(codigo, nome) das estações de QR, na ordem da planta — choices para `votacao.Estacao.ponto`."""
+    return [(f"qr-{i:02d}", nome) for i, (_x, _y, nome) in enumerate(_ESTACOES, start=1)]
+
+
 def por_codigo(fileiras=("A", "B")):
     return {p.codigo: p for p in pontos(fileiras)}

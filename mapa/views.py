@@ -58,8 +58,12 @@ def _elemento(ponto, local, aqui):
     }
 
 
-def mapa(request):
-    aqui = request.GET.get("aqui", "")
+def contexto_da_planta(aqui=""):
+    """Planta, listas e marcação "Você está aqui" para a edição ativa.
+
+    Usado pela página pública do mapa e pela tela da estação (`votacao`), que
+    desenha a planta ao lado do QR com a própria estação marcada. Só leitura.
+    """
     if not _CODIGO.fullmatch(aqui):
         aqui = ""  # G12: valor fora do padrão vira "sem marcação", sem erro
 
@@ -83,19 +87,19 @@ def mapa(request):
     salas = [e for e in elementos if e["atracao"] and e["local"]]
     fileiras = sorted({e["paisagem"].fileira for e in elementos if e["tipo"] == "estande"})
 
-    return render(
-        request,
-        "mapa/mapa.html",
-        {
-            "edicao": edicao,
-            "estandes": estandes,
-            "salas": salas,
-            "fileiras": fileiras,
-            "em_montagem": not locais,
-            "aqui": alvo,
-            "vistas": {"paisagem": _vista(elementos, "paisagem"), "retrato": _vista(elementos, "retrato")},
-        },
-    )
+    return {
+        "edicao": edicao,
+        "estandes": estandes,
+        "salas": salas,
+        "fileiras": fileiras,
+        "em_montagem": not locais,
+        "aqui": alvo,
+        "vistas": {"paisagem": _vista(elementos, "paisagem"), "retrato": _vista(elementos, "retrato")},
+    }
+
+
+def mapa(request):
+    return render(request, "mapa/mapa.html", contexto_da_planta(request.GET.get("aqui", "")))
 
 
 _MARGEM = 24  # espaço em volta do prédio para o texto "ENTRADA", em qualquer lado

@@ -19,6 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from qrcode.image.svg import SvgPathImage
 
+from mapa.views import contexto_da_planta
 from votacao.assinatura import ROTACAO_QR, nova_janela
 from votacao.models import Estacao
 
@@ -65,6 +66,8 @@ def estacao(request, estacao_id):
         # SVG gerado aqui pela biblioteca qrcode a partir da nossa URL.
         "qr_svg": mark_safe(_svg_da_estacao(request, estacao_)),
         "rotacao": ROTACAO_QR,
+        # Planta do evento com "Você está aqui" na estação (spec 08, via mapa.views).
+        "mapa": contexto_da_planta(estacao_.ponto),
     }
     return render(request, "votacao/estacao.html", contexto)
 
