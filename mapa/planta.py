@@ -1,11 +1,11 @@
 """Planta fixa do prédio da Fatec Olímpia (spec 08, ADR-015).
 
 As coordenadas vêm da planta desenhada no Figma (PLANTA_FATEC_OLIMPIA.fig):
-o eixo x corre ao longo do corredor, com a entrada na ponta direita; o eixo y
-atravessa o prédio, com o lado A (secretaria, biblioteca) em cima. Tudo em
-"unidades de mapa" — o SVG usa o mesmo sistema, em paisagem. Em retrato o
-mapa gira 90° no sentido horário: a entrada vai para baixo e o lado A para a
-direita, como para quem entra.
+o eixo x corre ao longo do corredor; o eixo y atravessa o prédio, com o lado A
+(secretaria, biblioteca) em cima. A entrada do público é a passagem lateral,
+na parede do lado A. Tudo em "unidades de mapa" — o SVG usa o mesmo sistema,
+em paisagem. Em retrato o mapa gira 90° no sentido horário: o lado A vai para
+a direita e a entrada fica na borda direita.
 
 Mover um ponto é editar este arquivo (ADR-015). O conteúdo de cada ponto
 (rótulo, atração, porta, projeto) vive em `mapa.Local`, ligado pelo `codigo`.
@@ -53,7 +53,7 @@ class Ponto:
         return round(self.y + self.h / 2, 1)
 
     def em_retrato(self):
-        """Gira 90° no sentido horário: entrada embaixo, lado A à direita."""
+        """Gira 90° no sentido horário: lado A à direita."""
         return replace(self, x=round(ALTURA - (self.y + self.h), 1), y=self.x, w=self.h, h=self.w)
 
 
@@ -99,14 +99,19 @@ _SALAS_B = (
     ("sala-b-01", "sala", "B1", ""),
 )
 
-# --- Estandes (centro em px no Figma), numerados a partir da entrada --------------
-_ESTANDES_A = (6248, 6008, 5693, 5456, 4366, 4175, 3820, 3611, 3281, 3057, 2641, 2420)
-_ESTANDES_B = (6001, 5754, 5464, 5204, 4890, 4665, 4433, 4201, 3936, 3648, 3359, 3112, 2821, 2603)
+# --- Estandes, estações e entrada: posição final da montagem (29/10), em unidades de mapa ---
+# (x, y) do canto superior esquerdo. Levantadas no dia, não derivadas do Figma.
 ESTANDE_W, ESTANDE_H = 24, 17
+_ESTANDES_A = (921, 887, 850, 814, 766, 726, 694, 664, 638, 544, 494, 459, 421, 381, 346)
+_ESTANDES_B = (930, 895, 861, 818, 778, 741, 697, 662, 624, 559, 522, 481, 440, 388)
+_Y_ESTANDES_A, _Y_ESTANDES_B = 90, 120
 
-# --- Estações de QR (centro em px), a partir da entrada ---------------------------
-_ESTACOES = ((6703, "Entrada"), (4833, "Secretaria"), (3812, "Corredor · meio"), (2962, "Corredor · fundo"))
 ESTACAO_R = 6
+# (x, y, nome) do canto superior esquerdo do círculo (diâmetro 2·ESTACAO_R).
+_ESTACOES = ((603, 72, "Entrada"), (845, 110, "Secretaria"), (718, 108, "Corredor · meio"), (466, 109, "Corredor · fundo"))
+
+# Entrada do público: a passagem lateral, na parede do lado A (y < 0 = fora do prédio, em cima).
+_ENTRADA = (583.2, -2, 35.8, 4)
 
 
 def _salas(paredes, lado, y, h):
@@ -117,21 +122,11 @@ def _salas(paredes, lado, y, h):
     return pontos
 
 
-def _estandes(centros, lado, fileira, y):
+def _estandes(xs, lado, fileira, y):
     # O código usa o lado fixo (a/b); só o rótulo muda com a letra escolhida.
     return [
-        Ponto(
-            f"{lado}{i:02d}",
-            "estande",
-            round(_x(cx) - ESTANDE_W / 2, 1),
-            y,
-            ESTANDE_W,
-            ESTANDE_H,
-            fileira=fileira,
-            ordem=i,
-            rotulo=f"{fileira}{i}",
-        )
-        for i, cx in enumerate(centros, start=1)
+        Ponto(f"{lado}{i:02d}", "estande", x, y, ESTANDE_W, ESTANDE_H, fileira=fileira, ordem=i, rotulo=f"{fileira}{i}")
+        for i, x in enumerate(xs, start=1)
     ]
 
 
@@ -142,14 +137,11 @@ def pontos(fileiras=("A", "B")):
     lista = []
     lista += _salas(_PAREDES_A, _SALAS_A, 0, topo)
     lista += _salas(_PAREDES_B, _SALAS_B, base, ALTURA - base)
-    lista += _estandes(_ESTANDES_A, "a", a, topo + 3)
-    lista += _estandes(_ESTANDES_B, "b", b, base - 3 - ESTANDE_H)
-    meio = (topo + base) / 2
-    for i, (cx, nome) in enumerate(_ESTACOES, start=1):
-        lista.append(
-            Ponto(f"qr-{i:02d}", "estacao", round(_x(cx) - ESTACAO_R, 1), round(meio - ESTACAO_R, 1), ESTACAO_R * 2, ESTACAO_R * 2, ordem=i, rotulo="QR", nome=nome)
-        )
-    lista.append(Ponto("entrada", "entrada", LARGURA - 4, topo, 4, base - topo, rotulo="Entrada"))
+    lista += _estandes(_ESTANDES_A, "a", a, _Y_ESTANDES_A)
+    lista += _estandes(_ESTANDES_B, "b", b, _Y_ESTANDES_B)
+    for i, (x, y, nome) in enumerate(_ESTACOES, start=1):
+        lista.append(Ponto(f"qr-{i:02d}", "estacao", x, y, ESTACAO_R * 2, ESTACAO_R * 2, ordem=i, rotulo="QR", nome=nome))
+    lista.append(Ponto("entrada", "entrada", *_ENTRADA, rotulo="Entrada"))
     return lista
 
 

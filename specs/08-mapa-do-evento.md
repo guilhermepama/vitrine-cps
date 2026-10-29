@@ -18,8 +18,8 @@ aberto no celular.
 - **Planta fixa em código** (`mapa/planta.py`): o prédio da Fatec Olímpia
   desenhado a partir da planta do Figma (`PLANTA_FATEC_OLIMPIA.fig`):
   corredor central, 7 salas + sala VIP, secretaria, TI, biblioteca, apoio e WC
-  no lado **A**; 10 salas, cozinha, refeitório e WC no lado **B**; entrada na ponta; 26
-  estandes no corredor (12 na fileira A, 14 na fileira B); 4 pontos de
+  no lado **A**; 10 salas, cozinha, refeitório e WC no lado **B**; entrada do público pela passagem lateral; 29
+  estandes no corredor (15 na fileira A, 14 na fileira B); 4 pontos de
   estação de QR. Cada ponto tem um `codigo` estável (`a01`, `sala-a-03`,
   `qr-entrada`…), posição e tamanho.
 - **Conteúdo no banco** (`mapa.Local`, um por ponto e por edição):
@@ -103,8 +103,8 @@ Não lê nem escreve nada de `votacao`, `banca` ou `resultados`.
 repositório), 17 (testes).
 
 ## Critérios de aceite
-- [x] `semear_mapa` cria 26 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
-      da entrada lateral, 4 estações e a entrada (58 pontos)
+- [x] `semear_mapa` cria 29 estandes, 18 salas (17 + VIP), 8 serviços, a passagem
+      da entrada lateral, 4 estações e a entrada (61 pontos)
       para a edição ativa; rodar de novo não duplica nem apaga edições
 - [x] `--fileiras D,E` gera `D1…D12` e `E1…E14`
 - [x] `GET /mapa/` 200 com e sem edição ativa; com o aviso quando vazio

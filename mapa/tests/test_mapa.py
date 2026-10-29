@@ -39,17 +39,17 @@ def test_planta_tem_os_pontos_da_spec():
     por_tipo = {}
     for p in pontos:
         por_tipo[p.tipo] = por_tipo.get(p.tipo, 0) + 1
-    assert por_tipo == {"estande": 26, "sala": 18, "servico": 8, "passagem": 1, "estacao": 4, "entrada": 1}
+    assert por_tipo == {"estande": 29, "sala": 18, "servico": 8, "passagem": 1, "estacao": 4, "entrada": 1}
     assert len({p.codigo for p in pontos}) == len(pontos)
 
 
-def test_retrato_e_a_paisagem_girada_com_a_entrada_embaixo_e_o_lado_a_a_direita():
+def test_retrato_e_a_paisagem_girada_com_o_lado_a_a_direita():
     por = planta.por_codigo()
     entrada = por["entrada"].em_retrato()
-    assert entrada.y + entrada.h == pytest.approx(planta.LARGURA)
+    assert entrada.x + entrada.w >= planta.ALTURA  # entrada lateral (parede A) vai para a borda direita
     a1, b1 = por["a01"].em_retrato(), por["b01"].em_retrato()
     assert a1.x > b1.x  # fileira A à direita de quem entra
-    assert a1.y > por["a12"].em_retrato().y  # numeração cresce a partir da entrada (embaixo)
+    assert a1.y > por["a15"].em_retrato().y  # numeração cresce da ponta direita (embaixo no retrato)
 
 
 def test_letras_das_fileiras_mudam_so_o_rotulo():
@@ -63,10 +63,10 @@ def test_letras_das_fileiras_mudam_so_o_rotulo():
 
 def test_semear_cria_os_pontos_da_edicao_ativa_e_nao_duplica():
     edicao = _edicao_semeada()
-    assert Local.objects.filter(edicao=edicao).count() == 58
+    assert Local.objects.filter(edicao=edicao).count() == 61
     Local.objects.filter(edicao=edicao, codigo="sala-a-01").update(rotulo="Sala 12", nome="Robótica")
     call_command("semear_mapa")
-    assert Local.objects.filter(edicao=edicao).count() == 58
+    assert Local.objects.filter(edicao=edicao).count() == 61
     assert Local.objects.get(edicao=edicao, codigo="sala-a-01").nome == "Robótica"
 
 

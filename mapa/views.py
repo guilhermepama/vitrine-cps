@@ -96,24 +96,36 @@ def mapa(request):
     )
 
 
-_MARGEM = 8
-_FAIXA_ENTRADA = 34  # espaço fora do prédio para o texto "ENTRADA"
+_MARGEM = 24  # espaço em volta do prédio para o texto "ENTRADA", em qualquer lado
+
+
+def _texto_da_entrada(ponto, lado_predio_w, lado_predio_h):
+    """Posição, rotação e seta do texto "ENTRADA", do lado de fora do prédio, apontando para dentro."""
+    cx, cy = ponto.cx, ponto.cy
+    if cy <= 0:
+        return {"x": _n(cx), "y": _n(ponto.y - 10), "rotacao": "", "seta": "▼"}
+    if cy >= lado_predio_h:
+        return {"x": _n(cx), "y": _n(ponto.y + ponto.h + 10), "rotacao": "", "seta": "▲"}
+    if cx >= lado_predio_w:
+        return {"x": _n(ponto.x + ponto.w + 10), "y": _n(cy), "rotacao": "-90", "seta": "▲"}
+    return {"x": _n(ponto.x - 10), "y": _n(cy), "rotacao": "90", "seta": "▲"}
 
 
 def _vista(elementos, orientacao):
     """Elementos com a geometria da orientação pedida, mais o quadro, o corredor e a entrada."""
     largura, altura = planta.LARGURA, planta.ALTURA
     topo, base = planta.CORREDOR
+    entrada_ponto = next(e[orientacao] for e in elementos if e["tipo"] == "entrada")
     if orientacao == "paisagem":
         predio = {"w": _n(largura), "h": _n(altura)}
         corredor = {"x": "0", "y": _n(topo), "w": _n(largura), "h": _n(base - topo)}
-        entrada = {"x": _n(largura + 14), "y": _n((topo + base) / 2), "rotacao": "-90"}
-        viewbox = f"{-_MARGEM} {-_MARGEM} {largura + _MARGEM + _FAIXA_ENTRADA} {altura + 2 * _MARGEM}"
+        entrada = _texto_da_entrada(entrada_ponto, largura, altura)
+        viewbox = f"{-_MARGEM} {-_MARGEM} {largura + 2 * _MARGEM} {altura + 2 * _MARGEM}"
     else:
         predio = {"w": _n(altura), "h": _n(largura)}
         corredor = {"x": _n(altura - base), "y": "0", "w": _n(base - topo), "h": _n(largura)}
-        entrada = {"x": _n(altura - (topo + base) / 2), "y": _n(largura + 16), "rotacao": ""}
-        viewbox = f"{-_MARGEM} {-_MARGEM} {altura + 2 * _MARGEM} {largura + _MARGEM + _FAIXA_ENTRADA}"
+        entrada = _texto_da_entrada(entrada_ponto, altura, largura)
+        viewbox = f"{-_MARGEM} {-_MARGEM} {altura + 2 * _MARGEM} {largura + 2 * _MARGEM}"
     return {
         "orientacao": orientacao,
         "viewbox": viewbox,
