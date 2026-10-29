@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Mapa do evento (spec 08): planta em SVG nas duas orientações (CSS decide qual aparece),
+legenda, estandes com projeto e salas abertas. `?aqui=<codigo>` marca "Você está aqui" —
+é a versão impressa ao lado de cada estação de QR. Nenhum caminho de voto (G8).
+{% endcomment %}
+
+{% block titulo %}Mapa do evento — Vitrine Fatec{% endblock %}
+
+{% block meta %}
+  <meta name="description" content="Mapa da Conexão Fatec: onde ficam os estandes dos projetos e as atrações nas salas da Fatec Olímpia.">
+  <meta name="robots" content="noindex">
+  <script src="{% static 'js/menu.js' %}"></script>
+{% endblock %}
+
+{% block menu %}
+{% include "vitrine/_nav_principal.html" with pagina="mapa" %}
+{% endblock %}
+
+{% block classe_main %}mapa{% endblock %}
+
+{% block conteudo %}
+<section class="mapa__cabeca">
+  <div class="container">
+    <p class="mono">Conexão Fatec{% if edicao %} · {{ edicao.nome }} · {{ edicao.data_evento|date:"d.m.Y" }}{% endif %}</p>
+    <h1 class="display">Mapa do evento<span class="ponto">.</span></h1>
+    {% if aqui %}
+    <p class="mapa__aqui"><span class="mapa__pino" aria-hidden="true"></span><strong>Você está aqui:</strong> {{ aqui.nome }}</p>
+    {% endif %}
+    {% if em_montagem %}<p class="mapa__aviso mono">Mapa em montagem — os estandes e as atrações aparecem aqui no dia do evento.</p>{% endif %}
+  </div>
+</section>
+
+<section class="mapa__planta">
+  <div class="container">
+    {% include "mapa/_planta.svg" with vista=vistas.paisagem %}
+    {% include "mapa/_planta.svg" with vista=vistas.retrato %}
+    <ul class="mapa__legenda mono">
+      <li><span class="mapa__amostra mapa__amostra--estande" aria-hidden="true"></span>Estande com projeto</li>
+      <li><span class="mapa__amostra mapa__amostra--atracao" aria-hidden="true"></span>Sala com atração</li>
+      <li><span class="mapa__amostra mapa__amostra--fechada" aria-hidden="true"></span>Sala fechada</li>
+      <li><span class="mapa__amostra mapa__amostra--qr" aria-hidden="true"></span>Estação de QR para votar</li>
+      {% if aqui %}<li><span class="mapa__amostra mapa__amostra--aqui" aria-hidden="true"></span>Você está aqui</li>{% endif %}
+    </ul>
+  </div>
+</section>
+
+<section class="mapa__listas">
+  <div class="container mapa__grade">
+    <div>
+      <h2 class="display">Estandes<span class="ponto">.</span></h2>
+      {% if estandes %}
+      {% for fileira in fileiras %}
+      <h3 class="mono">Fileira {{ fileira }}</h3>
+      <ol class="mapa__lista">
+        {% for e in estandes %}{% if e.paisagem.fileira == fileira %}
+        <li><span class="mapa__num">{{ e.rotulo }}</span><a href="{% url 'vitrine:projeto' e.local.projeto.slug %}">{{ e.local.projeto.titulo }}</a><span class="mapa__turma mono">{{ e.local.projeto.turma.curso.sigla }}</span></li>
+        {% endif %}{% endfor %}
+      </ol>
+      {% endfor %}
+      {% else %}
+      <p class="mapa__vazio">Os projetos serão distribuídos pelos estandes na montagem do evento.</p>
+      {% endif %}
+    </div>
+    <div>
+      <h2 class="display">Salas e atrações<span class="ponto">.</span></h2>
+      {% if salas %}
+      <ol class="mapa__lista">
+        {% for e in salas %}
+        <li><span class="mapa__num">{{ e.rotulo }}</span><span>{{ e.nome }}{% if e.local.descricao %} <span class="mapa__descricao">— {{ e.local.descricao }}</span>{% endif %}</span></li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <p class="mapa__vazio">As atrações das salas aparecem aqui no dia do evento.</p>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block rodape_edicao %}{% if edicao %}<span>Edição {{ edicao.nome }}</span>{% endif %}{% endblock %}

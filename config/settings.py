@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "votacao",
     "banca",
     "resultados",
+    "mapa",
 ]
 
 MIDDLEWARE = [
