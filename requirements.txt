@@ -1,6 +1,6 @@
 # Dependências do Vitrine Fatec — lista fechada pela ADR-002.
 # Biblioteca nova = proposta em docs/02-decisoes.md antes de entrar aqui.
-Django==5.2.17
+Django==5.2.18
 psycopg[binary]==3.3.6
 dj-database-url==3.1.2
 gunicorn==26.2.0
