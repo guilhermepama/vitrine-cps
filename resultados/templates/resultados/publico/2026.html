@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% load static %}
+{% comment %}
+Resultado público da Conexão Fatec 2026 (spec 09). Página estática: os números são um
+retrato do resultado oficial, calculado na planilha da coordenação a partir das fichas
+conferidas e das avaliações do público (ADR-012, ADR-013), e conferidos de novo antes do PR.
+Não consulta o banco. Nenhum caminho de voto (G8).
+{% endcomment %}
+
+{% block titulo %}Resultado da Conexão Fatec 2026 — Vitrine Fatec{% endblock %}
+
+{% block meta %}
+  <meta name="description" content="Ranking por curso da Conexão Fatec 2026 (Fatec Olímpia), com as notas da banca, dos avaliadores convidados e do público, e como a nota final foi calculada.">
+  <link rel="stylesheet" href="{% static 'css/resultado.css' %}">
+  <script src="{% static 'js/menu.js' %}"></script>
+{% endblock %}
+
+{% block menu %}
+{% include "vitrine/_nav_principal.html" with pagina="resultado" %}
+{% endblock %}
+
+{% block classe_main %}rp{% endblock %}
+
+{% block conteudo %}
+<section class="rp-abertura"><div class="container">
+<p class="rp-sobretitulo">Conexão Fatec 2026 · Mostra de 29 de outubro · Fatec Olímpia</p>
+<h1>Resultado</h1>
+<p class="rp-lead">Um primeiro lugar por curso. Cada curso teve banca e critérios próprios, então a comparação é feita dentro do curso. Abaixo de cada ranking estão as notas de cada fonte e os pontos que elas renderam, para que qualquer pessoa refaça a conta. Antes dos rankings, explicamos como a nota final foi calculada.</p>
+<div class="rp-campeoes"><a class="rp-campeao" href="#dsm">
+<span class="rp-campeao__curso">DSM · 1º lugar</span>
+<span class="rp-campeao__nome">RotaSaúde</span>
+<span class="rp-campeao__turma">Desenvolvimento de Software Multiplataforma · DSM · 3º sem.</span>
+<span class="rp-campeao__nota"><b>92,68</b> pontos</span>
+</a><a class="rp-campeao" href="#gtur">
+<span class="rp-campeao__curso">GTUR · 1º lugar</span>
+<span class="rp-campeao__nome">Sabores que Transformam (Reaproveitamento)</span>
+<span class="rp-campeao__turma">Gestão de Turismo · GTUR · 3º sem.</span>
+<span class="rp-campeao__nota"><b>87,15</b> pontos</span>
+</a><a class="rp-campeao" href="#em">
+<span class="rp-campeao__curso">EM · 1º lugar</span>
+<span class="rp-campeao__nome">ALÉM DOS NÚMEROS</span>
+<span class="rp-campeao__turma">3º ano do Ensino Médio · E.E. Wilquem</span>
+<span class="rp-campeao__nota"><b>80,00</b> pontos</span>
+</a></div>
+</div></section>
+<div class="container">
+<section class="rp-calculo" id="calculo" aria-labelledby="t-calculo">
+<details class="rp-calculo__caixa" id="calculo-caixa">
+<summary class="rp-calculo__resumo">
+<span class="rp-calculo__titulos"><h2 id="t-calculo">Como calculamos</h2>
+<span class="rp-calculo__lead">Banca, convidados e público viram pontos dentro de cada curso, e a nota final é a soma. Os pesos e a regra foram definidos antes da abertura da votação e não mudaram depois.</span></span>
+<span class="rp-calculo__botao" aria-hidden="true"><span class="rp-abrir">Ver explicação +</span><span class="rp-fechar">Fechar −</span></span>
+</summary>
+
+<ol class="rp-passos">
+<li class="rp-passo">
+  <h3>Três fontes de nota</h3>
+  <div class="rp-fontes">
+    <div class="rp-fonte"><p class="rp-fonte__peso">50 pts</p><p class="rp-fonte__nome">Banca técnica</p><p>Professores do curso, ficha impressa, notas de 0 a 10 por critério. A nota do projeto é a média dos critérios de cada ficha e, depois, a média entre os professores.</p></div>
+    <div class="rp-fonte"><p class="rp-fonte__peso">20 pts</p><p class="rp-fonte__nome">Avaliadores convidados</p><p>Profissionais da comunidade, de 0 a 10, em impacto ambiental, impacto social, inovação e sustentabilidade econômica. Mesma regra de média. Avaliaram GTUR e Ensino Médio.</p></div>
+    <div class="rp-fonte"><p class="rp-fonte__peso">30 pts</p><p class="rp-fonte__nome">Público</p><p>Visitantes, com um código único recebido na entrada. Notas de 0 a 5 em impacto social, inovação e impacto ambiental; a nota da avaliação é a média das três. Cada código avalia um projeto uma vez só.</p></div>
+  </div>
+  <p class="rp-nota-lateral">No DSM não houve avaliadores convidados. Lá a banca vale 70 pontos e o público, 30, a regra prevista para esse caso.</p>
+</li>
+
+<li class="rp-passo">
+  <h3>O público entra pela média ajustada</h3>
+  <p>Comparar médias simples favorece quem teve poucas avaliações: duas notas 5 dariam média 5 a um projeto, à frente de outro com 13 avaliações quase todas altas. Por isso usamos a média bayesiana, o mesmo princípio de sites de avaliação. Todo projeto começa com 10 avaliações imaginárias na média do seu curso, e as avaliações reais puxam a nota para o que o público deu.</p>
+  <p class="rp-formula">nota do público = (10 × média do curso + soma das notas do projeto) ÷ (10 + nº de avaliações)</p>
+  <p class="rp-exemplo"><span class="rp-rotulo">Exemplo ilustrativo</span> Curso com média 3,70. Um projeto com 2 avaliações nota 5 fica com (10 × 3,70 + 10) ÷ 12 = <b>3,92</b>, não 5. Com 30 avaliações nota 5, ficaria com 4,68. Quanto mais gente avalia, mais a nota reflete a opinião real.</p>
+</li>
+
+<li class="rp-passo">
+  <h3>Cada nota vira pontos dentro do curso</h3>
+  <p>As fontes usam escalas diferentes (0 a 10 e 0 a 5) e cada banca tem o seu rigor. Para que o peso de cada uma seja o anunciado, a nota é convertida em pontos dentro do curso: a maior nota do curso naquela fonte recebe todos os pontos, a menor recebe zero e as demais ficam na proporção.</p>
+  <p class="rp-formula">pontos = peso × (nota − menor do curso) ÷ (maior do curso − menor do curso)</p>
+  <p>Se todos os projetos do curso têm a mesma nota numa fonte, todos recebem os pontos inteiros dela.</p>
+</li>
+
+<li class="rp-passo">
+  <h3>A nota final é a soma dos pontos</h3>
+  <p class="rp-formula">nota final = pontos da banca + pontos dos convidados + pontos do público</p>
+  <div class="rp-conta-exemplo">
+    <p class="rp-rotulo">A conta do 1º lugar de GTUR · Sabores que Transformam</p>
+    <table>
+      <tbody>
+      <tr><th scope="row">Banca</th><td>nota 9,44 · curso de 8,905 a 9,625</td><td class="rp-num">50 × (9,44 − 8,905) ÷ 0,72 =</td><td class="rp-num">37,15</td></tr>
+      <tr><th scope="row">Convidados</th><td>nota 9,75 · maior do curso</td><td class="rp-num">20 × 1 =</td><td class="rp-num">20,00</td></tr>
+      <tr><th scope="row">Público</th><td>3,82 com 6 avaliações · maior do curso</td><td class="rp-num">30 × 1 =</td><td class="rp-num">30,00</td></tr>
+      <tr class="rp-soma"><th scope="row">Nota final</th><td></td><td></td><td class="rp-num">87,15</td></tr>
+      </tbody>
+    </table>
+  </div>
+</li>
+
+<li class="rp-passo">
+  <h3>Desempate</h3>
+  <p>Com a mesma nota final, fica à frente quem tem a maior nota bruta da banca; depois, a maior nota dos convidados (onde houve convidados); depois, mais avaliações do público. Empate em tudo é anunciado como empate, com a mesma posição para os dois, e a posição seguinte pula: dois projetos em 4º, o próximo é 6º.</p>
+</li>
+</ol>
+
+<div class="rp-limites">
+<h3>O que essa regra implica</h3>
+<ul>
+<li><b>Não há campeão geral.</b> Cada curso foi avaliado por uma banca diferente, com critérios diferentes. Comparar a nota de uma banca com a de outra mediria o rigor dos avaliadores, não a qualidade dos projetos.</li>
+<li><b>Em cursos com poucos projetos, diferenças pequenas valem muitos pontos.</b> No Ensino Médio, as notas da banca foram 8,145, 8,04 e 8,04: uma diferença de cerca de 0,1 entre a maior e a menor separa 50 pontos de zero. A regra é a mesma para todos os cursos e foi fixada antes do evento; por isso a tabela mostra as notas brutas ao lado dos pontos.</li>
+<li><b>Projeto sem nota de uma fonte com peso não entra no ranking.</b> Dar zero puniria o grupo por uma avaliação que não aconteceu.</li>
+<li><b>O voto do público é anônimo.</b> O código de entrada não está ligado a nome, e-mail ou telefone de ninguém.</li>
+</ul>
+</div>
+</details>
+</section>
+
+<div class="rp-alternador">
+  <label for="mostrar-conta"><input type="checkbox" id="mostrar-conta" checked> Mostrar os pontos de cada fonte</label>
+  <p>Banca + convidados + público = nota final.</p>
+</div>
+<section class="rp-curso" id="dsm" aria-labelledby="t-dsm">
+<header class="rp-curso__cab">
+  <p class="rp-curso__sigla">DSM</p>
+  <div class="rp-curso__titulos"><h2 id="t-dsm">Desenvolvimento de Software Multiplataforma</h2><p class="rp-curso__sub">Fatec Olímpia · 1º, 2º e 3º semestres</p></div>
+  <dl class="rp-curso__dados">
+    <div><dt>Projetos classificados</dt><dd>21</dd></div>
+    <div><dt>Avaliações do público</dt><dd>122</dd></div>
+    <div><dt>Média do público no curso</dt><dd>3,90</dd></div>
+  </dl>
+</header>
+<p class="rp-curso__pesos">Banca 70 pts · Público 30 pts</p><p class="rp-curso__nota">Sem avaliadores convidados no DSM nesta edição: banca vale 70 pontos e público, 30.</p>
+<div class="rp-legenda"><dl class="rp-faixas"><p class="rp-rotulo">Menor e maior nota do curso</p><div><dt>Banca · 0 a 10</dt><dd>7,00 <span class="rp-faixa__a">a</span> 10,00</dd></div><div><dt>Público · 0 a 5</dt><dd>3,59 <span class="rp-faixa__a">a</span> 4,22</dd></div></dl><p class="rp-legenda__texto"><b>0 ponto</b> = menor nota do curso naquela fonte, não nota zero. A maior nota leva os pontos inteiros; as demais ficam na proporção.</p></div>
+<div class="rp-tabela-rolagem" role="region" aria-label="Ranking DSM" tabindex="0">
+<table class="rp-ranking">
+<thead><tr>
+<th scope="col" class="rp-pos">Pos.</th><th scope="col">Projeto</th>
+<th scope="col" class="rp-num">Banca<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Convid.<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Público<span class="rp-esc">0–5, ajustada</span></th>
+<th scope="col" class="rp-num rp-conta">Pts banca<span class="rp-esc">de 70</span></th>
+<th scope="col" class="rp-num rp-conta">Pts conv.<span class="rp-esc">—</span></th>
+<th scope="col" class="rp-num rp-conta">Pts público<span class="rp-esc">de 30</span></th>
+<th scope="col" class="rp-num rp-final">Nota final<span class="rp-esc">0–100</span></th>
+</tr></thead>
+<tbody>
+<tr class="rp-primeiro">
+<td class="rp-pos">1º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">RotaSaúde</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">9,80</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">4,16<span class="rp-aval">13 aval.</span></td>
+<td class="rp-num rp-conta">65,33</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">27,35</td>
+<td class="rp-num rp-final">92,68</td>
+</tr><tr>
+<td class="rp-pos">2º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">IdeaFlow</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">4,05<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">21,77</td>
+<td class="rp-num rp-final">91,77</td>
+</tr><tr>
+<td class="rp-pos">3º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">FAROL</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">4,00<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">19,80</td>
+<td class="rp-num rp-final">89,80</td>
+</tr><tr>
+<td class="rp-pos">4º<span class="rp-empate">empate</span></td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Match Point</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,98<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">18,63</td>
+<td class="rp-num rp-final">88,63</td>
+</tr><tr>
+<td class="rp-pos">4º<span class="rp-empate">empate</span></td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">FoodMap</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,98<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">18,63</td>
+<td class="rp-num rp-final">88,63</td>
+</tr><tr>
+<td class="rp-pos">6º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Fokus</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">9,40</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">4,22<span class="rp-aval">4 aval.</span></td>
+<td class="rp-num rp-conta">56,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">30,00</td>
+<td class="rp-num rp-final">86,00</td>
+</tr><tr>
+<td class="rp-pos">7º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">FiadoOrg</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,90<span class="rp-aval">7 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">14,96</td>
+<td class="rp-num rp-final">84,96</td>
+</tr><tr>
+<td class="rp-pos">8º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Aprovação de inspeção - Condumax</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">9,80</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,98<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">65,33</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">18,63</td>
+<td class="rp-num rp-final">83,97</td>
+</tr><tr>
+<td class="rp-pos">9º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Biblioteca Virtual</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,82<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">10,84</td>
+<td class="rp-num rp-final">80,84</td>
+</tr><tr>
+<td class="rp-pos">10º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Sistema de Chamados Italcabos</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">9,80</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,91<span class="rp-aval">4 aval.</span></td>
+<td class="rp-num rp-conta">65,33</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">15,25</td>
+<td class="rp-num rp-final">80,59</td>
+</tr><tr>
+<td class="rp-pos">11º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Geo Solutions</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">9,60</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,98<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">60,67</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">18,63</td>
+<td class="rp-num rp-final">79,30</td>
+</tr><tr>
+<td class="rp-pos">12º<span class="rp-empate">empate</span></td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Projeto SICC</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">9,60</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,93<span class="rp-aval">4 aval.</span></td>
+<td class="rp-num rp-conta">60,67</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">16,35</td>
+<td class="rp-num rp-final">77,01</td>
+</tr><tr>
+<td class="rp-pos">12º<span class="rp-empate">empate</span></td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">C.O.S</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">9,60</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,93<span class="rp-aval">4 aval.</span></td>
+<td class="rp-num rp-conta">60,67</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">16,35</td>
+<td class="rp-num rp-final">77,01</td>
+</tr><tr>
+<td class="rp-pos">14º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">I.O. Intranet Olímpia</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">10,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,71<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">70,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">5,82</td>
+<td class="rp-num rp-final">75,82</td>
+</tr><tr>
+<td class="rp-pos">15º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">GTimePro</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">9,80</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,79<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">65,33</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">9,77</td>
+<td class="rp-num rp-final">75,10</td>
+</tr><tr>
+<td class="rp-pos">16º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">SmartStock</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">9,70</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,71<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">63,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">5,82</td>
+<td class="rp-num rp-final">68,82</td>
+</tr><tr>
+<td class="rp-pos">17º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Orion IA</span><span class="rp-proj__turma">DSM · 2º sem.</span></th>
+<td class="rp-num">8,80</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">4,00<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">42,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">19,75</td>
+<td class="rp-num rp-final">61,75</td>
+</tr><tr>
+<td class="rp-pos">18º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Merenda na Medida</span><span class="rp-proj__turma">DSM · 3º sem.</span></th>
+<td class="rp-num">9,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,78<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">46,67</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">8,87</td>
+<td class="rp-num rp-final">55,54</td>
+</tr><tr>
+<td class="rp-pos">19º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">ANJORA Financeiro</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">9,20</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,59<span class="rp-aval">7 aval.</span></td>
+<td class="rp-num rp-conta">51,33</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-final">51,33</td>
+</tr><tr>
+<td class="rp-pos">20º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">OrganizaRH</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">8,70</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,71<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">39,67</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">5,82</td>
+<td class="rp-num rp-final">45,49</td>
+</tr><tr>
+<td class="rp-pos">21º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Sist. Acompanhamento e Evolução Terapêutica (SistAET)</span><span class="rp-proj__turma">DSM · 1º sem.</span></th>
+<td class="rp-num">7,00</td>
+<td class="rp-num"><span class="rp-nd" title="Sem avaliadores convidados neste curso">—</span></td>
+<td class="rp-num">3,84<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta"><span class="rp-nd">—</span></td>
+<td class="rp-num rp-conta">11,74</td>
+<td class="rp-num rp-final">11,74</td>
+</tr>
+</tbody></table></div>
+
+</section><section class="rp-curso" id="gtur" aria-labelledby="t-gtur">
+<header class="rp-curso__cab">
+  <p class="rp-curso__sigla">GTUR</p>
+  <div class="rp-curso__titulos"><h2 id="t-gtur">Gestão de Turismo</h2><p class="rp-curso__sub">Fatec Olímpia · 3º semestre</p></div>
+  <dl class="rp-curso__dados">
+    <div><dt>Projetos classificados</dt><dd>4</dd></div>
+    <div><dt>Avaliações do público</dt><dd>27</dd></div>
+    <div><dt>Média do público no curso</dt><dd>3,70</dd></div>
+  </dl>
+</header>
+<p class="rp-curso__pesos">Banca 50 pts · Convidados 20 pts · Público 30 pts</p>
+<div class="rp-legenda"><dl class="rp-faixas"><p class="rp-rotulo">Menor e maior nota do curso</p><div><dt>Banca · 0 a 10</dt><dd>8,905 <span class="rp-faixa__a">a</span> 9,625</dd></div><div><dt>Convidados · 0 a 10</dt><dd>8,875 <span class="rp-faixa__a">a</span> 9,75</dd></div><div><dt>Público · 0 a 5</dt><dd>3,67 <span class="rp-faixa__a">a</span> 3,82</dd></div></dl><p class="rp-legenda__texto"><b>0 ponto</b> = menor nota do curso naquela fonte, não nota zero. A maior nota leva os pontos inteiros; as demais ficam na proporção.</p></div>
+<div class="rp-tabela-rolagem" role="region" aria-label="Ranking GTUR" tabindex="0">
+<table class="rp-ranking">
+<thead><tr>
+<th scope="col" class="rp-pos">Pos.</th><th scope="col">Projeto</th>
+<th scope="col" class="rp-num">Banca<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Convid.<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Público<span class="rp-esc">0–5, ajustada</span></th>
+<th scope="col" class="rp-num rp-conta">Pts banca<span class="rp-esc">de 50</span></th>
+<th scope="col" class="rp-num rp-conta">Pts conv.<span class="rp-esc">de 20</span></th>
+<th scope="col" class="rp-num rp-conta">Pts público<span class="rp-esc">de 30</span></th>
+<th scope="col" class="rp-num rp-final">Nota final<span class="rp-esc">0–100</span></th>
+</tr></thead>
+<tbody>
+<tr class="rp-primeiro">
+<td class="rp-pos">1º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Sabores que Transformam (Reaproveitamento)</span><span class="rp-proj__turma">GTUR · 3º sem.</span></th>
+<td class="rp-num">9,44</td>
+<td class="rp-num">9,75</td>
+<td class="rp-num">3,82<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">37,15</td>
+<td class="rp-num rp-conta">20,00</td>
+<td class="rp-num rp-conta">30,00</td>
+<td class="rp-num rp-final">87,15</td>
+</tr><tr>
+<td class="rp-pos">2º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Birdwatching</span><span class="rp-proj__turma">GTUR · 3º sem.</span></th>
+<td class="rp-num">9,625</td>
+<td class="rp-num">8,875</td>
+<td class="rp-num">3,67<span class="rp-aval">6 aval.</span></td>
+<td class="rp-num rp-conta">50,00</td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-final">50,00</td>
+</tr><tr>
+<td class="rp-pos">3º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Natureza em Foco</span><span class="rp-proj__turma">GTUR · 3º sem.</span></th>
+<td class="rp-num">9,385</td>
+<td class="rp-num">9,125</td>
+<td class="rp-num">3,67<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">33,33</td>
+<td class="rp-num rp-conta">5,71</td>
+<td class="rp-num rp-conta">0,12</td>
+<td class="rp-num rp-final">39,17</td>
+</tr><tr>
+<td class="rp-pos">4º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Águas em movimento</span><span class="rp-proj__turma">GTUR · 3º sem.</span></th>
+<td class="rp-num">8,905</td>
+<td class="rp-num">9,438</td>
+<td class="rp-num">3,69<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta">12,86</td>
+<td class="rp-num rp-conta">4,91</td>
+<td class="rp-num rp-final">17,76</td>
+</tr>
+</tbody></table></div>
+<div class="rp-pendente"><p class="rp-rotulo">Fora do ranking</p><p>Sem avaliação da banca nem dos convidados, este projeto não tem nota final. A regra vale para todos: sem nota de uma fonte que tem peso, o projeto não entra na classificação.</p><ul><li>Trilha Interpretativa da Gruta de São José<span class="rp-pendente__cadastro">cadastrado como “Conhecendo as unidades de conservação do Brasil”</span></li></ul></div>
+</section><section class="rp-curso" id="em" aria-labelledby="t-em">
+<header class="rp-curso__cab">
+  <p class="rp-curso__sigla">EM</p>
+  <div class="rp-curso__titulos"><h2 id="t-em">3º ano do Ensino Médio</h2><p class="rp-curso__sub">E.E. Wilquem e E.E. Reis Neves</p></div>
+  <dl class="rp-curso__dados">
+    <div><dt>Projetos classificados</dt><dd>3</dd></div>
+    <div><dt>Avaliações do público</dt><dd>14</dd></div>
+    <div><dt>Média do público no curso</dt><dd>3,41</dd></div>
+  </dl>
+</header>
+<p class="rp-curso__pesos">Banca 50 pts · Convidados 20 pts · Público 30 pts</p>
+<div class="rp-legenda"><dl class="rp-faixas"><p class="rp-rotulo">Menor e maior nota do curso</p><div><dt>Banca · 0 a 10</dt><dd>8,04 <span class="rp-faixa__a">a</span> 8,145</dd></div><div><dt>Convidados · 0 a 10</dt><dd>8,969 <span class="rp-faixa__a">a</span> 9,25</dd></div><div><dt>Público · 0 a 5</dt><dd>3,29 <span class="rp-faixa__a">a</span> 3,55</dd></div></dl><p class="rp-legenda__texto"><b>0 ponto</b> = menor nota do curso naquela fonte, não nota zero. A maior nota leva os pontos inteiros; as demais ficam na proporção.</p></div>
+<div class="rp-tabela-rolagem" role="region" aria-label="Ranking EM" tabindex="0">
+<table class="rp-ranking">
+<thead><tr>
+<th scope="col" class="rp-pos">Pos.</th><th scope="col">Projeto</th>
+<th scope="col" class="rp-num">Banca<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Convid.<span class="rp-esc">0–10</span></th>
+<th scope="col" class="rp-num">Público<span class="rp-esc">0–5, ajustada</span></th>
+<th scope="col" class="rp-num rp-conta">Pts banca<span class="rp-esc">de 50</span></th>
+<th scope="col" class="rp-num rp-conta">Pts conv.<span class="rp-esc">de 20</span></th>
+<th scope="col" class="rp-num rp-conta">Pts público<span class="rp-esc">de 30</span></th>
+<th scope="col" class="rp-num rp-final">Nota final<span class="rp-esc">0–100</span></th>
+</tr></thead>
+<tbody>
+<tr class="rp-primeiro">
+<td class="rp-pos">1º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">ALÉM DOS NÚMEROS</span><span class="rp-proj__turma">E.E. Wilquem</span></th>
+<td class="rp-num">8,145</td>
+<td class="rp-num">8,969</td>
+<td class="rp-num">3,55<span class="rp-aval">4 aval.</span></td>
+<td class="rp-num rp-conta">50,00</td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta">30,00</td>
+<td class="rp-num rp-final">80,00</td>
+</tr><tr>
+<td class="rp-pos">2º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Mesa Posta</span><span class="rp-proj__turma">E.E. Reis Neves</span></th>
+<td class="rp-num">8,04</td>
+<td class="rp-num">9,25</td>
+<td class="rp-num">3,38<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta">20,00</td>
+<td class="rp-num rp-conta">10,04</td>
+<td class="rp-num rp-final">30,04</td>
+</tr><tr>
+<td class="rp-pos">3º</td>
+<th scope="row" class="rp-proj"><span class="rp-proj__nome">Oficina de toalhas</span><span class="rp-proj__turma">E.E. Reis Neves</span></th>
+<td class="rp-num">8,04</td>
+<td class="rp-num">9,00</td>
+<td class="rp-num">3,29<span class="rp-aval">5 aval.</span></td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-conta">2,22</td>
+<td class="rp-num rp-conta">0,00</td>
+<td class="rp-num rp-final">2,22</td>
+</tr>
+</tbody></table></div>
+
+</section>
+</div>
+{% endblock %}
+
+{% block rodape_edicao %}<span>Resultado calculado em 30/10/2026 · fichas conferidas em 05/11/2026</span>{% endblock %}
+
+{% block scripts %}<script src="{% static 'js/resultado.js' %}"></script>{% endblock %}

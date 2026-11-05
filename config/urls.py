@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.urls import include, path
 
 from config.views import saude
+from resultados import publico as resultado_publico
 
 admin.site.site_header = "Vitrine Fatec — administração"
 admin.site.site_title = "Vitrine Fatec"
@@ -18,6 +19,8 @@ urlpatterns = [
     path("", include("vitrine.urls")),
     path("", include("votacao.urls")),
     path("resultados/", include("resultados.urls")),
+    # Resultado divulgado ao público (spec 09); as rotas de cima são só de admin.
+    path("resultado/<int:ano>/", resultado_publico.resultado, name="resultado_publico"),
     path("mapa/", include("mapa.urls")),
 ]
 

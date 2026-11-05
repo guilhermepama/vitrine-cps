@@ -1,0 +1,110 @@
+/* Resultado público da Conexão Fatec (spec 09). Tudo com escopo em .rp e classes rp-*:
+   não toca em nada do base.css. Tokens próprios espelham a identidade da spec 07;
+   as fontes são as @font-face do base.css. Tabelas largas rolam dentro do próprio
+   bloco (.rp-tabela-rolagem), nunca a página. */
+.rp{background:var(--papel);color:var(--tinta);font-family:var(--f-texto);line-height:1.55;--papel:#ECE7DA; --celula:#F5F2EA; --tinta:#121316; --suave:#4F5159; --junta:#C9C2AE;
+  --acento:#B20000; --sobre-acento:#FFFFFF; --destaque-linha:#E3DCCB; --aviso-fundo:#F7E6E1; --aviso-texto:#6E0E0E;
+  --f-display:"Archivo","Arial Narrow",sans-serif; --f-texto:"IBM Plex Sans","Segoe UI",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+  --miolo:1120px; color-scheme:light;}
+.rp h1,.rp h2,.rp h3{font-family:var(--f-display);font-variation-settings:"wdth" 62;font-weight:800;line-height:1;text-wrap:balance;margin:0;overflow-wrap:break-word}
+.rp-rotulo,.rp-sobretitulo,.rp-curso__sigla,.rp-esc,.rp-campeao__curso,.rp dt,.rp-fonte__peso{font-family:var(--f-mono);text-transform:uppercase;letter-spacing:.05em}
+.rp-abertura{border-bottom:2px solid var(--tinta);padding-block:40px 48px}
+.rp-sobretitulo{font-size:.8125rem;color:var(--suave);margin:0 0 12px}
+.rp h1{font-size:clamp(3.5rem,1.5rem + 9vw,8.5rem);text-transform:uppercase;letter-spacing:-.01em}
+.rp-lead{max-width:62ch;font-size:1.125rem;margin:20px 0 32px}
+.rp-campeoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));border:2px solid var(--tinta)}
+.rp-campeao{display:flex;flex-direction:column;gap:6px;padding:20px;text-decoration:none;background:var(--celula);border:1px solid var(--tinta);min-width:0}
+.rp-campeao:hover{background:var(--destaque-linha)}
+.rp-campeao__curso{font-size:.75rem;color:var(--acento);font-weight:500}
+.rp-campeao__nome{font-family:var(--f-display);font-variation-settings:"wdth" 62;font-weight:800;font-size:clamp(1.75rem,1.3rem + 1.4vw,2.5rem);line-height:1;overflow-wrap:break-word;text-transform:uppercase}
+.rp-campeao__turma{color:var(--suave);font-size:.875rem}
+.rp-campeao__nota{margin-top:auto;padding-top:12px;font-family:var(--f-mono);font-size:.8125rem}
+.rp-campeao__nota b{font-family:var(--f-display);font-variation-settings:"wdth" 62;font-size:2rem;font-weight:800;font-variant-numeric:tabular-nums}
+.rp-alternador{display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;padding-block:24px 0;font-size:.9375rem}
+.rp-alternador label{display:flex;align-items:center;gap:10px;font-weight:600;cursor:pointer;min-height:44px}
+.rp-alternador input{width:20px;height:20px;accent-color:var(--acento)}
+.rp-alternador p{margin:0;color:var(--suave)}
+.rp-sem-conta .rp-conta{display:none}
+.rp-curso{padding-block:48px 8px;border-bottom:2px solid var(--tinta)}
+.rp-curso__cab{display:grid;grid-template-columns:auto 1fr;gap:4px 20px;align-items:end}
+.rp-curso__sigla{grid-row:span 2;background:var(--acento);color:var(--sobre-acento);font-size:1rem;font-weight:500;padding:10px 12px;margin:0;align-self:start}
+.rp-curso__titulos{min-width:0}
+.rp-curso h2{font-size:clamp(1.75rem,1rem + 3vw,3.5rem);text-transform:uppercase;hyphens:auto}
+.rp-curso__sub{margin:6px 0 0;color:var(--suave)}
+.rp-curso__dados{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0;margin:20px 0 0;border-top:1px solid var(--tinta)}
+.rp-curso__dados div{padding:10px 24px 0 0}
+.rp dt{font-size:.6875rem;color:var(--suave)}
+.rp dd{margin:0;font-family:var(--f-display);font-variation-settings:"wdth" 62;font-weight:800;font-size:1.75rem;font-variant-numeric:tabular-nums}
+.rp-curso__pesos{font-family:var(--f-mono);font-size:.8125rem;margin:20px 0 4px}
+.rp-curso__nota{font-size:.875rem;color:var(--suave);margin:0 0 4px}
+.rp-tabela-rolagem{overflow-x:auto;margin-top:12px;border:2px solid var(--tinta)}
+.rp-ranking{border-collapse:collapse;width:100%;min-width:40rem;background:var(--celula);font-variant-numeric:tabular-nums}
+.rp-ranking th,.rp-ranking td{padding:10px 12px;border-bottom:1px solid var(--junta);text-align:left;vertical-align:top}
+.rp-ranking thead th{font-size:.8125rem;font-weight:600;border-bottom:2px solid var(--tinta);vertical-align:bottom;background:var(--papel)}
+.rp-esc{display:block;font-size:.625rem;color:var(--suave);font-weight:400;margin-top:2px}
+.rp-ranking .rp-num{text-align:right;white-space:nowrap}
+.rp-ranking td.rp-num{font-family:var(--f-mono);font-size:.9375rem}
+.rp-ranking .rp-conta{color:var(--suave)}
+.rp-ranking thead .rp-conta{color:var(--tinta)}
+.rp-ranking .rp-final{font-weight:600;border-left:2px solid var(--tinta)}
+.rp-ranking td.rp-final{font-family:var(--f-display);font-variation-settings:"wdth" 75;font-weight:800;font-size:1.25rem}
+.rp-ranking .rp-pos{width:4.5rem;font-family:var(--f-display);font-variation-settings:"wdth" 75;font-weight:800;font-size:1.25rem}
+.rp-ranking thead .rp-pos{font-family:var(--f-texto);font-size:.8125rem;font-weight:600}
+.rp-empate{display:block;font-family:var(--f-mono);font-size:.625rem;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--acento)}
+.rp-proj{font-weight:400}
+.rp-proj__nome{display:block;font-weight:600;overflow-wrap:break-word;max-width:28ch}
+.rp-proj__turma{display:block;font-size:.8125rem;color:var(--suave)}
+.rp-aval{display:block;font-size:.6875rem;color:var(--suave)}
+.rp-nd{color:var(--suave)}
+.rp-primeiro{background:var(--destaque-linha)}
+.rp-primeiro .rp-pos{color:var(--acento)}
+.rp-pendente{margin-top:16px;padding:16px;border:2px dashed var(--suave);max-width:70ch}
+.rp-pendente p{margin:0 0 6px}
+.rp-pendente ul{margin:0;padding-left:20px;font-weight:600}
+.rp-rotulo{font-size:.6875rem;color:var(--acento);font-weight:500;margin:0 0 6px;display:block}
+.rp-calculo{padding-block:56px 48px;border-bottom:2px solid var(--tinta)}
+.rp-calculo h2{font-size:clamp(2.5rem,1.2rem + 4vw,4.5rem);text-transform:uppercase}
+.rp-calculo__lead{display:block;max-width:62ch;color:var(--suave);margin-top:12px;font-size:1rem}
+.rp-passos{list-style:none;margin:0;padding:0;counter-reset:passo;display:grid;gap:0}
+.rp-passo{counter-increment:passo;display:grid;grid-template-columns:3.5rem minmax(0,1fr);column-gap:16px;padding-block:28px;border-top:1px solid var(--tinta)}
+.rp-passo::before{content:counter(passo);grid-row:span 20;font-family:var(--f-display);font-variation-settings:"wdth" 62;font-weight:800;font-size:3rem;line-height:.9;color:var(--acento)}
+.rp-passo h3{font-size:1.75rem;text-transform:uppercase;margin-bottom:12px}
+.rp-passo p{max-width:68ch;margin:0 0 12px}
+.rp-fontes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));border:1px solid var(--tinta);margin-bottom:12px}
+.rp-fonte{padding:16px;border:1px solid var(--tinta);background:var(--celula);min-width:0}
+.rp-fonte p{font-size:.9375rem}
+.rp-fonte__peso{font-size:.8125rem;color:var(--acento);font-weight:500;margin:0 0 4px!important}
+.rp-fonte__nome{font-family:var(--f-display);font-variation-settings:"wdth" 75;font-weight:800;font-size:1.25rem!important;text-transform:uppercase;margin:0 0 8px!important}
+.rp-nota-lateral{font-size:.9375rem;color:var(--suave)}
+.rp-formula{font-family:var(--f-mono);font-size:.9375rem;background:var(--celula);border-left:4px solid var(--acento);padding:12px 16px;overflow-wrap:anywhere}
+.rp-exemplo{font-size:.9375rem}
+.rp-conta-exemplo{border:2px solid var(--tinta);background:var(--celula);padding:16px;overflow-x:auto;max-width:760px}
+.rp-conta-exemplo table{border-collapse:collapse;width:100%;min-width:32rem;font-variant-numeric:tabular-nums;font-size:.9375rem}
+.rp-conta-exemplo th,.rp-conta-exemplo td{padding:8px 8px 8px 0;border-bottom:1px solid var(--junta);text-align:left}
+.rp-conta-exemplo .rp-num{text-align:right;font-family:var(--f-mono);white-space:nowrap}
+.rp-conta-exemplo .rp-soma th,.rp-conta-exemplo .rp-soma td{border-bottom:0;border-top:2px solid var(--tinta);font-weight:700}
+.rp-conta-exemplo .rp-soma .rp-num{font-family:var(--f-display);font-variation-settings:"wdth" 75;font-size:1.5rem;font-weight:800}
+.rp-limites{margin-top:8px;padding:24px;background:var(--tinta);color:var(--papel)}
+.rp-limites h3{font-size:1.75rem;text-transform:uppercase;margin-bottom:12px}
+.rp-limites ul{margin:0;padding-left:20px;display:grid;gap:10px;max-width:72ch}
+@media (max-width:560px){
+.rp-passo{grid-template-columns:2.25rem minmax(0,1fr)}
+.rp-passo::before{font-size:2.25rem}
+}
+.rp-legenda{margin-top:12px;border:1px solid var(--tinta);background:var(--celula);padding:12px 16px;display:grid;gap:8px}
+.rp-faixas{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 28px;margin:0}
+.rp-faixas .rp-rotulo{flex-basis:100%;margin:0}
+.rp-faixas dd{font-family:var(--f-mono);font-weight:500;font-size:1rem;font-variation-settings:normal}
+.rp-faixa__a{color:var(--suave);font-weight:400}
+.rp-legenda__texto{margin:0;font-size:.875rem}
+.rp-calculo__resumo{list-style:none;cursor:pointer;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px 24px}
+.rp-calculo__resumo::-webkit-details-marker{display:none}
+.rp-calculo__titulos{min-width:0;flex:1 1 420px}
+.rp-calculo__botao{font-family:var(--f-mono);font-size:.8125rem;text-transform:uppercase;letter-spacing:.05em;background:var(--acento);color:var(--sobre-acento);padding:12px 16px;min-height:44px;display:inline-flex;align-items:center;flex:none}
+.rp-calculo__resumo:hover .rp-calculo__botao{background:var(--tinta)}
+.rp-calculo__caixa .rp-fechar{display:none}
+.rp-calculo__caixa[open] .rp-fechar{display:inline}
+.rp-calculo__caixa[open] .rp-abrir{display:none}
+.rp-calculo__caixa[open] .rp-calculo__resumo{margin-bottom:32px}
+.rp-pendente__cadastro{display:block;font-weight:400;font-size:.875rem;color:var(--suave)}
+.rp-campeao{color:inherit}

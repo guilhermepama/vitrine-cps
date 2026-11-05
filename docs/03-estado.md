@@ -185,3 +185,4 @@ Formato: `- AAAA-MM-DD <nome>: <nota curta>`
 - 2026-10-05 Guilherme: Renan ausente; coordenador fechou votação (ajustes #40–#43) e resultados (#52, #54, #57) e a banca (#51–#58).
 - 2026-10-06 Guilherme: Renan de volta; specs 03, 04 e 06 na `main` com CI verde; pendente a revisão posterior da ADR-010 e o cadastro 3/3.
 - 2026-10-20 Guilherme: a direção renomeou o produto para **Vitrine Fatec** (portal de projetos, eventos e artigos; vitrine da qualidade da Fatec) e a mostra para **Conexão Fatec**. Textos, logo e runbook ajustados; domínio `vitrinefatec.com.br` a registrar. Identificadores internos `vitrine-cps` mantidos.
+- 2026-11-05 Guilherme: spec 09 — resultado público da Conexão Fatec 2026 em /resultado/2026/ (página estática, fichas conferidas em 05/11).
