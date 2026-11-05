@@ -50,6 +50,9 @@ visitantes — tudo em rotas só de admin.
 - Página **pública** de resultado ou divulgação automática: a coordenação
   divulga a partir da página impressa do admin (decisão do coordenador no
   PR #14).
+  **Emenda (05/11/2026):** a página pública do resultado passou a existir
+  na spec 09 (`/resultado/<ano>/`, estática). Esta spec continua só com as
+  rotas de admin.
 - Lançar, editar ou conferir notas da banca, e validar o preenchimento da
   ficha (spec 06).
 - Calcular a nota de banca do projeto a partir das notas cruas: vem
